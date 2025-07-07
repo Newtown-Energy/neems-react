@@ -1,5 +1,6 @@
 import React from 'react';
 import Sidebar from './components/Sidebar/Sidebar';
+import ThemeSwitcher from "./components/Light-Dark/ThemeSwitcher";
 import './styles/App.scss';
 
 const App: React.FC = () => {
@@ -8,6 +9,7 @@ const App: React.FC = () => {
       <Sidebar />
       <div className="overview">
         <header>
+          <ThemeSwitcher />
           <div><span className="avatar">A</span> Admin</div>
         </header>
         <main>
