@@ -23,10 +23,11 @@ be picked off the menu bar across the top of the interface.
 
 I did all of these so you shouldn't have to:
 
-`npm install -D vite`
-`npm install -D @vitejs/plugin-react-swc`
-`npm install -D sass-embedded`
-`npm install -D eslint-plugin-react-x eslint-plugin-react-dom`
+ * `npm install -D vite`
+ * `npm install -D @vitejs/plugin-react-swc`
+ * `npm install -D sass-embedded`
+ * `npm install -D eslint-plugin-react-x eslint-plugin-react-dom`
+ * `npm i -D @types/node`
 
 # Deploy
 
