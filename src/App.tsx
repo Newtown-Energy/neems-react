@@ -7,7 +7,7 @@ const App: React.FC = () => {
   return (
     <div className="body-content">
       <Sidebar />
-      <div className="overview">
+      <div className="main-content">
         <header>
           <ThemeSwitcher />
           <div><span className="avatar">A</span> Admin</div>

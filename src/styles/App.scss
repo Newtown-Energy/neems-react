@@ -8,10 +8,22 @@
   font-family: Arial, Helvetica, sans-serif;
 }
 
+#root {
+  width: 100vw;
+}
+
 .body-content {
   display: flex;
   background-color: var(--bg-secondary);
   height: 100vh;
+}
+
+.main-content {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1 1 0%;
 }
 
 header {
@@ -31,14 +43,6 @@ header {
   border-radius: 50%;
   background-color: var(--accent-secondary);
   color: var(--text-inverse);
-}
-
-.overview {
-  flex-grow: 1;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;      
-  flex: 1 1 0%;      
 }
 
 main {
