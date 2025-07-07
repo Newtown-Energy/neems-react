@@ -34,6 +34,14 @@ const Sidebar: React.FC<SidebarProps> = ({ className = '' }) => {
         <li>
           <i className="bx bxs-car-battery"></i> <span className="label">Bay 2</span>
         </li>
+	<li>
+          <img src="/con-edison.svg" alt="Con Edison" className="sidebar-icon" />
+          <span className="label">Con Edison</span>
+        </li>
+	<li>
+          <img src="/FDNY.svg" alt="FDNY" className="sidebar-icon" />
+          <span className="label">FDNY</span>
+        </li>
       </ul>
       <div className="logout-bar">
         <i className="bx bx-log-out"></i> <span className="label">Logout</span>

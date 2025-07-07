@@ -67,11 +67,19 @@ aside {
         background-color: var(--accent-secondary);
       }
 
-      i {
+      i, img {
         font-size: 1.5rem;
-        min-width: 1.5rem; 
-        text-align: center; 
+        width: 1.5rem;        // Set both width and height for consistency
+        height: 1.5rem;
+        min-width: 1.5rem;     // Prevent shrinking
+        text-align: center;
       }
+
+      img {
+        object-fit: contain;   // Ensures image scales properly
+        filter: var(--icon-filter, none); // Optional: for color adjustment
+      }
+
     }
   }
 
