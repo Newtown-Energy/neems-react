@@ -1,0 +1,120 @@
+aside {
+  width: 15rem;
+  min-width: 4rem;
+  max-width: 18rem;
+  height: 100vh;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  transition: width 0.3s;
+  position: relative;
+  background: #fff;
+  z-index: 2;
+  overflow: hidden;
+  flex-shrink: 0;
+  box-shadow: 2px 0 8px rgba(0,0,0,0.04);
+
+  .logout-bar {
+    margin-top: auto;
+    padding: 1rem;
+    border-top: 1px solid #e6e6e6;
+  }
+
+  &.collapsed {
+    width: 4rem !important;
+    min-width: 4rem !important;
+    max-width: 4rem !important;
+    
+    ul {
+      margin-top: 3rem;
+      
+      li {
+        padding-left: 0.75rem; // or 0.75rem; adjust to taste
+        padding-right: 0;     // optional: keeps icons tight
+      }
+    }
+
+    // Hide aside labels and app name when collapsed
+    .label,
+    .app-name,
+    .logout-bar .label {
+      display: none !important;
+    }
+  }
+
+  ul {
+    padding: 0.5rem;
+    list-style: none;
+    margin-top: 0;
+
+    li {
+      margin: 0.5rem 0;
+      padding: 1rem 1.5rem;
+      display: flex; 
+      align-items: center; 
+      gap: 1rem; 
+      white-space: nowrap; 
+      cursor: pointer; 
+      transition: background 0.2s;
+      overflow: hidden; 
+
+      &.active {
+        border-radius: 0.5rem;
+        color: #e6e6e6;
+        background-color: black;
+      }
+
+      i {
+        font-size: 1.5rem;
+        min-width: 1.5rem; 
+        text-align: center; 
+      }
+    }
+  }
+
+  .app-name {
+    font-size: 1.5rem;
+    font-weight: bold;
+    padding: 1rem;
+    color: #0b5e85;
+    transition: opacity 0.2s; 
+    white-space: nowrap;      
+  }
+
+  .toggle-btn { 
+    position: absolute;
+    top: 1rem;
+    right: 0.5rem;  
+    width: 2.4rem;
+    height: 2.4rem;
+    background-color: #fff;
+    border: 1px solid #e6e6e6;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 1px 4px #0001;
+    cursor: pointer;
+    transition: right 0.3s;
+    z-index: 20;
+  }
+
+  &.collapsed .toggle-btn { 
+    right: 0.5rem; 
+  }
+}
+
+// Responsive behavior
+@media (max-width: 900px) {
+  aside {
+    width: 4rem !important; 
+
+    &:not(.collapsed) {
+      width: 10rem !important; 
+    }
+
+    &.collapsed {
+      width: 4rem !important;
+    }
+  }
+}

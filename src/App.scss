@@ -1,0 +1,133 @@
+@use './components/Sidebar/Sidebar.scss';
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.body-content {
+  display: flex;
+  background-color: #f7f7f7;
+  height: 100vh;
+}
+
+header {
+  padding: 1rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.avatar {
+  font-size: 0.7rem;
+  text-align: center;
+  display: inline-block;
+  width: 1.2rem;
+  height: 1.2rem;
+  line-height: 1.2rem;
+  border-radius: 50%;
+  background-color: #0b5e85;
+  color: #f7f7f7;
+}
+
+.overview {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;      
+  flex: 1 1 0%;      
+}
+
+main {
+  background-color: #e6e6e6;
+  border-top-left-radius: 2rem;
+  padding: 2rem;
+  flex-grow: 1;
+}
+
+h2 {
+  margin-bottom: 2rem;
+}
+
+.grid-stack-item-content {
+  cursor: grab;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  background-color: #f7f7f7;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  box-shadow:
+    0 1px 3px #0000001f,
+    0 1px 2px #0000003d;
+}
+
+.revenue {
+  color: #fbfbff;
+  background-color: #1023cc;
+}
+
+.customer-overview {
+  color: #660f7c;
+}
+
+.growth {
+  background-color: #e3eeea;
+  color: #008000;
+}
+
+.description {
+  text-align: center;
+  margin: 1rem 0 0.3rem;
+}
+
+.metric-value {
+  font-size: 2.2rem;
+  text-align: center;
+
+  &.profit i {
+    color: #008000;
+  }
+}
+
+.transactions-overview {
+  color: #660f7c;
+}
+
+table {
+  margin: 1rem 0;
+  width: 100%;
+  border-collapse: collapse;
+
+  th,
+  td {
+    padding: 0.4rem 0;
+    border-bottom: 1px solid #e6e6e6;
+  }
+
+  tr:nth-child(even) {
+    background-color: #eeeef7;
+  }
+
+  thead th {
+    font-weight: normal;
+    text-align: left;
+  }
+}
+
+.top-customers {
+  ul {
+    list-style: none;
+
+    li {
+      text-align: center;
+      margin: 0.2rem 0;
+
+      i {
+        color: #daa520;
+      }
+    }
+  }
+}
+
