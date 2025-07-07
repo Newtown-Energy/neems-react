@@ -1,4 +1,15 @@
-# React + TypeScript + Vite
+# NEEMS React
+
+# Development
+
+NEEMS EMS has a front end (this repo) and a back end (NEEMS Core).
+For convenience, you can run this front end with `npm run dev`.  That
+server can redirect API calls to the NEEMS Core backend by redirecting
+any `/api` route.  By default, npm will redirect to
+`http://127.0.0.1:8000` but you can set NEEMS_CORE_SERVER in your
+environment to change that.
+
+# Stock Vite README
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
