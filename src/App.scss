@@ -1,3 +1,5 @@
+@use './components/Sidebar/Sidebar.scss';
+
 * {
   margin: 0;
   padding: 0;
@@ -10,8 +12,6 @@
   background-color: #f7f7f7;
   height: 100vh;
 }
-
-@import './components/Sidebar/Sidebar.scss';
 
 header {
   padding: 1rem;
