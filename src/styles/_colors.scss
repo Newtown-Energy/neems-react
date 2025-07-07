@@ -17,6 +17,8 @@ $light-accent-secondary: #0b5e85;
 $light-success: #008000;
 $light-border: #e6e6e6;
 
+$light-text-inverse: #000000; // black for light mode
+
 // Dark theme colors
 $dark-bg-primary: #242424;
 $dark-bg-secondary: #1a1a1a;
@@ -32,6 +34,8 @@ $dark-accent-primary: #9f4fb8;
 $dark-accent-secondary: #4a9bd1;
 $dark-success: #4caf50;
 $dark-border: #444444;
+
+$dark-text-inverse: #ffffff; // white for dark mode
 
 // Theme-aware color variables
 // These will be set dynamically based on the current theme
