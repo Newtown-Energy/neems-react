@@ -4,8 +4,22 @@
   font-weight: 400;
 
   color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  
+  /* Light theme colors (default) */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f7f7f7;
+  --bg-tertiary: #e6e6e6;
+  --bg-accent: #fbfbff;
+  
+  --text-primary: #000000;
+  --text-secondary: #333333;
+  --text-muted: #666666;
+  --text-inverse: #ffffff;
+  
+  --accent-primary: #660f7c;
+  --accent-secondary: #0b5e85;
+  --success: #008000;
+  --border: #e6e6e6;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -54,11 +68,27 @@ button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
 }
 
-@media (prefers-color-scheme: light) {
+/* Dark theme colors */
+@media (prefers-color-scheme: dark) {
   :root {
-    color: #213547;
-    background-color: #ffffff;
+    --bg-primary: #242424;
+    --bg-secondary: #1a1a1a;
+    --bg-tertiary: #333333;
+    --bg-accent: #2d2d2d;
+    
+    --text-primary: #ffffff;
+    --text-secondary: #e6e6e6;
+    --text-muted: #cccccc;
+    --text-inverse: #000000;
+    
+    --accent-primary: #9f4fb8;
+    --accent-secondary: #4a9bd1;
+    --success: #4caf50;
+    --border: #444444;
   }
+}
+
+@media (prefers-color-scheme: light) {
   a:hover {
     color: #747bff;
   }

@@ -1,6 +1,6 @@
 import React from 'react';
 import Sidebar from './components/Sidebar/Sidebar';
-import './App.scss';
+import './styles/App.scss';
 
 const App: React.FC = () => {
   return (

@@ -1,3 +1,5 @@
+@use '../../styles/colors' as colors;
+
 aside {
   width: 15rem;
   min-width: 4rem;
@@ -8,7 +10,8 @@ aside {
   flex-direction: column;
   transition: width 0.3s;
   position: relative;
-  background: #fff;
+  background: var(--bg-primary);
+  color: var(--text-primary);
   z-index: 2;
   overflow: hidden;
   flex-shrink: 0;
@@ -17,7 +20,7 @@ aside {
   .logout-bar {
     margin-top: auto;
     padding: 1rem;
-    border-top: 1px solid #e6e6e6;
+    border-top: 1px solid var(--border);
   }
 
   &.collapsed {
@@ -60,8 +63,8 @@ aside {
 
       &.active {
         border-radius: 0.5rem;
-        color: #e6e6e6;
-        background-color: black;
+        color: var(--text-inverse);
+        background-color: var(--accent-secondary);
       }
 
       i {
@@ -76,7 +79,7 @@ aside {
     font-size: 1.5rem;
     font-weight: bold;
     padding: 1rem;
-    color: #0b5e85;
+    color: var(--accent-secondary);
     transition: opacity 0.2s; 
     white-space: nowrap;      
   }
@@ -87,8 +90,8 @@ aside {
     right: 0.5rem;  
     width: 2.4rem;
     height: 2.4rem;
-    background-color: #fff;
-    border: 1px solid #e6e6e6;
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border);
     border-radius: 50%;
     display: flex;
     align-items: center;

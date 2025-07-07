@@ -1,0 +1,104 @@
+// Color variables for light and dark themes
+// Usage: Use these variables throughout your SCSS files instead of hardcoded colors
+
+// Light theme colors
+$light-bg-primary: #ffffff;
+$light-bg-secondary: #f7f7f7;
+$light-bg-tertiary: #e6e6e6;
+$light-bg-accent: #fbfbff;
+
+$light-text-primary: #000000;
+$light-text-secondary: #333333;
+$light-text-muted: #666666;
+$light-text-inverse: #ffffff;
+
+$light-accent-primary: #660f7c;
+$light-accent-secondary: #0b5e85;
+$light-success: #008000;
+$light-border: #e6e6e6;
+
+// Dark theme colors
+$dark-bg-primary: #242424;
+$dark-bg-secondary: #1a1a1a;
+$dark-bg-tertiary: #333333;
+$dark-bg-accent: #2d2d2d;
+
+$dark-text-primary: #ffffff;
+$dark-text-secondary: #e6e6e6;
+$dark-text-muted: #cccccc;
+$dark-text-inverse: #000000;
+
+$dark-accent-primary: #9f4fb8;
+$dark-accent-secondary: #4a9bd1;
+$dark-success: #4caf50;
+$dark-border: #444444;
+
+// Theme-aware color variables
+// These will be set dynamically based on the current theme
+$bg-primary: $light-bg-primary;
+$bg-secondary: $light-bg-secondary;
+$bg-tertiary: $light-bg-tertiary;
+$bg-accent: $light-bg-accent;
+
+$text-primary: $light-text-primary;
+$text-secondary: $light-text-secondary;
+$text-muted: $light-text-muted;
+$text-inverse: $light-text-inverse;
+
+$accent-primary: $light-accent-primary;
+$accent-secondary: $light-accent-secondary;
+$success: $light-success;
+$border: $light-border;
+
+// Mixin for dark theme
+@mixin dark-theme {
+  $bg-primary: $dark-bg-primary !global;
+  $bg-secondary: $dark-bg-secondary !global;
+  $bg-tertiary: $dark-bg-tertiary !global;
+  $bg-accent: $dark-bg-accent !global;
+  
+  $text-primary: $dark-text-primary !global;
+  $text-secondary: $dark-text-secondary !global;
+  $text-muted: $dark-text-muted !global;
+  $text-inverse: $dark-text-inverse !global;
+  
+  $accent-primary: $dark-accent-primary !global;
+  $accent-secondary: $dark-accent-secondary !global;
+  $success: $dark-success !global;
+  $border: $dark-border !global;
+}
+
+// CSS custom properties for dynamic theme switching
+:root {
+  --bg-primary: #{$light-bg-primary};
+  --bg-secondary: #{$light-bg-secondary};
+  --bg-tertiary: #{$light-bg-tertiary};
+  --bg-accent: #{$light-bg-accent};
+  
+  --text-primary: #{$light-text-primary};
+  --text-secondary: #{$light-text-secondary};
+  --text-muted: #{$light-text-muted};
+  --text-inverse: #{$light-text-inverse};
+  
+  --accent-primary: #{$light-accent-primary};
+  --accent-secondary: #{$light-accent-secondary};
+  --success: #{$light-success};
+  --border: #{$light-border};
+}
+
+  :root[data-theme="dark"] {
+    --bg-primary: #{$dark-bg-primary};
+    --bg-secondary: #{$dark-bg-secondary};
+    --bg-tertiary: #{$dark-bg-tertiary};
+    --bg-accent: #{$dark-bg-accent};
+    
+    --text-primary: #{$dark-text-primary};
+    --text-secondary: #{$dark-text-secondary};
+    --text-muted: #{$dark-text-muted};
+    --text-inverse: #{$dark-text-inverse};
+    
+    --accent-primary: #{$dark-accent-primary};
+    --accent-secondary: #{$dark-accent-secondary};
+    --success: #{$dark-success};
+    --border: #{$dark-border};
+  }

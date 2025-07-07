@@ -1,4 +1,5 @@
-@use './components/Sidebar/Sidebar.scss';
+@use '../components/Sidebar/Sidebar.scss';
+@use './colors' as colors;
 
 * {
   margin: 0;
@@ -9,7 +10,7 @@
 
 .body-content {
   display: flex;
-  background-color: #f7f7f7;
+  background-color: var(--bg-secondary);
   height: 100vh;
 }
 
@@ -27,8 +28,8 @@ header {
   height: 1.2rem;
   line-height: 1.2rem;
   border-radius: 50%;
-  background-color: #0b5e85;
-  color: #f7f7f7;
+  background-color: var(--accent-secondary);
+  color: var(--text-inverse);
 }
 
 .overview {
@@ -40,7 +41,7 @@ header {
 }
 
 main {
-  background-color: #e6e6e6;
+  background-color: var(--bg-tertiary);
   border-top-left-radius: 2rem;
   padding: 2rem;
   flex-grow: 1;
@@ -55,7 +56,8 @@ h2 {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  background-color: #f7f7f7;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
   border-radius: 0.5rem;
   padding: 1rem;
   box-shadow:
@@ -64,17 +66,17 @@ h2 {
 }
 
 .revenue {
-  color: #fbfbff;
+  color: var(--text-inverse);
   background-color: #1023cc;
 }
 
 .customer-overview {
-  color: #660f7c;
+  color: var(--accent-primary);
 }
 
 .growth {
   background-color: #e3eeea;
-  color: #008000;
+  color: var(--success);
 }
 
 .description {
@@ -87,12 +89,12 @@ h2 {
   text-align: center;
 
   &.profit i {
-    color: #008000;
+    color: var(--success);
   }
 }
 
 .transactions-overview {
-  color: #660f7c;
+  color: var(--accent-primary);
 }
 
 table {
@@ -103,11 +105,11 @@ table {
   th,
   td {
     padding: 0.4rem 0;
-    border-bottom: 1px solid #e6e6e6;
+    border-bottom: 1px solid var(--border);
   }
 
   tr:nth-child(even) {
-    background-color: #eeeef7;
+    background-color: var(--bg-accent);
   }
 
   thead th {
