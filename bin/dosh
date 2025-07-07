@@ -14,6 +14,12 @@ build() {
     npm run build
 }
 
+watch() {
+    npm run build
+    echo "Watching index.html and src/ for changes..."
+    inotify-hookable -w src -w index.html -c "echo 'Changes detected, rebuilding...' && ./bin/dosh build"
+}
+
 "$@" # <- execute the task
 [ "$#" -gt 0 ] || printf "Usage:\n\t./${SCRIPTNAME} %s\n" "($(compgen -A function | grep '^[^_]' | paste -sd '|' -))"
 
