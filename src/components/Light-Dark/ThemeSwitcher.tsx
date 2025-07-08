@@ -8,8 +8,12 @@ const ThemeSwitcher: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
 
   return (
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-      <LightMode sx={{ color: theme === 'light' ? 'primary.main' : 'text.secondary' }} />
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+      <LightMode sx={{
+      		 color: theme === 'light' ? 'primary.main' : 'text.secondary',
+		 margin: '-8px',
+      		 fontSize: '20px'
+      }} />
       <Switch
         checked={theme === 'dark'}
         onChange={toggleTheme}
@@ -21,9 +25,16 @@ const ThemeSwitcher: React.FC = () => {
           '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
             backgroundColor: 'primary.main',
           },
+	  padding: '8px',
+	  margin: '0px',
         }}
       />
-      <DarkMode sx={{ color: theme === 'dark' ? 'primary.main' : 'text.secondary' }} />
+      <DarkMode sx={{
+      		color: theme === 'dark' ? 'primary.main' : 'text.secondary',
+		margin: '-8px',
+		marginRight: '10px',
+      		fontSize: '20px'
+      }} />
     </Box>
   );
 };
