@@ -27,7 +27,8 @@ I did all of these so you shouldn't have to:
  * `npm install -D @vitejs/plugin-react-swc`
  * `npm install -D sass-embedded`
  * `npm install -D eslint-plugin-react-x eslint-plugin-react-dom`
- * `npm i -D @types/node`
+ * `npm install -D @types/node`
+ * `npm install @mui/material @emotion/react @emotion/styled @mui/icons-material`
 
 # Run and Deploy
 
