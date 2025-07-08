@@ -1,23 +1,35 @@
 import React, { useState, useEffect } from 'react';
-import { Drawer, List, ListItem, ListItemIcon, ListItemText, IconButton, Typography, Box, Divider } from '@mui/material';
+import { Drawer, List, Typography, Box, Divider, IconButton } from '@mui/material';
 import { Dashboard, BatteryFull, ChevronLeft, ChevronRight, Logout } from '@mui/icons-material';
+import { SidebarItem } from './SidebarItem';
 
 interface SidebarProps {
   className?: string;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ className = '' }) => {
+const Sidebar: React.FC<SidebarProps> = () => { // Removed unused className
   const [collapsed, setCollapsed] = useState(false);
+  const [selectedItem, setSelectedItem] = useState('overview');
+
+  // Navigation items with required icons
+  const navItems = [
+    { id: 'overview', icon: Dashboard, text: 'Overview' },
+    { id: 'bay1', icon: BatteryFull, text: 'Bay 1' },
+    { id: 'bay2', icon: BatteryFull, text: 'Bay 2' },
+    { id: 'conedison', icon: BatteryFull, iconImage: '/con-edison.svg', text: 'Con Edison' },
+    { id: 'fdny', icon: BatteryFull, iconImage: '/FDNY.svg', text: 'FDNY' }
+  ];
+
+  const bottomItems = [
+    { id: 'logout', icon: Logout, text: 'Logout' }
+  ];
 
   useEffect(() => {
-    // Collapse sidebar by default on mobile
-    if (window.innerWidth < 900) {
-      setCollapsed(true);
-    }
+    if (window.innerWidth < 900) setCollapsed(true);
   }, []);
 
-  const toggleSidebar = () => {
-    setCollapsed(!collapsed);
+  const handleItemClick = (id: string) => {
+    setSelectedItem(id);
   };
 
   return (
@@ -30,9 +42,10 @@ const Sidebar: React.FC<SidebarProps> = ({ className = '' }) => {
           width: collapsed ? 72 : 240,
           boxSizing: 'border-box',
           transition: 'width 0.3s ease',
+          backgroundColor: 'background.paper',
+          color: 'text.primary',
         },
       }}
-      className={className}
     >
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', p: 2 }}>
         {!collapsed && (
@@ -40,7 +53,7 @@ const Sidebar: React.FC<SidebarProps> = ({ className = '' }) => {
             NEEMS
           </Typography>
         )}
-        <IconButton onClick={toggleSidebar} size="small">
+        <IconButton onClick={() => setCollapsed(!collapsed)} size="small">
           {collapsed ? <ChevronRight /> : <ChevronLeft />}
         </IconButton>
       </Box>
@@ -48,58 +61,32 @@ const Sidebar: React.FC<SidebarProps> = ({ className = '' }) => {
       <Divider />
       
       <List sx={{ flex: 1 }}>
-        <ListItem
-          component="button"
-          sx={{
-            backgroundColor: 'primary.main',
-            color: 'primary.contrastText',
-            '&:hover': { backgroundColor: 'primary.dark' },
-          }}
-        >
-          <ListItemIcon sx={{ color: 'inherit' }}>
-            <Dashboard />
-          </ListItemIcon>
-          {!collapsed && <ListItemText primary="Overview" />}
-        </ListItem>
-        
-        <ListItem component="button">
-          <ListItemIcon>
-            <BatteryFull />
-          </ListItemIcon>
-          {!collapsed && <ListItemText primary="Bay 1" />}
-        </ListItem>
-        
-        <ListItem component="button">
-          <ListItemIcon>
-            <BatteryFull />
-          </ListItemIcon>
-          {!collapsed && <ListItemText primary="Bay 2" />}
-        </ListItem>
-        
-        <ListItem component="button">
-          <ListItemIcon>
-            <Box component="img" src="/con-edison.svg" alt="Con Edison" sx={{ width: 24, height: 24 }} />
-          </ListItemIcon>
-          {!collapsed && <ListItemText primary="Con Edison" />}
-        </ListItem>
-        
-        <ListItem component="button">
-          <ListItemIcon>
-            <Box component="img" src="/FDNY.svg" alt="FDNY" sx={{ width: 24, height: 24 }} />
-          </ListItemIcon>
-          {!collapsed && <ListItemText primary="FDNY" />}
-        </ListItem>
+        {navItems.map((item) => (
+          <SidebarItem
+            key={item.id}
+            icon={item.icon}
+            iconImage={item.iconImage}
+            text={item.text}
+            collapsed={collapsed}
+            selected={selectedItem === item.id}
+            onClick={() => handleItemClick(item.id)}
+          />
+        ))}
       </List>
       
       <Divider />
       
       <List>
-        <ListItem component="button">
-          <ListItemIcon>
-            <Logout />
-          </ListItemIcon>
-          {!collapsed && <ListItemText primary="Logout" />}
-        </ListItem>
+        {bottomItems.map((item) => (
+          <SidebarItem
+            key={item.id}
+            icon={item.icon}
+            text={item.text}
+            collapsed={collapsed}
+            selected={selectedItem === item.id}
+            onClick={() => handleItemClick(item.id)}
+          />
+        ))}
       </List>
     </Drawer>
   );
