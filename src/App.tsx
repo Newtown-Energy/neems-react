@@ -1,139 +1,155 @@
 import React from 'react';
+import { Box, Typography, Card, CardContent, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, List, ListItem, ListItemText, ListItemIcon, Avatar, AppBar, Toolbar } from '@mui/material';
+import { TrendingDown, CheckCircle } from '@mui/icons-material';
 import Sidebar from './components/Sidebar/Sidebar';
 import ThemeSwitcher from "./components/Light-Dark/ThemeSwitcher";
 import './styles/App.scss';
 
 const App: React.FC = () => {
   return (
-    <div className="body-content">
+    <Box sx={{ display: 'flex', height: '100vh' }}>
       <Sidebar />
-      <div className="main-content">
-        <header>
-          <ThemeSwitcher />
-          <div><span className="avatar">A</span> Admin</div>
-        </header>
-        <main>
-          <h2>Overview</h2>
-          <div className="grid-stack">
-            <div
-              className="grid-stack-item"
-              data-gs-x="0"
-              data-gs-y="0"
-              data-gs-w="4"
-              data-gs-min-w="2"
-            >
-              <div className="grid-stack-item-content revenue">
-                <p className="description">Monthly flibbers</p>
-                <p className="metric-value">1,018</p>
-              </div>
-            </div>
-            <div
-              className="grid-stack-item"
-              data-gs-x="4"
-              data-gs-y="0"
-              data-gs-w="4"
-              data-gs-min-w="2"
-            >
-              <div className="grid-stack-item-content customer-overview">
-                <p className="description">Total Whatchamacallits</p>
-                <p className="metric-value">5,133</p>
-              </div>
-            </div>
-            <div
-              className="grid-stack-item"
-              data-gs-x="8"
-              data-gs-y="0"
-              data-gs-w="4"
-              data-gs-min-w="2"
-            >
-              <div className="grid-stack-item-content growth">
-                <p className="description">TSLA share price </p>
-                <p className="metric-value profit">
-                  <i className="bx bxs-down-arrow-circle"></i> 22.8%
-                </p>
-              </div>
-            </div>
-            <div
-              className="grid-stack-item"
-              data-gs-x="0"
-              data-gs-y="1"
-              data-gs-w="7"
-              data-gs-h="2"
-              data-gs-min-w="5"
-              data-gs-min-h="2"
-            >
-              <div className="grid-stack-item-content transactions-overview">
-                <p className="description">Latest Alarms</p>
-                <table className="transaction-table">
-                  <thead>
-                    <tr>
-                      <th>Issue</th>
-                      <th>Magnitude</th>
-                      <th>Status</th>
-                      <th>Timestamp</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td>Sensor 1 over temp</td>
-                      <td>165&deg;F</td>
-                      <td>Alerted via email</td>
-                      <td>2025-04-08 12:04:00 UTC-4</td>
-                    </tr>
-                    <tr>
-                      <td>Sensor 1 over temp</td>
-                      <td>158&deg;F</td>
-                      <td>Alerted via email</td>
-                      <td>2025-04-08 12:03:00 UTC-4</td>
-                    </tr>
-                    <tr>
-                      <td>Sensor 1 over temp</td>
-                      <td>153&deg;F</td>
-                      <td>Alerted via email</td>
-                      <td>2025-04-08 12:02:00 UTC-4</td>
-                    </tr>
-                    <tr>
-                      <td>Sensor 1 over temp</td>
-                      <td>151&deg;F</td>
-                      <td>Alerted via email</td>
-                      <td>2025-04-08 12:01:00 UTC-4</td>
-                    </tr>
-                    <tr>
-                      <td>Sensor 1 over temp</td>
-                      <td>150&deg;F</td>
-                      <td>Alerted via email</td>
-                      <td>2025-04-08 12:00:00 UTC-4</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-            <div
-              className="grid-stack-item"
-              data-gs-x="7"
-              data-gs-y="1"
-              data-gs-w="5"
-              data-gs-min-w="2"
-            >
-              <div className="grid-stack-item-content top-customers">
-                <p className="description">System Maintenance Checklist</p>
-                <ul className="customers">
-                  <li className="customer">
-                    Upgrades <i className="bx bxs-badge-check"></i>
-                  </li>
-                  <li className="customer">
-                    Patches <i className="bx bxs-badge-check"></i>
-                  </li>
-                  <li className="customer">
-                    Backup <i className="bx bxs-badge-check"></i>
-                  </li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </main>
-      </div>
-    </div>
+      <Box component="main" sx={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+        <AppBar position="static" color="default" elevation={1}>
+          <Toolbar sx={{ justifyContent: 'space-between' }}>
+            <Box></Box>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <ThemeSwitcher />
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Avatar sx={{ width: 32, height: 32 }}>A</Avatar>
+                <Typography variant="body1">Admin</Typography>
+              </Box>
+            </Box>
+          </Toolbar>
+        </AppBar>
+        
+        <Box sx={{ flex: 1, p: 3 }}>
+          <Typography variant="h2" gutterBottom>
+            Overview
+          </Typography>
+          
+          <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 3, mb: 3 }}>
+            <Card>
+              <CardContent>
+                <Typography variant="body2" color="text.secondary">
+                  Monthly flibbers
+                </Typography>
+                <Typography variant="h4" component="div">
+                  1,018
+                </Typography>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent>
+                <Typography variant="body2" color="text.secondary">
+                  Total Whatchamacallits
+                </Typography>
+                <Typography variant="h4" component="div">
+                  5,133
+                </Typography>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent>
+                <Typography variant="body2" color="text.secondary">
+                  TSLA share price
+                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <TrendingDown color="error" />
+                  <Typography variant="h4" component="div" color="error">
+                    22.8%
+                  </Typography>
+                </Box>
+              </CardContent>
+            </Card>
+          </Box>
+          
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '2fr 1fr' }, gap: 3 }}>
+            <Card>
+              <CardContent>
+                <Typography variant="h6" gutterBottom>
+                  Latest Alarms
+                </Typography>
+                <TableContainer>
+                  <Table>
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Issue</TableCell>
+                        <TableCell>Magnitude</TableCell>
+                        <TableCell>Status</TableCell>
+                        <TableCell>Timestamp</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      <TableRow>
+                        <TableCell>Sensor 1 over temp</TableCell>
+                        <TableCell>165°F</TableCell>
+                        <TableCell>Alerted via email</TableCell>
+                        <TableCell>2025-04-08 12:04:00 UTC-4</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>Sensor 1 over temp</TableCell>
+                        <TableCell>158°F</TableCell>
+                        <TableCell>Alerted via email</TableCell>
+                        <TableCell>2025-04-08 12:03:00 UTC-4</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>Sensor 1 over temp</TableCell>
+                        <TableCell>153°F</TableCell>
+                        <TableCell>Alerted via email</TableCell>
+                        <TableCell>2025-04-08 12:02:00 UTC-4</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>Sensor 1 over temp</TableCell>
+                        <TableCell>151°F</TableCell>
+                        <TableCell>Alerted via email</TableCell>
+                        <TableCell>2025-04-08 12:01:00 UTC-4</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>Sensor 1 over temp</TableCell>
+                        <TableCell>150°F</TableCell>
+                        <TableCell>Alerted via email</TableCell>
+                        <TableCell>2025-04-08 12:00:00 UTC-4</TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent>
+                <Typography variant="h6" gutterBottom>
+                  System Maintenance Checklist
+                </Typography>
+                <List>
+                  <ListItem>
+                    <ListItemIcon>
+                      <CheckCircle color="success" />
+                    </ListItemIcon>
+                    <ListItemText primary="Upgrades" />
+                  </ListItem>
+                  <ListItem>
+                    <ListItemIcon>
+                      <CheckCircle color="success" />
+                    </ListItemIcon>
+                    <ListItemText primary="Patches" />
+                  </ListItem>
+                  <ListItem>
+                    <ListItemIcon>
+                      <CheckCircle color="success" />
+                    </ListItemIcon>
+                    <ListItemText primary="Backup" />
+                  </ListItem>
+                </List>
+              </CardContent>
+            </Card>
+          </Box>
+        </Box>
+      </Box>
+    </Box>
   );
 };
 

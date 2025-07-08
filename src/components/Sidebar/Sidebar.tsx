@@ -1,52 +1,94 @@
 import React, { useState, useEffect } from 'react';
+import { Drawer, List, Typography, Box, Divider, IconButton } from '@mui/material';
+import { Dashboard, BatteryFull, ChevronLeft, ChevronRight, Logout } from '@mui/icons-material';
+import { SidebarItem } from './SidebarItem';
 
 interface SidebarProps {
   className?: string;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ className = '' }) => {
+const Sidebar: React.FC<SidebarProps> = () => { // Removed unused className
   const [collapsed, setCollapsed] = useState(false);
+  const [selectedItem, setSelectedItem] = useState('overview');
+
+  // Navigation items with required icons
+  const navItems = [
+    { id: 'overview', icon: Dashboard, text: 'Overview' },
+    { id: 'bay1', icon: BatteryFull, text: 'Bay 1' },
+    { id: 'bay2', icon: BatteryFull, text: 'Bay 2' },
+    { id: 'conedison', icon: BatteryFull, iconImage: '/con-edison.svg', text: 'Con Edison' },
+    { id: 'fdny', icon: BatteryFull, iconImage: '/FDNY.svg', text: 'FDNY' }
+  ];
+
+  const bottomItems = [
+    { id: 'logout', icon: Logout, text: 'Logout' }
+  ];
 
   useEffect(() => {
-    // Collapse sidebar by default on mobile
-    if (window.innerWidth < 900) {
-      setCollapsed(true);
-    }
+    if (window.innerWidth < 900) setCollapsed(true);
   }, []);
 
-  const toggleSidebar = () => {
-    setCollapsed(!collapsed);
+  const handleItemClick = (id: string) => {
+    setSelectedItem(id);
   };
 
   return (
-    <aside id="sidebar" className={`${collapsed ? 'collapsed' : ''} ${className}`}>
-      <div className="toggle-btn" id="sidebar-toggle" title="Expand/Collapse" onClick={toggleSidebar}>
-        <i className={`bx ${collapsed ? 'bx-chevron-right' : 'bx-chevron-left'}`}></i>
-      </div>
-      <h1 className="app-name">NEEMS</h1>
-      <ul>
-        <li className="active">
-          <i className="bx bxs-dashboard active"></i> <span className="label">Overview</span>
-        </li>
-        <li>
-          <i className="bx bxs-car-battery"></i> <span className="label">Bay 1</span>
-        </li>
-        <li>
-          <i className="bx bxs-car-battery"></i> <span className="label">Bay 2</span>
-        </li>
-	<li>
-          <img src="/con-edison.svg" alt="Con Edison" className="sidebar-icon" />
-          <span className="label">Con Edison</span>
-        </li>
-	<li>
-          <img src="/FDNY.svg" alt="FDNY" className="sidebar-icon" />
-          <span className="label">FDNY</span>
-        </li>
-      </ul>
-      <div className="logout-bar">
-        <i className="bx bx-log-out"></i> <span className="label">Logout</span>
-      </div>
-    </aside>
+    <Drawer
+      variant="permanent"
+      sx={{
+        width: collapsed ? 72 : 240,
+        flexShrink: 0,
+        '& .MuiDrawer-paper': {
+          width: collapsed ? 72 : 240,
+          boxSizing: 'border-box',
+          transition: 'width 0.3s ease',
+          backgroundColor: 'background.paper',
+          color: 'text.primary',
+        },
+      }}
+    >
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', p: 2 }}>
+        {!collapsed && (
+          <Typography variant="h6" component="h1" sx={{ fontWeight: 'bold' }}>
+            NEEMS
+          </Typography>
+        )}
+        <IconButton onClick={() => setCollapsed(!collapsed)} size="small">
+          {collapsed ? <ChevronRight /> : <ChevronLeft />}
+        </IconButton>
+      </Box>
+      
+      <Divider />
+      
+      <List sx={{ flex: 1 }}>
+        {navItems.map((item) => (
+          <SidebarItem
+            key={item.id}
+            icon={item.icon}
+            iconImage={item.iconImage}
+            text={item.text}
+            collapsed={collapsed}
+            selected={selectedItem === item.id}
+            onClick={() => handleItemClick(item.id)}
+          />
+        ))}
+      </List>
+      
+      <Divider />
+      
+      <List>
+        {bottomItems.map((item) => (
+          <SidebarItem
+            key={item.id}
+            icon={item.icon}
+            text={item.text}
+            collapsed={collapsed}
+            selected={selectedItem === item.id}
+            onClick={() => handleItemClick(item.id)}
+          />
+        ))}
+      </List>
+    </Drawer>
   );
 };
 
