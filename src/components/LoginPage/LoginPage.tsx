@@ -13,11 +13,15 @@ const LoginPage: React.FC<Props> = ({ onLoginSuccess }) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
+
+    const requestBody = { email, password };
+    console.log("Sending login request with body:", requestBody);
+
     const res = await fetch("/api/1/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify(requestBody),
     });
     setLoading(false);
     if (res.ok) {
@@ -31,7 +35,7 @@ const LoginPage: React.FC<Props> = ({ onLoginSuccess }) => {
   return (
     <Box sx={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
       <Paper sx={{ p: 4, width: 350 }}>
-        <Typography variant="h5" gutterBottom>Login</Typography>
+        <Typography variant="h5" gutterBottom>NEEMS Login</Typography>
         <form onSubmit={handleSubmit}>
           <TextField
             label="Email"

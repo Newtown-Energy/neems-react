@@ -8,6 +8,7 @@ import { useAuth } from './hooks/useAuth';
 import LoginPage from './components/LoginPage/LoginPage';
 
 const App: React.FC = () => {
+  console.log(`React app running on ${window.location.protocol}//${window.location.host}`);
 
   const { loading, isAuthenticated, setIsAuthenticated } = useAuth();
 
