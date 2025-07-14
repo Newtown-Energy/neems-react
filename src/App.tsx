@@ -4,8 +4,20 @@ import { TrendingDown, CheckCircle } from '@mui/icons-material';
 import Sidebar from './components/Sidebar/Sidebar';
 import ThemeSwitcher from "./components/Light-Dark/ThemeSwitcher";
 import './styles/App.scss';
+import { useAuth } from './hooks/useAuth';
+import LoginPage from './components/LoginPage/LoginPage';
 
 const App: React.FC = () => {
+  console.log(`React app running on ${window.location.protocol}//${window.location.host}`);
+
+  const { loading, isAuthenticated, setIsAuthenticated } = useAuth();
+
+  if (loading) return <div>Loading...</div>;
+
+  if (!isAuthenticated) {
+    return <LoginPage onLoginSuccess={() => setIsAuthenticated(true)} />;
+  }
+
   return (
     <Box sx={{ display: 'flex', height: '100vh' }}>
       <Sidebar />
@@ -154,3 +166,6 @@ const App: React.FC = () => {
 };
 
 export default App;
+
+
+

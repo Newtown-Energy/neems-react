@@ -32,6 +32,23 @@ const Sidebar: React.FC<SidebarProps> = () => { // Removed unused className
     setSelectedItem(id);
   };
 
+  const handleLogout = async () => {
+    try {
+      const response = await fetch('/api/1/logout', {
+        method: 'POST',
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        window.location.reload();
+      } else {
+        console.error('Logout failed:', response.statusText);
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  };
+
   return (
     <Drawer
       variant="permanent"
@@ -84,7 +101,7 @@ const Sidebar: React.FC<SidebarProps> = () => { // Removed unused className
             text={item.text}
             collapsed={collapsed}
             selected={selectedItem === item.id}
-            onClick={() => handleItemClick(item.id)}
+            onClick={item.id === 'logout' ? handleLogout : () => handleItemClick(item.id)}
           />
         ))}
       </List>

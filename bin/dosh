@@ -15,6 +15,9 @@ build() {
 }
 
 watch() {
+    # This doesn't run a server.  It just builds the project and
+    # watches for changes.  Use a backend server like `dosh serve` to
+    # serve the files.
     npm run build
     echo "Watching index.html and src/ for changes..."
     inotify-hookable -w src -w index.html -c "echo 'Changes detected, rebuilding...' && ./bin/dosh build"
