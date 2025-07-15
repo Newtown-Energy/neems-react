@@ -19,6 +19,7 @@ test() {
     cd docker/test
     docker build --quiet -t test-react-deps -f Dockerfile.deps . && \
     docker build --quiet --no-cache -t test-react -f Dockerfile.test-corpus . && \
+    docker build --quiet --no-cache -t test-nginx -f Dockerfile.nginx . && \
     docker-compose up --abort-on-container-exit
 }
 

@@ -8,11 +8,23 @@ services:
     volumes:
       - ~/Newtown/src/neems/react/dist:/app/static
       - /dev/shm:/dev/shm
-    ports:
-      - "5175:5175"
     environment:
       - API_TARGET=${API_TARGET}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     security_opt:
       - seccomp:unconfined
+
+  nginx:
+    build:
+      context: .
+      dockerfile: Dockerfile.nginx
+    volumes_from:
+      - react
+    environment:
+      - NEEMS_STATIC_DIR=${NEEMS_STATIC_DIR}
+      - API_TARGET=${API_TARGET}
+    networks:
+      - default
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

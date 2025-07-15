@@ -14,8 +14,10 @@ Dockerfile handles that for you.
 
 Take a look in env.example.  Set those in .env.
 
- * NEEMS_STATIC_DIR: this is where the running `server.js` gets static files from
- * API_TARGET: this where `server.js` will proxy /api 
+ * NEEMS_STATIC_DIR: this is where the nginx container sources static
+   files 
+
+ * API_TARGET: this where nginx will proxy `/api` 
 
 # Components
 
@@ -29,4 +31,4 @@ Take a look in env.example.  Set those in .env.
    build in two let me cache the expensive downloading of dependencies
    while applying `--no-cache` to the loading of the test code.
 
- * server.js: Runs in the container to serve static files from `${NEEM_STATIC_DIR}` and proxy '/api' to `${API_TARGET}`.
+ * nginx: A container to serve static files from `${NEEM_STATIC_DIR}` and proxy '/api' to `${API_TARGET}`.
