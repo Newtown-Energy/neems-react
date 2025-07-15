@@ -1,0 +1,19 @@
+FROM test-react-deps
+
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable
+
+WORKDIR /app
+
+COPY dist /app/dist
+COPY .env .
+COPY scripts /app/scripts
+COPY server.js .
+COPY tests tests
+COPY jest-puppeteer.config.js .
+
+USER node
+
+EXPOSE 5175
+
+CMD ["scripts/run-tests.sh"]
