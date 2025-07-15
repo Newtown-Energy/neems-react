@@ -1,0 +1,30 @@
+services:
+  react:
+    build:
+      context: .
+      dockerfile: Dockerfile.test-corpus
+      args:
+        - NEEMS_STATIC_DIR=${NEEMS_STATIC_DIR}
+    volumes:
+      - ~/Newtown/src/neems/react/dist:/app/static
+      - /dev/shm:/dev/shm
+    environment:
+      - API_TARGET=${API_TARGET}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    security_opt:
+      - seccomp:unconfined
+
+  nginx:
+    build:
+      context: .
+      dockerfile: Dockerfile.nginx
+    volumes_from:
+      - react
+    environment:
+      - NEEMS_STATIC_DIR=${NEEMS_STATIC_DIR}
+      - API_TARGET=${API_TARGET}
+    networks:
+      - default
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
