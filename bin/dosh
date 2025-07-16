@@ -51,7 +51,18 @@ test() {
     mkdir -p logs/nginx logs/jest
 
     # Set default value for NGINX_API_URL
-    [ -n "${NGINX_API_URL}" ] || export NGINX_API_URL="http://host.docker.internal:8000"
+    if [ -z "${NGINX_API_URL}" ]; then
+	# Use NEEMS_CORE_SERVER as base
+	NGINX_API_URL="$NEEMS_CORE_SERVER"
+
+	# Replace localhost/127.0.0.1 with host.docker.internal
+	if [[ "$NEEMS_CORE_SERVER" == *"localhost"* || "$NEEMS_CORE_SERVER" == *"127.0.0.1"* ]]; then
+	    NGINX_API_URL="${NEEMS_CORE_SERVER/localhost/host.docker.internal}"
+	    NGINX_API_URL="${NGINX_API_URL/127.0.0.1/host.docker.internal}"
+	fi
+
+	export NGINX_API_URL
+    fi
 	
     # Write our nginx conf file
     envsubst '$DEACTIVATE_LOCAL_STATIC $DEACTIVATE_REMOTE_STATIC $NGINX_STATIC_URL $NGINX_API_URL' < nginx/nginx.conf.template > nginx/nginx.conf
