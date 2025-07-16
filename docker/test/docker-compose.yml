@@ -14,9 +14,6 @@ services:
       - "host.docker.internal:host-gateway"
     security_opt:
       - seccomp:unconfined
-    # depends_on:
-    #   nginx:
-    #     condition: service_healthy
 
   nginx:
     build:
@@ -28,5 +25,3 @@ services:
       - default
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    # healthcheck:
-    #   test: ["CMD", "curl", "-s", "http://localhost"]
