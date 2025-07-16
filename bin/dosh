@@ -26,13 +26,20 @@ test() {
     # NEEMS_STATIC starts with http:// or https://.  If NEEMS_STATIC
     # is a url, we're hitting an endpoint, not pulling from a local
     # directory.
-    if [[ "${NEEMS_STATIC}" =~ ^https?:// ]]; then
+
+    # Pull in variables from docker/test/.env
+    export $(envsubst < docker/test/.env | grep -v '^#' | xargs)
+
+    # Validate NEEMS_STATIC is set and not empty
+    if [[ -z "${NEEMS_STATIC_URL}" ]]; then
         # Copy the static files to the docker/test directory
-	mkdir -p docker/test/dist
-        rsync -r --delete dist/ docker/test/dist/
+	echo "Copying files from dist to the nginx test dir"
+	mkdir -p docker/test/nginx/dist
+        rsync -r --delete dist/ docker/test/nginx/dist/
     else
-	# Just give Dockerfile something to copy
-	mkdir -p docker/test/dist
+	echo "Using server for neems static fies. NEEMS_STATIC URL: ${NEEMS_STATIC}"
+	mkdir -p docker/test/nginx/dist
+	rm -rf docker/test/nginx/dist/*
     fi
 
     cd docker/test

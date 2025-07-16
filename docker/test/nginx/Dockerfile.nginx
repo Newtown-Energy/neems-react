@@ -1,7 +1,10 @@
 FROM nginx:alpine
 
+## Clean start for our logs, which should be a mounted local dir 
 RUN rm -f /var/log/nginx/* && mkdir -p /var/log/nginx && chown -R nginx:nginx /var/log/nginx 
 
 COPY nginx.conf /etc/nginx/nginx.conf.template
+
+COPY dist /static
 
 CMD ["sh", "-c", "envsubst '$NGINX_API_TARGET' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf && exec nginx -g 'daemon off;'"]
