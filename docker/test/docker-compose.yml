@@ -1,13 +1,12 @@
 services:
-  react:
+  jest:
     build:
-      context: .
-      dockerfile: Dockerfile.test-corpus
-      args:
-        - NEEMS_STATIC_DIR=${NEEMS_STATIC_DIR}
+      context: jest
+      dockerfile: Dockerfile.jest
     volumes:
       - ~/Newtown/src/neems/react/dist:/app/static
       - /dev/shm:/dev/shm
+      - ./logs/jest:/var/log/jest
     environment:
       - NEEMS_CORE_SERVER=http://nginx
       - TEST_PARAMETERS=${TEST_PARAMETERS}
@@ -20,13 +19,8 @@ services:
     build:
       context: nginx
       dockerfile: Dockerfile.nginx
-    volumes_from:
-      - react
     volumes:
-      - ./nginx/logs:/var/log/nginx
-    environment:
-      - NEEMS_STATIC_DIR=${NEEMS_STATIC_DIR}
-      - API_TARGET=${API_TARGET}
+      - ./logs/nginx:/var/log/nginx
     networks:
       - default
     extra_hosts:

@@ -14,19 +14,29 @@ http {
         listen 80;
         server_name localhost;
 
-        # Proxy API requests to the API_TARGET
+        # Proxy API requests to the NGINX_API_URL
         location /api {
-            proxy_pass $API_TARGET;
+            proxy_pass $NGINX_API_URL;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
             proxy_set_header X-Forwarded-Proto $scheme;
         }
 
+	# Deactivate this block by setting DEACTIVATE_LOCAL_STATIC to improbable string
         # Serve static files from the react container
-        location / {
-            root /app/static;
+        location /$DEACTIVATE_LOCAL_STATIC {
+            root /static;
             try_files $uri $uri/ /index.html;
+        }
+
+	# Deactivate this block by setting DEACTIVATE_REMOTE_STATIC to improbable string
+        location /$DEACTIVATE_REMOTE_STATIC {
+            proxy_pass $NGINX_STATIC_URL;
+            proxy_set_header Host localhost;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
         }
     }
 }

@@ -14,30 +14,80 @@ serve() {
     npm run dev
 }
 
-test-docker() {
-    # Copy the static files to the docker/test directory
-    rsync -r dist docker/test
+test-local() {
+    cd docker/test
+
+    npx jest --color --config=jest/tests/jest.config.js "$@"
+}
+
+test() {
+
+    # Copy the static files to the docker/test directory, but only if
+    # NEEMS_STATIC starts with http:// or https://.  If NEEMS_STATIC
+    # is a url, we're hitting an endpoint, not pulling from a local
+    # directory.
+
+    # Pull in variables from docker/test/.env
+    export $(envsubst < docker/test/.env | grep -v '^#' | xargs)
+
+    # Validate NEEMS_STATIC is set and not empty
+    if [[ -z "${NGINX_STATIC_URL}" ]]; then
+        # Copy the static files to the docker/test directory
+	echo "Copying files from dist to the nginx test dir"
+	mkdir -p docker/test/nginx/dist
+        rsync -r --delete dist/ docker/test/nginx/dist/
+	export DEACTIVATE_REMOTE_STATIC=remote-static-deactivated
+	export NGINX_STATIC_URL="http://host.docker.internal:8000"
+    else
+	echo "Using server for neems static fies. NGINX_STATIC URL: ${NGINX_STATIC_URL}"
+	mkdir -p docker/test/nginx/dist
+	rm -rf docker/test/nginx/dist/*
+	export DEACTIVATE_LOCAL_STATIC=local-static-deactivated
+	echo "WARNING: If NGINX_STATIC_URL is set, static files should be served from ${NGINX_STATIC_URL}, not from this /static dir" > docker/test/nginx/dist/index.html
+    fi
 
     cd docker/test
-    mkdir -p nginx/logs
-    rm -f nginx/logs/*
-    chmod a+rwx nginx/logs
+
+    # Make log dirs
+    mkdir -p logs/jest logs/nginx
+    rm -f logs/jest/*
+    rm -f logs/nginx/*
+    chmod a+rwx logs/*
+
+    # Set default value for NGINX_API_URL
+    if [ -z "${NGINX_API_URL}" ]; then
+	# Use NEEMS_CORE_SERVER as base
+	NGINX_API_URL="$NEEMS_CORE_SERVER"
+
+	# Replace localhost/127.0.0.1 with host.docker.internal
+	if [[ "$NEEMS_CORE_SERVER" == *"localhost"* || "$NEEMS_CORE_SERVER" == *"127.0.0.1"* ]]; then
+	    NGINX_API_URL="${NEEMS_CORE_SERVER/localhost/host.docker.internal}"
+	    NGINX_API_URL="${NGINX_API_URL/127.0.0.1/host.docker.internal}"
+	fi
+
+	export NGINX_API_URL
+    fi
+	
+    # Write our nginx conf file
+    envsubst '$DEACTIVATE_LOCAL_STATIC $DEACTIVATE_REMOTE_STATIC $NGINX_STATIC_URL $NGINX_API_URL' < nginx/nginx.conf.template > nginx/nginx.conf
+
+    # Copy .env into jest dir
+    cp .env jest/.env
 
     export TEST_PARAMETERS="$@"
 
-    docker build --quiet -t test-react-deps -f Dockerfile.deps . && \
-    docker build --quiet --no-cache -t test-react -f Dockerfile.test-corpus . && \
+    pushd jest > /dev/null && \
+    docker build --quiet -t test-jest-deps -f Dockerfile.deps . && \
+    docker build --quiet --no-cache -t test-jest -f Dockerfile.jest . && \
+    popd > /dev/null && \
     pushd nginx > /dev/null && \
     docker build --quiet --no-cache -t test-nginx -f Dockerfile.nginx . && \
     popd > /dev/null && \
     docker-compose up --abort-on-container-exit
     docker-compose down
-}
-
-test() {
-    cd docker/test
-
-    npx jest --color --config=tests/jest.config.js "$@"
+    docker image prune -f
+    rm -f nginx/nginx.conf
+    rm -f jest/.env
 }
 
 push() {
