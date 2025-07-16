@@ -1,7 +1,7 @@
 services:
   jest:
     build:
-      context: .
+      context: jest
       dockerfile: Dockerfile.jest
     volumes:
       - ~/Newtown/src/neems/react/dist:/app/static

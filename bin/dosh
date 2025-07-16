@@ -48,7 +48,11 @@ test() {
 
     cd docker/test
 
-    mkdir -p logs/nginx logs/jest
+    # Make log dirs
+    mkdir -p logs/jest logs/nginx
+    rm -f logs/jest/*
+    rm -f logs/nginx/*
+    chmod a+rwx logs/*
 
     # Set default value for NGINX_API_URL
     if [ -z "${NGINX_API_URL}" ]; then
@@ -67,21 +71,23 @@ test() {
     # Write our nginx conf file
     envsubst '$DEACTIVATE_LOCAL_STATIC $DEACTIVATE_REMOTE_STATIC $NGINX_STATIC_URL $NGINX_API_URL' < nginx/nginx.conf.template > nginx/nginx.conf
 
-    mkdir -p nginx/logs
-    rm -f nginx/logs/*
-    chmod a+rwx nginx/logs
+    # Copy .env into jest dir
+    cp .env jest/.env
 
     export TEST_PARAMETERS="$@"
 
+    pushd jest > /dev/null && \
     docker build --quiet -t test-jest-deps -f Dockerfile.deps . && \
     docker build --quiet --no-cache -t test-jest -f Dockerfile.jest . && \
+    popd > /dev/null && \
     pushd nginx > /dev/null && \
     docker build --quiet --no-cache -t test-nginx -f Dockerfile.nginx . && \
     popd > /dev/null && \
     docker-compose up --abort-on-container-exit
     docker-compose down
     docker image prune -f
-    # rm -f nginx/nginx.conf
+    rm -f nginx/nginx.conf
+    rm -f jest/.env
 }
 
 push() {
