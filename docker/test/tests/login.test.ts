@@ -1,5 +1,11 @@
 describe('Login Page Tests', () => {
   beforeEach(async () => {
+    // Clear cookies to ensure clean state between tests
+    const client = await page.target().createCDPSession();
+    await client.send('Network.clearBrowserCookies');
+    await client.send('Network.clearBrowserCache');
+    await client.detach();
+
     await page.goto(process.env.NEEMS_CORE_SERVER || 'http://nginx');
   });
 
