@@ -6,6 +6,7 @@ services:
     volumes:
       - ~/Newtown/src/neems/react/dist:/app/static
       - /dev/shm:/dev/shm
+      - ./logs/jest:/var/log/jest
     environment:
       - NEEMS_CORE_SERVER=http://nginx
       - TEST_PARAMETERS=${TEST_PARAMETERS}
