@@ -1,6 +1,6 @@
 describe('Login Page Tests', () => {
   beforeEach(async () => {
-    await page.goto('http://nginx');
+    await page.goto(process.env.NEEMS_CORE_SERVER || 'http://nginx');
   });
 
   it('should successfully login with valid credentials', async () => {

@@ -1,6 +1,6 @@
 describe('NEEMS React App Tests', () => {
   beforeAll(async () => {
-    await page.goto('http://nginx');
+    await page.goto(process.env.NEEMS_CORE_SERVER || 'http://nginx');
   });
 
   // Test that we can load the home page, render the REACT, show the login page, and find the NEEMS EMS text.
