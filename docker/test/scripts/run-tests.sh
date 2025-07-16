@@ -1,7 +1,7 @@
 #!/bin/sh
 
 ### THIS GETS RUN FROM INSIDE THE CONTAINER.  RUN THE TESTS WITH DOSH TEST
-
+echo NEEMS_CORE_SERVER: ${NEEMS_CORE_SERVER}
 echo Test parameters: ${TEST_PARAMETERS}
 
 # Wait for server using wget
@@ -19,7 +19,7 @@ wget --spider http://nginx/api/1/status || {
   exit 1
 }
 
-echo "API Server is up at ${API_TARGET}"
+echo "API Server is up at ${NEEMS_CORE_SERVER}"
 echo
 
 

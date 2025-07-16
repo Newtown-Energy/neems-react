@@ -9,7 +9,7 @@ services:
       - ~/Newtown/src/neems/react/dist:/app/static
       - /dev/shm:/dev/shm
     environment:
-      - API_TARGET=${API_TARGET}
+      - NEEMS_CORE_SERVER="http://nginx"
       - TEST_PARAMETERS=${TEST_PARAMETERS}
     extra_hosts:
       - "host.docker.internal:host-gateway"

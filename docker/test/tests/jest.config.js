@@ -1,5 +1,5 @@
 
-module.exports = {
+export default {
   preset: 'jest-puppeteer',
   testMatch: ['**/*.test.js'],
   testTimeout: 30000,

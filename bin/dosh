@@ -14,7 +14,7 @@ serve() {
     npm run dev
 }
 
-test() {
+test-docker() {
     # Copy the static files to the docker/test directory
     rsync -r dist docker/test
 
@@ -32,6 +32,12 @@ test() {
     popd > /dev/null && \
     docker-compose up --abort-on-container-exit
     docker-compose down
+}
+
+test() {
+    cd docker/test
+
+    npx jest --color --config=tests/jest.config.js "$@"
 }
 
 push() {
