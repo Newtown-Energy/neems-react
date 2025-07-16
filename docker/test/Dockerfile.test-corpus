@@ -10,6 +10,7 @@ COPY .env .
 COPY scripts /app/scripts
 COPY tests tests
 COPY jest-puppeteer.config.js .
+COPY tsconfig.json .
 
 USER node
 

@@ -1,5 +1,5 @@
 // tests/jest-puppeteer.config.js
-module.exports = {
+export default {
   launch: {
     headless: true,
     args: [
