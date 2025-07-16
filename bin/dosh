@@ -23,6 +23,8 @@ test() {
     rm -f nginx/logs/*
     chmod a+rwx nginx/logs
 
+    export TEST_PARAMETERS="$@"
+
     docker build --quiet -t test-react-deps -f Dockerfile.deps . && \
     docker build --quiet --no-cache -t test-react -f Dockerfile.test-corpus . && \
     pushd nginx > /dev/null && \

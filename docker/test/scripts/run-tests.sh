@@ -2,6 +2,7 @@
 
 ### THIS GETS RUN FROM INSIDE THE CONTAINER.  RUN THE TESTS WITH DOSH TEST
 
+echo Test parameters: ${TEST_PARAMETERS}
 
 # Wait for server using wget
 sleep 0.3
@@ -21,9 +22,10 @@ wget --spider http://nginx/api/1/status || {
 echo "API Server is up at ${API_TARGET}"
 echo
 
+
 # Run tests with correct environment
 # xvfb-run -a npx jest --config ./tests/jest.config.js
-npx jest --config ./tests/jest.config.js
+npx jest --config ./tests/jest.config.js "${TEST_PARAMETERS}"
 
 TEST_EXIT_CODE=$?
 exit $TEST_EXIT_CODE

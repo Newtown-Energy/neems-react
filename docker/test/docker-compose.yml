@@ -10,6 +10,7 @@ services:
       - /dev/shm:/dev/shm
     environment:
       - API_TARGET=${API_TARGET}
+      - TEST_PARAMETERS=${TEST_PARAMETERS}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     security_opt:
