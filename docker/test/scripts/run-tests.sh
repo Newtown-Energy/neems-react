@@ -1,6 +1,21 @@
 #!/bin/sh
 
-### THIS GETS RUN FROM INSIDE THE CONTAINER.  RUN THE TESTS WITH DOSH TEST
+### DO NOT RUN THIS SCRIPT DIRECTLY.
+###
+### THIS GETS RUN BY DOCKER AND ALSO BY DOSH TEST.
+
+### This script runs tests in the docker container and also on the
+### host system.  That is, it can be run in either environment and
+### will work.  If you make changes to this script, make sure it works
+### in both places.
+
+### If you are trying to make it work, make sure you have
+### NEEMS_CORE_SERVER set in your environment to the url of the API
+### server.
+
+### You shouldn't run this script directly. Instead, use the `dosh
+### test` or `dost test-docker` function in the `dosh` task runner.
+
 echo NEEMS_CORE_SERVER: ${NEEMS_CORE_SERVER}
 echo Test parameters: ${TEST_PARAMETERS}
 
