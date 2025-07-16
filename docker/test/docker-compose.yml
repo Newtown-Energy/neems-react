@@ -13,25 +13,19 @@ services:
       - "host.docker.internal:host-gateway"
     security_opt:
       - seccomp:unconfined
-    depends_on:
-      nginx:
-        condition: service_healthy
+    # depends_on:
+    #   nginx:
+    #     condition: service_healthy
 
   nginx:
     build:
       context: nginx
       dockerfile: Dockerfile.nginx
     volumes:
-      - ./nginx/logs:/var/log/nginx
-    environment:
-      - NGINX_API_TARGET=${NGINX_API_TARGET:-http://host.docker.internal:8000}
-      - NGINX_STATIC_URL=${NGINX_STATIC_URL:-}
+      - ./logs/nginx:/var/log/nginx
     networks:
       - default
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost"]
-      interval: 2s
-      timeout: 1s
-      retries: 5
+    # healthcheck:
+    #   test: ["CMD", "curl", "-s", "http://localhost"]

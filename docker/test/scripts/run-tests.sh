@@ -19,7 +19,18 @@
 echo NEEMS_CORE_SERVER: ${NEEMS_CORE_SERVER}
 echo Test parameters: ${TEST_PARAMETERS}
 
+# Healthchecks in docker-compose weren't reliable, so we'll do our own
+while ! wget --spider http://nginx; do
+  echo "Waiting for nginx web server to start..."
+  sleep 1
+done
+
 echo "nginx logs are in the react repo from where you're running 'dosh test'. Look in 'docker/test/nginx/logs'."
+
+wget --spider http://host.docker.internal:5173/api/1/status || {
+  echo "React dev server is not responding. Exiting."
+  exit 1
+}
 
 wget --spider http://nginx/api/1/status || {
   echo "API server is not responding. Exiting."
