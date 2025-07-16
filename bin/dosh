@@ -17,7 +17,7 @@ serve() {
 test-local() {
     cd docker/test
 
-    npx jest --color --config=tests/jest.config.js "$@"
+    npx jest --color --config=jest/tests/jest.config.js "$@"
 }
 
 test() {
