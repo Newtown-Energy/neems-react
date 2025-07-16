@@ -5,12 +5,12 @@ API server.
 
 # Running
 
-`dosh test-docker` should build the docker images and run the tests.
+`dosh test` should build the docker images and run the tests.
 There is a script called `scripts/run-tests.sh` that runs in the
 docker container.  Do not run it directly from the command line.  The
 Dockerfile handles that for you.
 
-`dosh test` should run the tests directly on your host system, no
+`dosh test-local` should run the tests directly on your host system, no
 docker involved.  It does this with `npx jest`.
 
 But! See details below.
@@ -19,7 +19,7 @@ But! See details below.
 
 If you're testing local changes to this react app, you will want to
 rebuild so those changes get reflected in `dist`.  That is where `dosh
-test-docker` will look for static files.
+test` will look for static files.
 
 TODO: have docker hit localhost:5173 for static files instead so we
 can just run `npm run dev` before running tests.
@@ -27,7 +27,7 @@ can just run `npm run dev` before running tests.
 ## Docker vs Hosted System
 
 There are tests in `docker/test/tests`.  You can run them with `dosh
-test` or `dosh test-docker`.  These are not the same!  They differ in
+test` or `dosh test-local`.  These are not the same!  They differ in
 how they access static files.
 
 When testing via docker, scripts will copy the `dist` directory into
@@ -35,14 +35,14 @@ the container.  The `docker-compose.yml` setup includes an nginx
 server that will serve those static files.  You can point it at any
 API server you like by setting the `NEEMS_CORE_SERVER` envar.
 
-When testing via `dosh test`, you are just hitting the API server
-specified in `NEEMS_CORE_SERVER`.  That API server will also serve
-whatever static files it is configured to serve.  If the API server is
-on a remote box (e.g. running as part of CI/CD on some server
-somewhere), it will not reflect your local changes.
+When testing via `dosh test-local`, you are just hitting the API
+server specified in `NEEMS_CORE_SERVER`.  That API server will also
+serve whatever static files it is configured to serve.  If the API
+server is on a remote box (e.g. running as part of CI/CD on some
+server somewhere), it will not reflect your local changes.
 
-In short, use `dosh test` if you're running a local API server that
-points at `dist` for static files.  Otherwise, use `dosh test-docker`,
+In short, use `dosh test-local` if you're running a local API server that
+points at `dist` for static files.  Otherwise, use `dosh test`,
 which can use a remote API server while still serving your local
 static `dist`.
 

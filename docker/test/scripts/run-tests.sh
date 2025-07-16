@@ -14,7 +14,7 @@
 ### server.
 
 ### You shouldn't run this script directly. Instead, use the `dosh
-### test` or `dost test-docker` function in the `dosh` task runner.
+### test-local` or `dost test` function in the `dosh` task runner.
 
 echo NEEMS_CORE_SERVER: ${NEEMS_CORE_SERVER}
 echo Test parameters: ${TEST_PARAMETERS}
