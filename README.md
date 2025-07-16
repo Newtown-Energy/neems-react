@@ -21,14 +21,11 @@ be picked off the menu bar across the top of the interface.
 
 # Install
 
-I did all of these so you shouldn't have to:
+`npm install` should do it.
 
- * `npm install -D vite`
- * `npm install -D @vitejs/plugin-react-swc`
- * `npm install -D sass-embedded`
- * `npm install -D eslint-plugin-react-x eslint-plugin-react-dom`
- * `npm install -D @types/node`
- * `npm install @mui/material @emotion/react @emotion/styled @mui/icons-material`
+But also, if you want non-docker tests, `cd docker/test` and `npm
+install` there too.
+
 
 # Run and Deploy
 
@@ -51,3 +48,7 @@ There are a few other ways to run:
     Core on that or another machine.  Caddy would be a good choice if
     you want tls.
 
+
+# Tests
+
+See `docker/test/README.md` for all the test details.
