@@ -19,14 +19,6 @@
 echo NEEMS_CORE_SERVER: ${NEEMS_CORE_SERVER}
 echo Test parameters: ${TEST_PARAMETERS}
 
-# Wait for server using wget
-sleep 0.3
-while ! curl -sS http://nginx; do
-  sleep 0.1
-done
-
-echo "Server is running and serving static pages."
-
 echo "nginx logs are in the react repo from where you're running 'dosh test'. Look in 'docker/test/nginx/logs'."
 
 wget --spider http://nginx/api/1/status || {

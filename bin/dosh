@@ -31,15 +31,16 @@ test() {
     export $(envsubst < docker/test/.env | grep -v '^#' | xargs)
 
     # Validate NEEMS_STATIC is set and not empty
-    if [[ -z "${NEEMS_STATIC_URL}" ]]; then
+    if [[ -z "${NGINX_STATIC_URL}" ]]; then
         # Copy the static files to the docker/test directory
 	echo "Copying files from dist to the nginx test dir"
 	mkdir -p docker/test/nginx/dist
         rsync -r --delete dist/ docker/test/nginx/dist/
     else
-	echo "Using server for neems static fies. NEEMS_STATIC URL: ${NEEMS_STATIC}"
+	echo "Using server for neems static fies. NGINX_STATIC URL: ${NGINX_STATIC_URL}"
 	mkdir -p docker/test/nginx/dist
 	rm -rf docker/test/nginx/dist/*
+	echo "WARNING: If NGINX_STATIC_URL is set, static files should be served from ${NGINX_STATIC_URL}, not from this /static dir" > docker/test/nginx/dist/index.html
     fi
 
     cd docker/test
@@ -50,7 +51,7 @@ test() {
     export TEST_PARAMETERS="$@"
 
     docker build --quiet -t test-react-deps -f Dockerfile.deps . && \
-    docker build --quiet --no-cache -t test-react -f Dockerfile.test-corpus . && \
+    docker build --quiet --no-cache -t test-jest -f Dockerfile.test-corpus . && \
     pushd nginx > /dev/null && \
     docker build --quiet --no-cache -t test-nginx -f Dockerfile.nginx . && \
     popd > /dev/null && \
