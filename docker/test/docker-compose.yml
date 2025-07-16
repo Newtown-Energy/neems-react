@@ -25,8 +25,8 @@ services:
     volumes:
       - ./nginx/logs:/var/log/nginx
     environment:
+      - NGINX_API_TARGET=${NGINX_API_TARGET:-http://host.docker.internal:8000}
       - NEEMS_STATIC_DIR=${NEEMS_STATIC_DIR}
-      - API_TARGET=http://host.docker.internal:8000
     networks:
       - default
     extra_hosts:
