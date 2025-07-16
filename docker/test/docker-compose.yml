@@ -17,10 +17,12 @@ services:
 
   nginx:
     build:
-      context: .
+      context: nginx
       dockerfile: Dockerfile.nginx
     volumes_from:
       - react
+    volumes:
+      - ./nginx/logs:/var/log/nginx
     environment:
       - NEEMS_STATIC_DIR=${NEEMS_STATIC_DIR}
       - API_TARGET=${API_TARGET}

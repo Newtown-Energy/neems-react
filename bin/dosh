@@ -15,15 +15,25 @@ serve() {
 }
 
 test() {
+    # Copy the static files to the docker/test directory
     rsync -r dist docker/test
+
     cd docker/test
+    mkdir -p nginx/logs
+    rm -f nginx/logs/*
+    chmod a+rwx nginx/logs
+
     docker build --quiet -t test-react-deps -f Dockerfile.deps . && \
     docker build --quiet --no-cache -t test-react -f Dockerfile.test-corpus . && \
+    pushd nginx > /dev/null && \
     docker build --quiet --no-cache -t test-nginx -f Dockerfile.nginx . && \
+    popd > /dev/null && \
     docker-compose up --abort-on-container-exit
+    docker-compose down
 }
 
 push() {
+    echo "Pushing dist directory to newtown.energy..."
     rsync -r dist/ root@newtown.energy:/opt/neems/react
 }
 
