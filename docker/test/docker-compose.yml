@@ -2,7 +2,7 @@ services:
   jest:
     build:
       context: .
-      dockerfile: Dockerfile.test-corpus
+      dockerfile: Dockerfile.jest
     volumes:
       - ~/Newtown/src/neems/react/dist:/app/static
       - /dev/shm:/dev/shm
