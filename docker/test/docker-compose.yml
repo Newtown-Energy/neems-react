@@ -18,8 +18,6 @@ services:
     build:
       context: nginx
       dockerfile: Dockerfile.nginx
-    volumes_from:
-      - react
     volumes:
       - ./nginx/logs:/var/log/nginx
     environment:
