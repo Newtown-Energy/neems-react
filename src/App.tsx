@@ -1,10 +1,11 @@
 import React from 'react';
-import { Box, Typography, Card, CardContent, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, List, ListItem, ListItemText, ListItemIcon, Avatar, AppBar, Toolbar } from '@mui/material';
+import { Box, Typography, Card, CardContent, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, List, ListItem, ListItemText, ListItemIcon, AppBar, Toolbar } from '@mui/material';
 import { TrendingDown, CheckCircle } from '@mui/icons-material';
 import Sidebar from './components/Sidebar/Sidebar';
 import ThemeSwitcher from "./components/Light-Dark/ThemeSwitcher";
+import UserProfile from './components/UserProfile/UserProfile';
 import './styles/App.scss';
-import { useAuth } from './hooks/useAuth';
+import { useAuth } from './components/LoginPage/useAuth';
 import LoginPage from './components/LoginPage/LoginPage';
 
 const App: React.FC = () => {
@@ -27,10 +28,7 @@ const App: React.FC = () => {
             <Box></Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
               <ThemeSwitcher />
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Avatar sx={{ width: 32, height: 32 }}>A</Avatar>
-                <Typography variant="body1">Admin</Typography>
-              </Box>
+              <UserProfile />
             </Box>
           </Toolbar>
         </AppBar>
