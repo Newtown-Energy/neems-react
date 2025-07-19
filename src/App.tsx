@@ -10,7 +10,7 @@ import Bay2Page from './pages/Bay2Page';
 import ConEdisonPage from './pages/ConEdisonPage';
 import FDNYPage from './pages/FDNYPage';
 import AdminPage from './pages/AdminPage';
-import NewtownAdminPage from './pages/NewtownAdminPage';
+import SuperAdminPage from './pages/SuperAdminPage';
 import './styles/App.scss';
 import { useAuth } from './components/LoginPage/useAuth';
 import LoginPage from './components/LoginPage/LoginPage';
@@ -57,7 +57,7 @@ const App: React.FC = () => {
             <Route path="/conedison" element={<ConEdisonPage />} />
             <Route path="/fdny" element={<FDNYPage />} />
             <Route path="/admin" element={<AdminPage />} />
-            <Route path="/newtown-admin" element={<NewtownAdminPage />} />
+            <Route path="/super-admin" element={<SuperAdminPage />} />
           </Routes>
         </Box>
       </Box>

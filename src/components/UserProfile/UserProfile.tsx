@@ -37,9 +37,9 @@ const UserProfile: React.FC<UserProfileProps> = ({
     navigate('/admin');
   };
 
-  const handleNewtownAdmin = () => {
+  const handleSuperAdmin = () => {
     handleClose();
-    navigate('/newtown-admin');
+    navigate('/super-admin');
   };
   const getInitials = (email: string) => {
     return email.charAt(0).toUpperCase();
@@ -48,7 +48,7 @@ const UserProfile: React.FC<UserProfileProps> = ({
   // Extract roles from userInfo, with fallback to empty array
   const userRoles = userInfo?.roles || [];
   const isAdmin = userRoles.includes('admin') || userRoles.includes('newtown-admin');
-  const isNewtownAdmin = userRoles.includes('newtown-admin');
+  const isSuperAdmin = userRoles.includes('newtown-admin') || userRoles.includes('newtown-staff');
 
   return (
     <>
@@ -93,12 +93,12 @@ const UserProfile: React.FC<UserProfileProps> = ({
           </>
         )}
         
-        {isNewtownAdmin && (
-          <MenuItem onClick={handleNewtownAdmin}>
+        {isSuperAdmin && (
+          <MenuItem onClick={handleSuperAdmin}>
             <ListItemIcon>
               <SupervisorAccount fontSize="small" />
             </ListItemIcon>
-            Newtown Admin
+            Super Admin
           </MenuItem>
         )}
         
@@ -111,7 +111,7 @@ const UserProfile: React.FC<UserProfileProps> = ({
           </MenuItem>
         )}
         
-        {(isNewtownAdmin || isAdmin) && <Divider />}
+        {(isSuperAdmin || isAdmin) && <Divider />}
         
         <MenuItem onClick={handleLogout}>
           <ListItemIcon>

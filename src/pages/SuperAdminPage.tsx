@@ -1,17 +1,17 @@
 import React from 'react';
 import { Box, Typography } from '@mui/material';
 
-const NewtownAdminPage: React.FC = () => {
+const SuperAdminPage: React.FC = () => {
   return (
     <Box sx={{ p: 3 }}>
       <Typography variant="h2" gutterBottom>
-        Newtown Admin
+        Super Admin
       </Typography>
       <Typography variant="body1">
-        Newtown administrative interface and management tools.
+        Super administrative interface and management tools.
       </Typography>
     </Box>
   );
 };
 
-export default NewtownAdminPage;
+export default SuperAdminPage;
