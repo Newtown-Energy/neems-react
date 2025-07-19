@@ -11,7 +11,7 @@ const UserProfile: React.FC<UserProfileProps> = ({ email }) => {
   };
 
   return (
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }} data-testid="user-profile">
       <Avatar sx={{ width: 32, height: 32 }}>{getInitials(email)}</Avatar>
       <Typography variant="body1">{email}</Typography>
     </Box>
