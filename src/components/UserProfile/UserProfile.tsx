@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Box, Typography, Avatar, Menu, MenuItem, Divider } from '@mui/material';
+import { Box, Typography, Avatar, Menu, MenuItem, Divider, ListItemIcon } from '@mui/material';
+import { AdminPanelSettings, SupervisorAccount, Logout } from '@mui/icons-material';
 import type { UserInfo } from '../../types/auth';
 
 interface UserProfileProps {
@@ -89,9 +90,6 @@ const UserProfile: React.FC<UserProfileProps> = ({
               <Typography variant="body2" color="text.secondary">
                 {userInfo.institution_name}
               </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {userInfo.roles.join(', ')}
-              </Typography>
             </Box>
             <Divider />
           </>
@@ -99,12 +97,18 @@ const UserProfile: React.FC<UserProfileProps> = ({
         
         {isNewtownAdmin && (
           <MenuItem onClick={handleNewtownAdmin}>
+            <ListItemIcon>
+              <SupervisorAccount fontSize="small" />
+            </ListItemIcon>
             Newtown Admin
           </MenuItem>
         )}
         
         {isAdmin && (
           <MenuItem onClick={handleAdminPanel}>
+            <ListItemIcon>
+              <AdminPanelSettings fontSize="small" />
+            </ListItemIcon>
             Admin Panel
           </MenuItem>
         )}
@@ -112,6 +116,9 @@ const UserProfile: React.FC<UserProfileProps> = ({
         {(isNewtownAdmin || isAdmin) && <Divider />}
         
         <MenuItem onClick={handleLogout}>
+          <ListItemIcon>
+            <Logout fontSize="small" />
+          </ListItemIcon>
           Logout
         </MenuItem>
       </Menu>
