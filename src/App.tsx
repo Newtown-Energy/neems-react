@@ -11,12 +11,15 @@ import LoginPage from './components/LoginPage/LoginPage';
 const App: React.FC = () => {
   console.log(`React app running on ${window.location.protocol}//${window.location.host}`);
 
-  const { loading, isAuthenticated, setIsAuthenticated, userEmail } = useAuth();
+  const { loading, isAuthenticated, setIsAuthenticated, userEmail, userInfo, saveUserInfo } = useAuth();
 
   if (loading) return <div>Loading...</div>;
 
   if (!isAuthenticated) {
-    return <LoginPage onLoginSuccess={() => setIsAuthenticated(true)} />;
+    return <LoginPage onLoginSuccess={(userInfo) => {
+      saveUserInfo(userInfo);
+      setIsAuthenticated(true);
+    }} />;
   }
 
   return (
@@ -28,7 +31,7 @@ const App: React.FC = () => {
             <Box></Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
               <ThemeSwitcher />
-              <UserProfile email={userEmail || 'Unknown User'} />
+              <UserProfile email={userEmail || 'Unknown User'} userInfo={userInfo} />
             </Box>
           </Toolbar>
         </AppBar>
