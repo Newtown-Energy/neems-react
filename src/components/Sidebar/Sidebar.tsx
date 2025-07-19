@@ -97,8 +97,8 @@ const Sidebar: React.FC<SidebarProps> = () => { // Removed unused className
               src="/logo.svg"
               alt="NEEMS Logo"
               sx={{
-                height: 24,
-                width: 24
+                height: 30,
+                width: 30
               }}
             />
             <Typography variant="h6" component="h1" sx={{ fontWeight: 'bold' }}>

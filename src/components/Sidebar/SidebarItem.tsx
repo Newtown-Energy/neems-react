@@ -47,7 +47,7 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
             <img 
               src={iconImage} 
               alt={iconAlt || text} 
-              style={{ width: 24, height: 24, objectFit: 'contain' }}
+              style={{ width: 30, height: 30, objectFit: 'contain' }}
             />
           ) : (
             <Icon />
