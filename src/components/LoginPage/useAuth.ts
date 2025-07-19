@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { UserInfo } from "../../types/auth";
+import type { UserInfo } from "../../types/auth";
 
 export function useAuth() {
   const [loading, setLoading] = useState(true);
@@ -68,6 +68,21 @@ export function useAuth() {
       .finally(() => setLoading(false));
   }, []);
 
+  const logout = async () => {
+    try {
+      await fetch('/api/1/logout', {
+        method: 'POST',
+        credentials: 'include'
+      });
+    } catch (error) {
+      console.error('Logout request failed:', error);
+    } finally {
+      // Always clear user data and set as not authenticated, even if request fails
+      clearUserData();
+      setIsAuthenticated(false);
+    }
+  };
+
   return { 
     loading, 
     isAuthenticated, 
@@ -75,6 +90,7 @@ export function useAuth() {
     userEmail, 
     userInfo, 
     saveUserInfo, 
-    clearUserData 
+    clearUserData,
+    logout
   };
 }

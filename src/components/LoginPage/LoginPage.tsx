@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Box, Button, TextField, Typography, Paper } from "@mui/material";
-import { UserInfo } from "../../types/auth";
+import type { UserInfo } from "../../types/auth";
 
 type Props = { onLoginSuccess: (userInfo: UserInfo) => void };
 

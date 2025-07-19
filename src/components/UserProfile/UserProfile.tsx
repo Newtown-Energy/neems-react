@@ -1,32 +1,121 @@
-import React from 'react';
-import { Box, Typography, Avatar, Tooltip } from '@mui/material';
-import { UserInfo } from '../../types/auth';
+import React, { useState } from 'react';
+import { Box, Typography, Avatar, Menu, MenuItem, Divider } from '@mui/material';
+import type { UserInfo } from '../../types/auth';
 
 interface UserProfileProps {
   email: string;
   userInfo?: UserInfo | null;
+  onLogout?: () => void;
+  onAdminPanel?: () => void;
+  onNewtownAdmin?: () => void;
 }
 
-const UserProfile: React.FC<UserProfileProps> = ({ email, userInfo }) => {
+const UserProfile: React.FC<UserProfileProps> = ({ 
+  email, 
+  userInfo,
+  onLogout,
+  onAdminPanel,
+  onNewtownAdmin
+}) => {
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const open = Boolean(anchorEl);
+
+  const handleClick = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handleLogout = () => {
+    handleClose();
+    onLogout?.();
+  };
+
+  const handleAdminPanel = () => {
+    handleClose();
+    onAdminPanel?.();
+  };
+
+  const handleNewtownAdmin = () => {
+    handleClose();
+    onNewtownAdmin?.();
+  };
   const getInitials = (email: string) => {
     return email.charAt(0).toUpperCase();
   };
 
-  const tooltipContent = userInfo ? (
-    <Box>
-      <Typography variant="body2">ID: {userInfo.user_id}</Typography>
-      <Typography variant="body2">Institution: {userInfo.institution_name}</Typography>
-      <Typography variant="body2">Roles: {userInfo.roles.join(', ')}</Typography>
-    </Box>
-  ) : null;
+  // Extract roles from userInfo, with fallback to empty array
+  const userRoles = userInfo?.roles || [];
+  const isAdmin = userRoles.includes('admin') || userRoles.includes('newtown-admin');
+  const isNewtownAdmin = userRoles.includes('newtown-admin');
 
   return (
-    <Tooltip title={tooltipContent} arrow placement="bottom-end">
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, cursor: 'pointer' }} data-testid="user-profile">
+    <>
+      <Box 
+        sx={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: 1, 
+          cursor: 'pointer',
+          '&:hover': {
+            opacity: 0.8
+          }
+        }} 
+        data-testid="user-profile"
+        onClick={handleClick}
+      >
         <Avatar sx={{ width: 32, height: 32 }}>{getInitials(email)}</Avatar>
         <Typography variant="body1">{email}</Typography>
       </Box>
-    </Tooltip>
+      
+      <Menu
+        anchorEl={anchorEl}
+        open={open}
+        onClose={handleClose}
+        anchorOrigin={{
+          vertical: 'bottom',
+          horizontal: 'right',
+        }}
+        transformOrigin={{
+          vertical: 'top',
+          horizontal: 'right',
+        }}
+      >
+        {userInfo && (
+          <>
+            <Box sx={{ px: 2, py: 1 }}>
+              <Typography variant="body2" color="text.secondary">
+                {userInfo.institution_name}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {userInfo.roles.join(', ')}
+              </Typography>
+            </Box>
+            <Divider />
+          </>
+        )}
+        
+        {isNewtownAdmin && (
+          <MenuItem onClick={handleNewtownAdmin}>
+            Newtown Admin
+          </MenuItem>
+        )}
+        
+        {isAdmin && (
+          <MenuItem onClick={handleAdminPanel}>
+            Admin Panel
+          </MenuItem>
+        )}
+        
+        {(isNewtownAdmin || isAdmin) && <Divider />}
+        
+        <MenuItem onClick={handleLogout}>
+          Logout
+        </MenuItem>
+      </Menu>
+    </>
   );
 };
 

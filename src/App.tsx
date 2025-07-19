@@ -11,7 +11,17 @@ import LoginPage from './components/LoginPage/LoginPage';
 const App: React.FC = () => {
   console.log(`React app running on ${window.location.protocol}//${window.location.host}`);
 
-  const { loading, isAuthenticated, setIsAuthenticated, userEmail, userInfo, saveUserInfo } = useAuth();
+  const { loading, isAuthenticated, setIsAuthenticated, userEmail, userInfo, saveUserInfo, logout } = useAuth();
+
+  const handleAdminPanel = () => {
+    console.log('Admin Panel clicked');
+    // TODO: Navigate to admin panel or show admin interface
+  };
+
+  const handleNewtownAdmin = () => {
+    console.log('Newtown Admin clicked');
+    // TODO: Navigate to Newtown admin panel or show Newtown admin interface
+  };
 
   if (loading) return <div>Loading...</div>;
 
@@ -31,7 +41,13 @@ const App: React.FC = () => {
             <Box></Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
               <ThemeSwitcher />
-              <UserProfile email={userEmail || 'Unknown User'} userInfo={userInfo} />
+              <UserProfile 
+                email={userEmail || 'Unknown User'} 
+                userInfo={userInfo}
+                onLogout={logout}
+                onAdminPanel={handleAdminPanel}
+                onNewtownAdmin={handleNewtownAdmin}
+              />
             </Box>
           </Toolbar>
         </AppBar>
