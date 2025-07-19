@@ -11,7 +11,7 @@ import LoginPage from './components/LoginPage/LoginPage';
 const App: React.FC = () => {
   console.log(`React app running on ${window.location.protocol}//${window.location.host}`);
 
-  const { loading, isAuthenticated, setIsAuthenticated } = useAuth();
+  const { loading, isAuthenticated, setIsAuthenticated, userEmail } = useAuth();
 
   if (loading) return <div>Loading...</div>;
 
@@ -28,7 +28,7 @@ const App: React.FC = () => {
             <Box></Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
               <ThemeSwitcher />
-              <UserProfile />
+              <UserProfile email={userEmail || 'Unknown User'} />
             </Box>
           </Toolbar>
         </AppBar>

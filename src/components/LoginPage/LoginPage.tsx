@@ -25,6 +25,7 @@ const LoginPage: React.FC<Props> = ({ onLoginSuccess }) => {
     });
     setLoading(false);
     if (res.ok) {
+      localStorage.setItem('userEmail', email);
       onLoginSuccess();
     } else {
       const data = await res.json();
