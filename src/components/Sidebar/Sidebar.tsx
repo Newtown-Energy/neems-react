@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Drawer, List, Typography, Box, Divider, IconButton } from '@mui/material';
 import { Dashboard, BatteryFull, ChevronLeft, ChevronRight, Logout } from '@mui/icons-material';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { SidebarItem } from './SidebarItem';
 
 interface SidebarProps {
@@ -9,7 +10,18 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = () => { // Removed unused className
   const [collapsed, setCollapsed] = useState(false);
-  const [selectedItem, setSelectedItem] = useState('overview');
+  const navigate = useNavigate();
+  const location = useLocation();
+  
+  const getSelectedItem = () => {
+    const path = location.pathname;
+    if (path === '/' || path === '/overview') return 'overview';
+    if (path === '/bay1') return 'bay1';
+    if (path === '/bay2') return 'bay2';
+    if (path === '/conedison') return 'conedison';
+    if (path === '/fdny') return 'fdny';
+    return 'overview';
+  };
 
   // Navigation items with required icons
   const navItems = [
@@ -29,7 +41,7 @@ const Sidebar: React.FC<SidebarProps> = () => { // Removed unused className
   }, []);
 
   const handleItemClick = (id: string) => {
-    setSelectedItem(id);
+    navigate(`/${id === 'overview' ? '' : id}`);
   };
 
   const handleLogout = async () => {
@@ -85,7 +97,7 @@ const Sidebar: React.FC<SidebarProps> = () => { // Removed unused className
             iconImage={item.iconImage}
             text={item.text}
             collapsed={collapsed}
-            selected={selectedItem === item.id}
+            selected={getSelectedItem() === item.id}
             onClick={() => handleItemClick(item.id)}
           />
         ))}
@@ -100,7 +112,7 @@ const Sidebar: React.FC<SidebarProps> = () => { // Removed unused className
             icon={item.icon}
             text={item.text}
             collapsed={collapsed}
-            selected={selectedItem === item.id}
+            selected={getSelectedItem() === item.id}
             onClick={item.id === 'logout' ? handleLogout : () => handleItemClick(item.id)}
           />
         ))}

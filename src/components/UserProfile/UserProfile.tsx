@@ -1,25 +1,23 @@
 import React, { useState } from 'react';
 import { Box, Typography, Avatar, Menu, MenuItem, Divider, ListItemIcon } from '@mui/material';
 import { AdminPanelSettings, SupervisorAccount, Logout } from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
 import type { UserInfo } from '../../types/auth';
 
 interface UserProfileProps {
   email: string;
   userInfo?: UserInfo | null;
   onLogout?: () => void;
-  onAdminPanel?: () => void;
-  onNewtownAdmin?: () => void;
 }
 
 const UserProfile: React.FC<UserProfileProps> = ({ 
   email, 
   userInfo,
-  onLogout,
-  onAdminPanel,
-  onNewtownAdmin
+  onLogout
 }) => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
+  const navigate = useNavigate();
 
   const handleClick = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -36,12 +34,12 @@ const UserProfile: React.FC<UserProfileProps> = ({
 
   const handleAdminPanel = () => {
     handleClose();
-    onAdminPanel?.();
+    navigate('/admin');
   };
 
   const handleNewtownAdmin = () => {
     handleClose();
-    onNewtownAdmin?.();
+    navigate('/newtown-admin');
   };
   const getInitials = (email: string) => {
     return email.charAt(0).toUpperCase();

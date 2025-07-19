@@ -1,9 +1,16 @@
 import React from 'react';
-import { Box, Typography, Card, CardContent, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, List, ListItem, ListItemText, ListItemIcon, AppBar, Toolbar } from '@mui/material';
-import { TrendingDown, CheckCircle } from '@mui/icons-material';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { Box, AppBar, Toolbar } from '@mui/material';
 import Sidebar from './components/Sidebar/Sidebar';
 import ThemeSwitcher from "./components/Light-Dark/ThemeSwitcher";
 import UserProfile from './components/UserProfile/UserProfile';
+import OverviewPage from './pages/OverviewPage';
+import Bay1Page from './pages/Bay1Page';
+import Bay2Page from './pages/Bay2Page';
+import ConEdisonPage from './pages/ConEdisonPage';
+import FDNYPage from './pages/FDNYPage';
+import AdminPage from './pages/AdminPage';
+import NewtownAdminPage from './pages/NewtownAdminPage';
 import './styles/App.scss';
 import { useAuth } from './components/LoginPage/useAuth';
 import LoginPage from './components/LoginPage/LoginPage';
@@ -13,15 +20,6 @@ const App: React.FC = () => {
 
   const { loading, isAuthenticated, setIsAuthenticated, userEmail, userInfo, saveUserInfo, logout } = useAuth();
 
-  const handleAdminPanel = () => {
-    console.log('Admin Panel clicked');
-    // TODO: Navigate to admin panel or show admin interface
-  };
-
-  const handleNewtownAdmin = () => {
-    console.log('Newtown Admin clicked');
-    // TODO: Navigate to Newtown admin panel or show Newtown admin interface
-  };
 
   if (loading) return <div>Loading...</div>;
 
@@ -33,152 +31,37 @@ const App: React.FC = () => {
   }
 
   return (
-    <Box sx={{ display: 'flex', height: '100vh' }}>
-      <Sidebar />
-      <Box component="main" sx={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
-        <AppBar position="static" color="default" elevation={1}>
-          <Toolbar sx={{ justifyContent: 'space-between' }}>
-            <Box></Box>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <ThemeSwitcher />
-              <UserProfile 
-                email={userEmail || 'Unknown User'} 
-                userInfo={userInfo}
-                onLogout={logout}
-                onAdminPanel={handleAdminPanel}
-                onNewtownAdmin={handleNewtownAdmin}
-              />
-            </Box>
-          </Toolbar>
-        </AppBar>
-        
-        <Box sx={{ flex: 1, p: 3 }}>
-          <Typography variant="h2" gutterBottom>
-            Overview
-          </Typography>
+    <Router>
+      <Box sx={{ display: 'flex', height: '100vh' }}>
+        <Sidebar />
+        <Box component="main" sx={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+          <AppBar position="static" color="default" elevation={1}>
+            <Toolbar sx={{ justifyContent: 'space-between' }}>
+              <Box></Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <ThemeSwitcher />
+                <UserProfile 
+                  email={userEmail || 'Unknown User'} 
+                  userInfo={userInfo}
+                  onLogout={logout}
+                />
+              </Box>
+            </Toolbar>
+          </AppBar>
           
-          <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 3, mb: 3 }}>
-            <Card>
-              <CardContent>
-                <Typography variant="body2" color="text.secondary">
-                  Monthly flibbers
-                </Typography>
-                <Typography variant="h4" component="div">
-                  1,018
-                </Typography>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardContent>
-                <Typography variant="body2" color="text.secondary">
-                  Total Whatchamacallits
-                </Typography>
-                <Typography variant="h4" component="div">
-                  5,133
-                </Typography>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardContent>
-                <Typography variant="body2" color="text.secondary">
-                  TSLA share price
-                </Typography>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <TrendingDown color="error" />
-                  <Typography variant="h4" component="div" color="error">
-                    22.8%
-                  </Typography>
-                </Box>
-              </CardContent>
-            </Card>
-          </Box>
-          
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '2fr 1fr' }, gap: 3 }}>
-            <Card>
-              <CardContent>
-                <Typography variant="h6" gutterBottom>
-                  Latest Alarms
-                </Typography>
-                <TableContainer>
-                  <Table>
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>Issue</TableCell>
-                        <TableCell>Magnitude</TableCell>
-                        <TableCell>Status</TableCell>
-                        <TableCell>Timestamp</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      <TableRow>
-                        <TableCell>Sensor 1 over temp</TableCell>
-                        <TableCell>165°F</TableCell>
-                        <TableCell>Alerted via email</TableCell>
-                        <TableCell>2025-04-08 12:04:00 UTC-4</TableCell>
-                      </TableRow>
-                      <TableRow>
-                        <TableCell>Sensor 1 over temp</TableCell>
-                        <TableCell>158°F</TableCell>
-                        <TableCell>Alerted via email</TableCell>
-                        <TableCell>2025-04-08 12:03:00 UTC-4</TableCell>
-                      </TableRow>
-                      <TableRow>
-                        <TableCell>Sensor 1 over temp</TableCell>
-                        <TableCell>153°F</TableCell>
-                        <TableCell>Alerted via email</TableCell>
-                        <TableCell>2025-04-08 12:02:00 UTC-4</TableCell>
-                      </TableRow>
-                      <TableRow>
-                        <TableCell>Sensor 1 over temp</TableCell>
-                        <TableCell>151°F</TableCell>
-                        <TableCell>Alerted via email</TableCell>
-                        <TableCell>2025-04-08 12:01:00 UTC-4</TableCell>
-                      </TableRow>
-                      <TableRow>
-                        <TableCell>Sensor 1 over temp</TableCell>
-                        <TableCell>150°F</TableCell>
-                        <TableCell>Alerted via email</TableCell>
-                        <TableCell>2025-04-08 12:00:00 UTC-4</TableCell>
-                      </TableRow>
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardContent>
-                <Typography variant="h6" gutterBottom>
-                  System Maintenance Checklist
-                </Typography>
-                <List>
-                  <ListItem>
-                    <ListItemIcon>
-                      <CheckCircle color="success" />
-                    </ListItemIcon>
-                    <ListItemText primary="Upgrades" />
-                  </ListItem>
-                  <ListItem>
-                    <ListItemIcon>
-                      <CheckCircle color="success" />
-                    </ListItemIcon>
-                    <ListItemText primary="Patches" />
-                  </ListItem>
-                  <ListItem>
-                    <ListItemIcon>
-                      <CheckCircle color="success" />
-                    </ListItemIcon>
-                    <ListItemText primary="Backup" />
-                  </ListItem>
-                </List>
-              </CardContent>
-            </Card>
-          </Box>
+          <Routes>
+            <Route path="/" element={<OverviewPage />} />
+            <Route path="/overview" element={<Navigate to="/" replace />} />
+            <Route path="/bay1" element={<Bay1Page />} />
+            <Route path="/bay2" element={<Bay2Page />} />
+            <Route path="/conedison" element={<ConEdisonPage />} />
+            <Route path="/fdny" element={<FDNYPage />} />
+            <Route path="/admin" element={<AdminPage />} />
+            <Route path="/newtown-admin" element={<NewtownAdminPage />} />
+          </Routes>
         </Box>
       </Box>
-    </Box>
+    </Router>
   );
 };
 
