@@ -15,9 +15,7 @@ import './styles/App.scss';
 import { useAuth } from './components/LoginPage/useAuth';
 import LoginPage from './components/LoginPage/LoginPage';
 
-const App: React.FC = () => {
-  console.log(`React app running on ${window.location.protocol}//${window.location.host}`);
-
+const AppContent: React.FC = () => {
   const { loading, isAuthenticated, setIsAuthenticated, userEmail, userInfo, saveUserInfo, logout } = useAuth();
 
 
@@ -31,23 +29,22 @@ const App: React.FC = () => {
   }
 
   return (
-    <Router>
-      <Box sx={{ display: 'flex', height: '100vh' }}>
-        <Sidebar />
-        <Box component="main" sx={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
-          <AppBar position="static" color="default" elevation={1}>
-            <Toolbar sx={{ justifyContent: 'space-between' }}>
+    <Box sx={{ display: 'flex', height: '100vh' }}>
+      <Sidebar />
+      <Box component="main" sx={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+        <AppBar position="static" color="default" elevation={1}>
+          <Toolbar sx={{ justifyContent: 'space-between' }}>
               <Box></Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <ThemeSwitcher />
-                <UserProfile 
-                  email={userEmail || 'Unknown User'} 
-                  userInfo={userInfo}
-                  onLogout={logout}
-                />
-              </Box>
-            </Toolbar>
-          </AppBar>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <ThemeSwitcher />
+              <UserProfile
+                email={userEmail || 'Unknown User'}
+                userInfo={userInfo}
+                onLogout={logout}
+              />
+            </Box>
+          </Toolbar>
+        </AppBar>
           
           <Routes>
             <Route path="/" element={<OverviewPage />} />
@@ -61,6 +58,15 @@ const App: React.FC = () => {
           </Routes>
         </Box>
       </Box>
+  );
+};
+
+const App: React.FC = () => {
+  console.log(`React app running on ${window.location.protocol}//${window.location.host}`);
+
+  return (
+    <Router>
+      <AppContent />
     </Router>
   );
 };

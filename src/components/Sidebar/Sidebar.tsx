@@ -78,9 +78,33 @@ const Sidebar: React.FC<SidebarProps> = () => { // Removed unused className
     >
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', p: 2 }}>
         {!collapsed && (
-          <Typography variant="h6" component="h1" sx={{ fontWeight: 'bold' }}>
-            NEEMS
-          </Typography>
+          <Box
+            component="a"
+            href="/"
+            sx={{
+              textDecoration: 'none',
+              color: 'inherit',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+              '&:hover': {
+                opacity: 0.8
+              }
+            }}
+          >
+            <Box
+              component="img"
+              src="/logo.svg"
+              alt="NEEMS Logo"
+              sx={{
+                height: 24,
+                width: 24
+              }}
+            />
+            <Typography variant="h6" component="h1" sx={{ fontWeight: 'bold' }}>
+              NEEMS
+            </Typography>
+          </Box>
         )}
         <IconButton onClick={() => setCollapsed(!collapsed)} size="small">
           {collapsed ? <ChevronRight /> : <ChevronLeft />}
