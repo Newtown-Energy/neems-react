@@ -108,7 +108,7 @@ describe('User Profile Tests', () => {
     expect(menuContent).toContain('Newtown Energy'); // Default institution name
     
     // Verify admin menu items are present (admin@example.com has newtown-admin role)
-    expect(menuContent).toContain('Newtown Admin');
+    expect(menuContent).toContain('Super Admin');
     expect(menuContent).toContain('Admin Panel');
     expect(menuContent).toContain('Logout');
     
