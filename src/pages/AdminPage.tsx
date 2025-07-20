@@ -29,6 +29,7 @@ import {
 } from '@mui/material';
 import { Add, Edit, Delete, Refresh, Person, LocationOn } from '@mui/icons-material';
 import { useAuth } from '../components/LoginPage/useAuth';
+import { useSearchParams } from 'react-router-dom';
 import type { SelectChangeEvent } from '@mui/material';
 
 interface User {
@@ -56,7 +57,9 @@ interface Institution {
 
 const AdminPage: React.FC = () => {
   const { userInfo } = useAuth();
+  const [searchParams] = useSearchParams();
   const [tabValue, setTabValue] = useState(0);
+  const [selectedInstitutionId, setSelectedInstitutionId] = useState<number>(0);
   const [users, setUsers] = useState<User[]>([]);
   const [sites, setSites] = useState<Site[]>([]);
   const [institutions, setInstitutions] = useState<Institution[]>([]);
@@ -84,6 +87,7 @@ const AdminPage: React.FC = () => {
   // Role checks
   const currentUserRoles = userInfo?.roles || [];
   const isAdmin = currentUserRoles.includes('admin') || currentUserRoles.includes('newtown-admin');
+  const isSuperAdmin = currentUserRoles.includes('newtown-admin') || currentUserRoles.includes('newtown-staff');
 
   // Available roles based on institution
   const getAvailableRoles = (institutionId: number): string[] => {
@@ -102,6 +106,21 @@ const AdminPage: React.FC = () => {
       fetchInstitutions();
     }
   }, [isAdmin]);
+
+  useEffect(() => {
+    // Handle institution parameter from URL
+    const institutionParam = searchParams.get('institution');
+    if (institutionParam && institutions.length > 0) {
+      const institutionId = parseInt(institutionParam);
+      setSelectedInstitutionId(institutionId);
+    } else if (userInfo && institutions.length > 0 && !selectedInstitutionId) {
+      // Default to user's own institution if no parameter provided
+      const userInstitution = institutions.find(inst => inst.name === userInfo.institution_name);
+      if (userInstitution) {
+        setSelectedInstitutionId(userInstitution.id);
+      }
+    }
+  }, [searchParams, institutions, userInfo, selectedInstitutionId]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -393,12 +412,21 @@ const AdminPage: React.FC = () => {
     );
   }
 
+  const selectedInstitutionName = institutions.find(inst => inst.id === selectedInstitutionId)?.name || 'Select Institution';
+
   return (
     <Box sx={{ p: 3 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h2" gutterBottom>
-          Admin Panel
-        </Typography>
+        <Box>
+          <Typography variant="h2" gutterBottom>
+            Admin Panel
+          </Typography>
+          {selectedInstitutionName !== 'Select Institution' && (
+            <Typography variant="h6" color="text.secondary">
+              {selectedInstitutionName}
+            </Typography>
+          )}
+        </Box>
         <Button
           variant="outlined"
           startIcon={<Refresh />}
@@ -409,18 +437,58 @@ const AdminPage: React.FC = () => {
         </Button>
       </Box>
 
+      {/* Institution Selector for Super Admins */}
+      {isSuperAdmin && (
+        <Card sx={{ mb: 3 }}>
+          <CardContent>
+            <Typography variant="h6" gutterBottom>
+              Institution Selection
+            </Typography>
+            <FormControl fullWidth sx={{ maxWidth: 400 }}>
+              <InputLabel>Select Institution</InputLabel>
+              <Select
+                value={selectedInstitutionId}
+                label="Select Institution"
+                onChange={(e) => {
+                  const newInstitutionId = Number(e.target.value);
+                  setSelectedInstitutionId(newInstitutionId);
+                  // Update URL parameter
+                  const newSearchParams = new URLSearchParams(searchParams);
+                  newSearchParams.set('institution', newInstitutionId.toString());
+                  window.history.replaceState(null, '', `?${newSearchParams.toString()}`);
+                }}
+                disabled={loading}
+              >
+                <MenuItem value={0}>Select Institution</MenuItem>
+                {institutions.map((institution) => (
+                  <MenuItem key={institution.id} value={institution.id}>
+                    {institution.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </CardContent>
+        </Card>
+      )}
+
       {error && (
         <Alert severity="error" sx={{ mb: 3 }}>
           {error}
         </Alert>
       )}
 
-      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
-        <Tabs value={tabValue} onChange={(_, newValue) => setTabValue(newValue)}>
-          <Tab icon={<Person />} label="Users" />
-          <Tab icon={<LocationOn />} label="Sites" />
-        </Tabs>
-      </Box>
+      {selectedInstitutionId === 0 ? (
+        <Alert severity="info">
+          Please select an institution to manage users and sites.
+        </Alert>
+      ) : (
+        <>
+          <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+            <Tabs value={tabValue} onChange={(_, newValue) => setTabValue(newValue)}>
+              <Tab icon={<Person />} label="Users" />
+              <Tab icon={<LocationOn />} label="Sites" />
+            </Tabs>
+          </Box>
 
       {/* Users Tab */}
       {tabValue === 0 && (
@@ -805,6 +873,8 @@ const AdminPage: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
+        </>
+      )}
     </Box>
   );
 };

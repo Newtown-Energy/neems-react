@@ -18,10 +18,12 @@ import {
   TextField,
   IconButton,
   Alert,
-  CircularProgress
+  CircularProgress,
+  Link
 } from '@mui/material';
-import { Add, Edit, Delete } from '@mui/icons-material';
+import { Add, Edit, Delete, AdminPanelSettings } from '@mui/icons-material';
 import { useAuth } from '../components/LoginPage/useAuth';
+import { useNavigate } from 'react-router-dom';
 
 interface Institution {
   id: number;
@@ -32,6 +34,7 @@ interface Institution {
 
 const SuperAdminPage: React.FC = () => {
   const { userInfo } = useAuth();
+  const navigate = useNavigate();
   const [institutions, setInstitutions] = useState<Institution[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -212,14 +215,40 @@ const SuperAdminPage: React.FC = () => {
                 <TableBody>
                   {institutions.map((institution) => (
                     <TableRow key={institution.id}>
-                      <TableCell>{institution.name}</TableCell>
+                      <TableCell>
+                        <Link
+                          component="button"
+                          variant="body2"
+                          onClick={() => navigate(`/admin?institution=${institution.id}`)}
+                          sx={{
+                            textDecoration: 'none',
+                            color: 'primary.main',
+                            fontWeight: 'medium',
+                            '&:hover': {
+                              textDecoration: 'underline'
+                            }
+                          }}
+                        >
+                          {institution.name}
+                        </Link>
+                      </TableCell>
                       <TableCell>{institution.status}</TableCell>
                       <TableCell>{institution.userCount}</TableCell>
                       <TableCell>
                         <IconButton
                           size="small"
+                          onClick={() => navigate(`/admin?institution=${institution.id}`)}
+                          disabled={loading}
+                          title={`Admin Panel for ${institution.name}`}
+                          color="primary"
+                        >
+                          <AdminPanelSettings />
+                        </IconButton>
+                        <IconButton
+                          size="small"
                           onClick={() => handleOpenDialog(institution)}
                           disabled={loading}
+                          title="Edit Institution"
                         >
                           <Edit />
                         </IconButton>
@@ -229,6 +258,7 @@ const SuperAdminPage: React.FC = () => {
                             onClick={() => handleDeleteClick(institution)}
                             disabled={loading || institution.userCount > 0}
                             color="error"
+                            title="Delete Institution"
                           >
                             <Delete />
                           </IconButton>
