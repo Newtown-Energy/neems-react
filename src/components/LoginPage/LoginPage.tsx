@@ -34,7 +34,16 @@ const LoginPage: React.FC<Props> = ({ onLoginSuccess }) => {
   }
 
   return (
-    <Box sx={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
+    <Box sx={{ 
+      minHeight: "100vh", 
+      display: "flex", 
+      alignItems: "center", 
+      justifyContent: "center",
+      backgroundImage: "url(/map-tint.gif)",
+      backgroundSize: "cover",
+      backgroundPosition: "center",
+      backgroundRepeat: "no-repeat"
+    }}>
       <Paper sx={{ p: 4, width: 350 }}>
         <Typography variant="h5" gutterBottom>NEEMS Login</Typography>
         <form onSubmit={handleSubmit}>
