@@ -15,7 +15,7 @@ describe('User Profile Tests', () => {
     try {
       // Login first
       await page.waitForSelector('input[type="email"]');
-      await page.type('input[type="email"]', 'admin@example.com');
+      await page.type('input[type="email"]', 'superadmin@example.com');
       await page.type('input[type="password"]', 'admin');
       await page.click('button[type="submit"]');
       
@@ -44,11 +44,11 @@ describe('User Profile Tests', () => {
       // Check that the email is displayed
       const emailText = await page.$eval('[data-testid="user-profile"] .MuiTypography-root', el => el.textContent);
       debugInfo.finalEmailText = emailText;
-      expect(emailText).toBe('admin@example.com');
+      expect(emailText).toBe('superadmin@example.com');
       
       // Check that the avatar contains the correct initial
       const avatarText = await page.$eval('[data-testid="user-profile"] .MuiAvatar-root', el => el.textContent);
-      expect(avatarText).toBe('A');
+      expect(avatarText).toBe('S');
     } catch (error) {
       // Only log debug info on failure
       console.log('Test failed. Debug info:', debugInfo);
@@ -59,7 +59,7 @@ describe('User Profile Tests', () => {
   it('should show fallback text when no email is available', async () => {
     // Login first
     await page.waitForSelector('input[type="email"]');
-    await page.type('input[type="email"]', 'admin@example.com');
+    await page.type('input[type="email"]', 'superadmin@example.com');
     await page.type('input[type="password"]', 'admin');
     await page.click('button[type="submit"]');
     
@@ -84,7 +84,7 @@ describe('User Profile Tests', () => {
   it('should show dropdown menu when clicking on user profile and allow logout', async () => {
     // Login first
     await page.waitForSelector('input[type="email"]');
-    await page.type('input[type="email"]', 'admin@example.com');
+    await page.type('input[type="email"]', 'superadmin@example.com');
     await page.type('input[type="password"]', 'admin');
     await page.click('button[type="submit"]');
     
@@ -107,7 +107,7 @@ describe('User Profile Tests', () => {
     const menuContent = await page.$eval('[role="menu"]', el => el.textContent);
     expect(menuContent).toContain('Newtown Energy'); // Default institution name
     
-    // Verify admin menu items are present (admin@example.com has newtown-admin role)
+    // Verify admin menu items are present (superadmin@example.com has newtown-admin role)
     expect(menuContent).toContain('Super Admin');
     expect(menuContent).toContain('Admin Panel');
     expect(menuContent).toContain('Logout');

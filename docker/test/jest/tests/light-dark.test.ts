@@ -17,7 +17,7 @@ describe('Theme Switcher', () => {
     await page.waitForSelector('input[type="email"]');
     
     // Fill in the email field
-    await page.type('input[type="email"]', 'admin@example.com');
+    await page.type('input[type="email"]', 'superadmin@example.com');
     
     // Fill in the password field
     await page.type('input[type="password"]', 'admin');

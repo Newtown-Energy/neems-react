@@ -12,7 +12,7 @@ describe('NEEMS Navigation Tests', () => {
   it('should navigate to main page when NEEMS header is clicked', async () => {
     // Login first
     await page.waitForSelector('input[type="email"]');
-    await page.type('input[type="email"]', 'admin@example.com');
+    await page.type('input[type="email"]', 'superadmin@example.com');
     await page.type('input[type="password"]', 'admin');
     await page.click('button[type="submit"]');
     
