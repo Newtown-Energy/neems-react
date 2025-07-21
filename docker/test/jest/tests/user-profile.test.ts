@@ -103,9 +103,9 @@ describe('User Profile Tests', () => {
     // Check that the menu is visible and contains expected items
     await page.waitForSelector('[role="menu"]', { timeout: 5000 });
     
-    // Verify institution name is displayed in the dropdown
+    // Verify company name is displayed in the dropdown
     const menuContent = await page.$eval('[role="menu"]', el => el.textContent);
-    expect(menuContent).toContain('Newtown Energy'); // Default institution name
+    expect(menuContent).toContain('Newtown Energy'); // Default company name
     
     // Verify admin menu items are present (superadmin@example.com has newtown-admin role)
     expect(menuContent).toContain('Super Admin');

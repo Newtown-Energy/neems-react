@@ -1,6 +1,6 @@
 export interface UserInfo {
   user_id: number;
   email: string;
-  institution_name: string;
+  company_name: string;
   roles: string[];
 }

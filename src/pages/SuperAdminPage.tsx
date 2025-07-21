@@ -25,7 +25,7 @@ import { Add, Edit, Delete, AdminPanelSettings } from '@mui/icons-material';
 import { useAuth } from '../components/LoginPage/useAuth';
 import { useNavigate } from 'react-router-dom';
 
-interface Institution {
+interface Company {
   id: number;
   name: string;
   status: string;
@@ -35,14 +35,14 @@ interface Institution {
 const SuperAdminPage: React.FC = () => {
   const { userInfo } = useAuth();
   const navigate = useNavigate();
-  const [institutions, setInstitutions] = useState<Institution[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [openDialog, setOpenDialog] = useState(false);
-  const [editingInstitution, setEditingInstitution] = useState<Institution | null>(null);
-  const [institutionName, setInstitutionName] = useState('');
+  const [editingCompany, setEditingCompany] = useState<Company | null>(null);
+  const [companyName, setCompanyName] = useState('');
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-  const [institutionToDelete, setInstitutionToDelete] = useState<Institution | null>(null);
+  const [companyToDelete, setCompanyToDelete] = useState<Company | null>(null);
 
   // Role checks
   const userRoles = userInfo?.roles || [];
@@ -52,28 +52,28 @@ const SuperAdminPage: React.FC = () => {
 
   useEffect(() => {
     if (hasAccess) {
-      fetchInstitutions();
+      fetchCompanies();
     }
   }, [hasAccess]);
 
-  const fetchInstitutions = async () => {
+  const fetchCompanies = async () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch('/api/1/institutions', {
+      const response = await fetch('/api/1/companies', {
         credentials: 'include'
       });
       if (response.ok) {
         const data = await response.json();
-        setInstitutions(data);
+        setCompanies(data);
       } else {
-        throw new Error('Failed to fetch institutions');
+        throw new Error('Failed to fetch companies');
       }
     } catch (err) {
-      setError('Error loading institutions');
-      console.error('Error fetching institutions:', err);
+      setError('Error loading companies');
+      console.error('Error fetching companies:', err);
       // Mock data for development
-      setInstitutions([
+      setCompanies([
         { id: 1, name: 'NewYork-Presbyterian', status: 'Active', userCount: 15 },
         { id: 2, name: 'Mount Sinai Health System', status: 'Active', userCount: 8 },
         { id: 3, name: 'NYU Langone Health', status: 'Inactive', userCount: 0 }
@@ -83,73 +83,73 @@ const SuperAdminPage: React.FC = () => {
     }
   };
 
-  const handleOpenDialog = (institution?: Institution) => {
-    setEditingInstitution(institution || null);
-    setInstitutionName(institution?.name || '');
+  const handleOpenDialog = (company?: Company) => {
+    setEditingCompany(company || null);
+    setCompanyName(company?.name || '');
     setOpenDialog(true);
   };
 
   const handleCloseDialog = () => {
     setOpenDialog(false);
-    setEditingInstitution(null);
-    setInstitutionName('');
+    setEditingCompany(null);
+    setCompanyName('');
   };
 
-  const handleSaveInstitution = async () => {
-    if (!institutionName.trim()) return;
+  const handleSaveCompany = async () => {
+    if (!companyName.trim()) return;
 
     setLoading(true);
     try {
-      const isEdit = editingInstitution !== null;
-      const url = isEdit ? `/api/1/institutions/${editingInstitution.id}` : '/api/1/institutions';
+      const isEdit = editingCompany !== null;
+      const url = isEdit ? `/api/1/companies/${editingCompany.id}` : '/api/1/companies';
       const method = isEdit ? 'PUT' : 'POST';
 
       const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ name: institutionName })
+        body: JSON.stringify({ name: companyName })
       });
 
       if (response.ok) {
-        await fetchInstitutions();
+        await fetchCompanies();
         handleCloseDialog();
       } else {
-        throw new Error(`Failed to ${isEdit ? 'update' : 'create'} institution`);
+        throw new Error(`Failed to ${isEdit ? 'update' : 'create'} company`);
       }
     } catch (err) {
-      setError(`Error ${editingInstitution ? 'updating' : 'creating'} institution`);
-      console.error('Error saving institution:', err);
+      setError(`Error ${editingCompany ? 'updating' : 'creating'} company`);
+      console.error('Error saving company:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDeleteClick = (institution: Institution) => {
-    setInstitutionToDelete(institution);
+  const handleDeleteClick = (company: Company) => {
+    setCompanyToDelete(company);
     setDeleteConfirmOpen(true);
   };
 
   const handleDeleteConfirm = async () => {
-    if (!institutionToDelete) return;
+    if (!companyToDelete) return;
 
     setLoading(true);
     try {
-      const response = await fetch(`/api/1/institutions/${institutionToDelete.id}`, {
+      const response = await fetch(`/api/1/companies/${companyToDelete.id}`, {
         method: 'DELETE',
         credentials: 'include'
       });
 
       if (response.ok) {
-        await fetchInstitutions();
+        await fetchCompanies();
         setDeleteConfirmOpen(false);
-        setInstitutionToDelete(null);
+        setCompanyToDelete(null);
       } else {
-        throw new Error('Failed to delete institution');
+        throw new Error('Failed to delete company');
       }
     } catch (err) {
-      setError('Error deleting institution');
-      console.error('Error deleting institution:', err);
+      setError('Error deleting company');
+      console.error('Error deleting company:', err);
     } finally {
       setLoading(false);
     }
@@ -181,7 +181,7 @@ const SuperAdminPage: React.FC = () => {
             onClick={() => handleOpenDialog()}
             disabled={loading}
           >
-            Add Institution
+            Add Company
           </Button>
         )}
       </Box>
@@ -195,9 +195,9 @@ const SuperAdminPage: React.FC = () => {
       <Card>
         <CardContent>
           <Typography variant="h6" gutterBottom>
-            Institution Management
+            Company Management
           </Typography>
-          {loading && institutions.length === 0 ? (
+          {loading && companies.length === 0 ? (
             <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
               <CircularProgress />
             </Box>
@@ -206,20 +206,20 @@ const SuperAdminPage: React.FC = () => {
               <Table>
                 <TableHead>
                   <TableRow>
-                    <TableCell>Institution Name</TableCell>
+                    <TableCell>Company Name</TableCell>
                     <TableCell>Status</TableCell>
                     <TableCell>Users</TableCell>
                     <TableCell>Actions</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {institutions.map((institution) => (
-                    <TableRow key={institution.id}>
+                  {companies.map((company) => (
+                    <TableRow key={company.id}>
                       <TableCell>
                         <Link
                           component="button"
                           variant="body2"
-                          onClick={() => navigate(`/admin?institution=${institution.id}`)}
+                          onClick={() => navigate(`/admin?company=${company.id}`)}
                           sx={{
                             textDecoration: 'none',
                             color: 'primary.main',
@@ -229,36 +229,36 @@ const SuperAdminPage: React.FC = () => {
                             }
                           }}
                         >
-                          {institution.name}
+                          {company.name}
                         </Link>
                       </TableCell>
-                      <TableCell>{institution.status}</TableCell>
-                      <TableCell>{institution.userCount}</TableCell>
+                      <TableCell>{company.status}</TableCell>
+                      <TableCell>{company.userCount}</TableCell>
                       <TableCell>
                         <IconButton
                           size="small"
-                          onClick={() => navigate(`/admin?institution=${institution.id}`)}
+                          onClick={() => navigate(`/admin?company=${company.id}`)}
                           disabled={loading}
-                          title={`Admin Panel for ${institution.name}`}
+                          title={`Admin Panel for ${company.name}`}
                           color="primary"
                         >
                           <AdminPanelSettings />
                         </IconButton>
                         <IconButton
                           size="small"
-                          onClick={() => handleOpenDialog(institution)}
+                          onClick={() => handleOpenDialog(company)}
                           disabled={loading}
-                          title="Edit Institution"
+                          title="Edit Company"
                         >
                           <Edit />
                         </IconButton>
                         {isNewtownAdmin && (
                           <IconButton
                             size="small"
-                            onClick={() => handleDeleteClick(institution)}
-                            disabled={loading || institution.userCount > 0}
+                            onClick={() => handleDeleteClick(company)}
+                            disabled={loading || company.userCount > 0}
                             color="error"
-                            title="Delete Institution"
+                            title="Delete Company"
                           >
                             <Delete />
                           </IconButton>
@@ -266,10 +266,10 @@ const SuperAdminPage: React.FC = () => {
                       </TableCell>
                     </TableRow>
                   ))}
-                  {institutions.length === 0 && !loading && (
+                  {companies.length === 0 && !loading && (
                     <TableRow>
                       <TableCell colSpan={4} sx={{ textAlign: 'center', py: 3 }}>
-                        No institutions found
+                        No companies found
                       </TableCell>
                     </TableRow>
                   )}
@@ -283,15 +283,15 @@ const SuperAdminPage: React.FC = () => {
       {/* Add/Edit Dialog */}
       <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
         <DialogTitle>
-          {editingInstitution ? 'Edit Institution' : 'Add Institution'}
+          {editingCompany ? 'Edit Company' : 'Add Company'}
         </DialogTitle>
         <DialogContent>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
             <TextField
-              label="Institution Name"
+              label="Company Name"
               fullWidth
-              value={institutionName}
-              onChange={(e) => setInstitutionName(e.target.value)}
+              value={companyName}
+              onChange={(e) => setCompanyName(e.target.value)}
               disabled={loading}
             />
           </Box>
@@ -301,24 +301,24 @@ const SuperAdminPage: React.FC = () => {
             Cancel
           </Button>
           <Button
-            onClick={handleSaveInstitution}
+            onClick={handleSaveCompany}
             variant="contained"
-            disabled={loading || !institutionName.trim()}
+            disabled={loading || !companyName.trim()}
           >
-            {loading ? <CircularProgress size={20} /> : (editingInstitution ? 'Update' : 'Create')}
+            {loading ? <CircularProgress size={20} /> : (editingCompany ? 'Update' : 'Create')}
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={deleteConfirmOpen} onClose={() => setDeleteConfirmOpen(false)}>
-        <DialogTitle>Delete Institution</DialogTitle>
+        <DialogTitle>Delete Company</DialogTitle>
         <DialogContent>
           <Typography>
-            Are you sure you want to delete "{institutionToDelete?.name}"?
-            {institutionToDelete && institutionToDelete.userCount > 0 && (
+            Are you sure you want to delete "{companyToDelete?.name}"?
+            {companyToDelete && companyToDelete.userCount > 0 && (
               <Alert severity="warning" sx={{ mt: 2 }}>
-                This institution has {institutionToDelete.userCount} users. Please reassign users before deleting.
+                This company has {companyToDelete.userCount} users. Please reassign users before deleting.
               </Alert>
             )}
           </Typography>
@@ -331,7 +331,7 @@ const SuperAdminPage: React.FC = () => {
             onClick={handleDeleteConfirm}
             color="error"
             variant="contained"
-            disabled={loading || (institutionToDelete?.userCount ?? 0) > 0}
+            disabled={loading || (companyToDelete?.userCount ?? 0) > 0}
           >
             {loading ? <CircularProgress size={20} /> : 'Delete'}
           </Button>

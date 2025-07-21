@@ -35,8 +35,8 @@ import type { SelectChangeEvent } from '@mui/material';
 interface User {
   id: number;
   email: string;
-  institution_name: string;
-  institution_id: number;
+  company_name: string;
+  company_id: number;
   roles: string[];
   created_at: string;
 }
@@ -45,12 +45,12 @@ interface Site {
   id: number;
   name: string;
   location: string;
-  institution_id: number;
-  institution_name: string;
+  company_id: number;
+  company_name: string;
   status: string;
 }
 
-interface Institution {
+interface Company {
   id: number;
   name: string;
 }
@@ -59,10 +59,10 @@ const AdminPage: React.FC = () => {
   const { userInfo } = useAuth();
   const [searchParams] = useSearchParams();
   const [tabValue, setTabValue] = useState(0);
-  const [selectedInstitutionId, setSelectedInstitutionId] = useState<number>(0);
+  const [selectedCompanyId, setSelectedCompanyId] = useState<number>(0);
   const [users, setUsers] = useState<User[]>([]);
   const [sites, setSites] = useState<Site[]>([]);
-  const [institutions, setInstitutions] = useState<Institution[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -70,7 +70,7 @@ const AdminPage: React.FC = () => {
   const [userDialog, setUserDialog] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [userEmail, setUserEmail] = useState('');
-  const [userInstitution, setUserInstitution] = useState<number>(0);
+  const [userCompany, setUserCompany] = useState<number>(0);
   const [userRoles, setUserRoles] = useState<string[]>([]);
   const [deleteUserDialog, setDeleteUserDialog] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
@@ -80,7 +80,7 @@ const AdminPage: React.FC = () => {
   const [editingSite, setEditingSite] = useState<Site | null>(null);
   const [siteName, setSiteName] = useState('');
   const [siteLocation, setSiteLocation] = useState('');
-  const [siteInstitution, setSiteInstitution] = useState<number>(0);
+  const [siteCompany, setSiteCompany] = useState<number>(0);
   const [deleteSiteDialog, setDeleteSiteDialog] = useState(false);
   const [siteToDelete, setSiteToDelete] = useState<Site | null>(null);
 
@@ -89,11 +89,11 @@ const AdminPage: React.FC = () => {
   const isAdmin = currentUserRoles.includes('admin') || currentUserRoles.includes('newtown-admin');
   const isSuperAdmin = currentUserRoles.includes('newtown-admin') || currentUserRoles.includes('newtown-staff');
 
-  // Available roles based on institution
-  const getAvailableRoles = (institutionId: number): string[] => {
-    const institutionName = institutions.find(inst => inst.id === institutionId)?.name;
+  // Available roles based on company
+  const getAvailableRoles = (companyId: number): string[] => {
+    const companyName = companies.find(comp => comp.id === companyId)?.name;
 
-    if (institutionName === 'Newtown Energy' || institutionName === 'Newtown') {
+    if (companyName === 'Newtown Energy' || companyName === 'Newtown') {
       return ['user', 'staff', 'admin', 'newtown-admin'];
     } else {
       return ['user', 'staff'];
@@ -102,31 +102,31 @@ const AdminPage: React.FC = () => {
 
   useEffect(() => {
     if (isAdmin) {
-      // Start with just loading institutions to avoid complex async issues
-      fetchInstitutions();
+      // Start with just loading companies to avoid complex async issues
+      fetchCompanies();
     }
   }, [isAdmin]);
 
   useEffect(() => {
-    // Handle institution parameter from URL
-    const institutionParam = searchParams.get('institution');
-    if (institutionParam && institutions.length > 0) {
-      const institutionId = parseInt(institutionParam);
-      setSelectedInstitutionId(institutionId);
-    } else if (userInfo && institutions.length > 0 && !selectedInstitutionId) {
-      // Default to user's own institution if no parameter provided
-      const userInstitution = institutions.find(inst => inst.name === userInfo.institution_name);
-      if (userInstitution) {
-        setSelectedInstitutionId(userInstitution.id);
+    // Handle company parameter from URL
+    const companyParam = searchParams.get('company');
+    if (companyParam && companies.length > 0) {
+      const companyId = parseInt(companyParam);
+      setSelectedCompanyId(companyId);
+    } else if (userInfo && companies.length > 0 && !selectedCompanyId) {
+      // Default to user's own company if no parameter provided
+      const userCompany = companies.find(comp => comp.name === userInfo.company_name);
+      if (userCompany) {
+        setSelectedCompanyId(userCompany.id);
       }
     }
-  }, [searchParams, institutions, userInfo, selectedInstitutionId]);
+  }, [searchParams, companies, userInfo, selectedCompanyId]);
 
   const fetchData = async () => {
     setLoading(true);
     setError(null);
     try {
-      await Promise.all([fetchUsers(), fetchSites(), fetchInstitutions()]);
+      await Promise.all([fetchUsers(), fetchSites(), fetchCompanies()]);
     } catch (err) {
       setError('Error loading data');
       console.error('Error fetching data:', err);
@@ -153,24 +153,24 @@ const AdminPage: React.FC = () => {
         {
           id: 1,
           email: 'admin@example.com',
-          institution_name: 'Newtown Energy',
-          institution_id: 1,
+          company_name: 'Newtown Energy',
+          company_id: 1,
           roles: ['admin', 'newtown-admin'],
           created_at: '2024-01-15'
         },
         {
           id: 2,
           email: 'staff@hospital.com',
-          institution_name: 'NewYork-Presbyterian',
-          institution_id: 2,
+          company_name: 'NewYork-Presbyterian',
+          company_id: 2,
           roles: ['staff'],
           created_at: '2024-02-10'
         },
         {
           id: 3,
           email: 'user@clinic.com',
-          institution_name: 'Mount Sinai Health System',
-          institution_id: 3,
+          company_name: 'Mount Sinai Health System',
+          company_id: 3,
           roles: ['user'],
           created_at: '2024-03-05'
         }
@@ -199,38 +199,38 @@ const AdminPage: React.FC = () => {
           id: 1,
           name: 'Main Campus',
           location: 'New York, NY',
-          institution_id: 2,
-          institution_name: 'NewYork-Presbyterian',
+          company_id: 2,
+          company_name: 'NewYork-Presbyterian',
           status: 'Active'
         },
         {
           id: 2,
           name: 'Emergency Center',
           location: 'Brooklyn, NY',
-          institution_id: 3,
-          institution_name: 'Mount Sinai Health System',
+          company_id: 3,
+          company_name: 'Mount Sinai Health System',
           status: 'Active'
         }
       ]);
     }
   };
 
-  const fetchInstitutions = async () => {
+  const fetchCompanies = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/1/institutions', {
+      const response = await fetch('/api/1/companies', {
         credentials: 'include'
       });
       if (response.ok) {
         const data = await response.json();
-        setInstitutions(data);
+        setCompanies(data);
       } else {
-        throw new Error('Failed to fetch institutions');
+        throw new Error('Failed to fetch companies');
       }
     } catch (err) {
-      console.error('Error fetching institutions:', err);
+      console.error('Error fetching companies:', err);
       // Mock data for development
-      setInstitutions([
+      setCompanies([
         { id: 1, name: 'Newtown Energy' },
         { id: 2, name: 'NewYork-Presbyterian' },
         { id: 3, name: 'Mount Sinai Health System' },
@@ -245,7 +245,7 @@ const AdminPage: React.FC = () => {
   const handleUserDialog = (user?: User) => {
     setEditingUser(user || null);
     setUserEmail(user?.email || '');
-    setUserInstitution(user?.institution_id || 0);
+    setUserCompany(user?.company_id || 0);
     setUserRoles(user?.roles || []);
     setUserDialog(true);
   };
@@ -254,12 +254,12 @@ const AdminPage: React.FC = () => {
     setUserDialog(false);
     setEditingUser(null);
     setUserEmail('');
-    setUserInstitution(0);
+    setUserCompany(0);
     setUserRoles([]);
   };
 
   const handleSaveUser = async () => {
-    if (!userEmail.trim() || !userInstitution || userRoles.length === 0) return;
+    if (!userEmail.trim() || !userCompany || userRoles.length === 0) return;
 
     setLoading(true);
     try {
@@ -273,7 +273,7 @@ const AdminPage: React.FC = () => {
         credentials: 'include',
         body: JSON.stringify({
           email: userEmail,
-          institution_id: userInstitution,
+          company_id: userCompany,
           roles: userRoles
         })
       });
@@ -328,7 +328,7 @@ const AdminPage: React.FC = () => {
     setEditingSite(site || null);
     setSiteName(site?.name || '');
     setSiteLocation(site?.location || '');
-    setSiteInstitution(site?.institution_id || 0);
+    setSiteCompany(site?.company_id || 0);
     setSiteDialog(true);
   };
 
@@ -337,11 +337,11 @@ const AdminPage: React.FC = () => {
     setEditingSite(null);
     setSiteName('');
     setSiteLocation('');
-    setSiteInstitution(0);
+    setSiteCompany(0);
   };
 
   const handleSaveSite = async () => {
-    if (!siteName.trim() || !siteLocation.trim() || !siteInstitution) return;
+    if (!siteName.trim() || !siteLocation.trim() || !siteCompany) return;
 
     setLoading(true);
     try {
@@ -356,7 +356,7 @@ const AdminPage: React.FC = () => {
         body: JSON.stringify({
           name: siteName,
           location: siteLocation,
-          institution_id: siteInstitution
+          company_id: siteCompany
         })
       });
 
@@ -412,7 +412,7 @@ const AdminPage: React.FC = () => {
     );
   }
 
-  const selectedInstitutionName = institutions.find(inst => inst.id === selectedInstitutionId)?.name || 'Select Institution';
+  const selectedCompanyName = companies.find(comp => comp.id === selectedCompanyId)?.name || 'Select Company';
 
   return (
     <Box sx={{ p: 3 }}>
@@ -421,9 +421,9 @@ const AdminPage: React.FC = () => {
           <Typography variant="h2" gutterBottom>
             Admin Panel
           </Typography>
-          {selectedInstitutionName !== 'Select Institution' && (
+          {selectedCompanyName !== 'Select Company' && (
             <Typography variant="h6" color="text.secondary">
-              {selectedInstitutionName}
+              {selectedCompanyName}
             </Typography>
           )}
         </Box>
@@ -437,32 +437,32 @@ const AdminPage: React.FC = () => {
         </Button>
       </Box>
 
-      {/* Institution Selector for Super Admins */}
+      {/* Company Selector for Super Admins */}
       {isSuperAdmin && (
         <Card sx={{ mb: 3 }}>
           <CardContent>
             <Typography variant="h6" gutterBottom>
-              Institution Selection
+              Company Selection
             </Typography>
             <FormControl fullWidth sx={{ maxWidth: 400 }}>
-              <InputLabel>Select Institution</InputLabel>
+              <InputLabel>Select Company</InputLabel>
               <Select
-                value={selectedInstitutionId}
-                label="Select Institution"
+                value={selectedCompanyId}
+                label="Select Company"
                 onChange={(e) => {
-                  const newInstitutionId = Number(e.target.value);
-                  setSelectedInstitutionId(newInstitutionId);
+                  const newCompanyId = Number(e.target.value);
+                  setSelectedCompanyId(newCompanyId);
                   // Update URL parameter
                   const newSearchParams = new URLSearchParams(searchParams);
-                  newSearchParams.set('institution', newInstitutionId.toString());
+                  newSearchParams.set('company', newCompanyId.toString());
                   window.history.replaceState(null, '', `?${newSearchParams.toString()}`);
                 }}
                 disabled={loading}
               >
-                <MenuItem value={0}>Select Institution</MenuItem>
-                {institutions.map((institution) => (
-                  <MenuItem key={institution.id} value={institution.id}>
-                    {institution.name}
+                <MenuItem value={0}>Select Company</MenuItem>
+                {companies.map((company) => (
+                  <MenuItem key={company.id} value={company.id}>
+                    {company.name}
                   </MenuItem>
                 ))}
               </Select>
@@ -477,9 +477,9 @@ const AdminPage: React.FC = () => {
         </Alert>
       )}
 
-      {selectedInstitutionId === 0 ? (
+      {selectedCompanyId === 0 ? (
         <Alert severity="info">
-          Please select an institution to manage users and sites.
+          Please select a company to manage users and sites.
         </Alert>
       ) : (
         <>
@@ -528,7 +528,7 @@ const AdminPage: React.FC = () => {
                   <TableHead>
                     <TableRow>
                       <TableCell>Email</TableCell>
-                      <TableCell>Institution</TableCell>
+                      <TableCell>Company</TableCell>
                       <TableCell>Roles</TableCell>
                       <TableCell>Created</TableCell>
                       <TableCell>Actions</TableCell>
@@ -538,7 +538,7 @@ const AdminPage: React.FC = () => {
                     {users.map((user) => (
                       <TableRow key={user.id}>
                         <TableCell>{user.email}</TableCell>
-                        <TableCell>{user.institution_name}</TableCell>
+                        <TableCell>{user.company_name}</TableCell>
                         <TableCell>
                           <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
                             {user.roles.map((role) => (
@@ -636,7 +636,7 @@ const AdminPage: React.FC = () => {
                     <TableRow>
                       <TableCell>Site Name</TableCell>
                       <TableCell>Location</TableCell>
-                      <TableCell>Institution</TableCell>
+                      <TableCell>Company</TableCell>
                       <TableCell>Status</TableCell>
                       <TableCell>Actions</TableCell>
                     </TableRow>
@@ -646,7 +646,7 @@ const AdminPage: React.FC = () => {
                       <TableRow key={site.id}>
                         <TableCell>{site.name}</TableCell>
                         <TableCell>{site.location}</TableCell>
-                        <TableCell>{site.institution_name}</TableCell>
+                        <TableCell>{site.company_name}</TableCell>
                         <TableCell>
                           <Chip
                             label={site.status}
@@ -708,22 +708,22 @@ const AdminPage: React.FC = () => {
             />
 
             <FormControl fullWidth>
-              <InputLabel>Institution</InputLabel>
+              <InputLabel>Company</InputLabel>
               <Select
-                value={userInstitution}
-                label="Institution"
+                value={userCompany}
+                label="Company"
                 onChange={(e: SelectChangeEvent<number>) => {
-                  const institutionId = Number(e.target.value);
-                  setUserInstitution(institutionId);
-                  // Reset roles when institution changes
+                  const companyId = Number(e.target.value);
+                  setUserCompany(companyId);
+                  // Reset roles when company changes
                   setUserRoles([]);
                 }}
                 disabled={loading}
               >
-                <MenuItem value={0}>Select Institution</MenuItem>
-                {institutions.map((institution) => (
-                  <MenuItem key={institution.id} value={institution.id}>
-                    {institution.name}
+                <MenuItem value={0}>Select Company</MenuItem>
+                {companies.map((company) => (
+                  <MenuItem key={company.id} value={company.id}>
+                    {company.name}
                   </MenuItem>
                 ))}
               </Select>
@@ -739,7 +739,7 @@ const AdminPage: React.FC = () => {
                   const value = e.target.value;
                   setUserRoles(typeof value === 'string' ? value.split(',') : value);
                 }}
-                disabled={loading || !userInstitution}
+                disabled={loading || !userCompany}
                 renderValue={(selected) => (
                   <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
                     {selected.map((value) => (
@@ -748,7 +748,7 @@ const AdminPage: React.FC = () => {
                   </Box>
                 )}
               >
-                {userInstitution > 0 && getAvailableRoles(userInstitution).map((role) => (
+                {userCompany > 0 && getAvailableRoles(userCompany).map((role) => (
                   <MenuItem key={role} value={role}>
                     {role}
                   </MenuItem>
@@ -764,7 +764,7 @@ const AdminPage: React.FC = () => {
           <Button
             onClick={handleSaveUser}
             variant="contained"
-            disabled={loading || !userEmail.trim() || !userInstitution || userRoles.length === 0}
+            disabled={loading || !userEmail.trim() || !userCompany || userRoles.length === 0}
           >
             {loading ? <CircularProgress size={20} /> : (editingUser ? 'Update' : 'Create')}
           </Button>
@@ -795,19 +795,19 @@ const AdminPage: React.FC = () => {
             />
 
             <FormControl fullWidth>
-              <InputLabel>Institution</InputLabel>
+              <InputLabel>Company</InputLabel>
               <Select
-                value={siteInstitution}
-                label="Institution"
+                value={siteCompany}
+                label="Company"
                 onChange={(e: SelectChangeEvent<number>) => {
-                  setSiteInstitution(Number(e.target.value));
+                  setSiteCompany(Number(e.target.value));
                 }}
                 disabled={loading}
               >
-                <MenuItem value={0}>Select Institution</MenuItem>
-                {institutions.map((institution) => (
-                  <MenuItem key={institution.id} value={institution.id}>
-                    {institution.name}
+                <MenuItem value={0}>Select Company</MenuItem>
+                {companies.map((company) => (
+                  <MenuItem key={company.id} value={company.id}>
+                    {company.name}
                   </MenuItem>
                 ))}
               </Select>
@@ -821,7 +821,7 @@ const AdminPage: React.FC = () => {
           <Button
             onClick={handleSaveSite}
             variant="contained"
-            disabled={loading || !siteName.trim() || !siteLocation.trim() || !siteInstitution}
+            disabled={loading || !siteName.trim() || !siteLocation.trim() || !siteCompany}
           >
             {loading ? <CircularProgress size={20} /> : (editingSite ? 'Update' : 'Create')}
           </Button>

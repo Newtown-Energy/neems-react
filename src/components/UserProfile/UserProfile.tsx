@@ -86,7 +86,7 @@ const UserProfile: React.FC<UserProfileProps> = ({
           <>
             <Box sx={{ px: 2, py: 1 }}>
               <Typography variant="body2" color="text.secondary">
-                {userInfo.institution_name}
+                {userInfo.company_name}
               </Typography>
             </Box>
             <Divider />
