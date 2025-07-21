@@ -15,7 +15,7 @@ serve() {
 }
 
 test() {
-    cd docker/test
+    cd test
 
     npx jest --color --config=jest/tests/jest.config.js "$@" 2>&1 | tee >(ansi2txt | wl-copy) 
 }
