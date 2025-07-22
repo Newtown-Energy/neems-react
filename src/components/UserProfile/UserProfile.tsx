@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Box, Typography, Avatar, Menu, MenuItem, Divider, ListItemIcon } from '@mui/material';
-import { AdminPanelSettings, SupervisorAccount, Logout } from '@mui/icons-material';
+import { AdminPanelSettings, Logout } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import type { UserInfo } from '../../types/auth';
 
@@ -36,19 +36,13 @@ const UserProfile: React.FC<UserProfileProps> = ({
     handleClose();
     navigate('/admin');
   };
-
-  const handleSuperAdmin = () => {
-    handleClose();
-    navigate('/super-admin');
-  };
   const getInitials = (email: string) => {
     return email.charAt(0).toUpperCase();
   };
 
   // Extract roles from userInfo, with fallback to empty array
   const userRoles = userInfo?.roles || [];
-  const isAdmin = userRoles.includes('admin') || userRoles.includes('newtown-admin');
-  const isSuperAdmin = userRoles.includes('newtown-admin') || userRoles.includes('newtown-staff');
+  const isAdmin = userRoles.includes('admin') || userRoles.includes('newtown-admin') || userRoles.includes('newtown-staff');
 
   return (
     <>
@@ -93,15 +87,6 @@ const UserProfile: React.FC<UserProfileProps> = ({
           </>
         )}
         
-        {isSuperAdmin && (
-          <MenuItem onClick={handleSuperAdmin}>
-            <ListItemIcon>
-              <SupervisorAccount fontSize="small" />
-            </ListItemIcon>
-            Super Admin
-          </MenuItem>
-        )}
-        
         {isAdmin && (
           <MenuItem onClick={handleAdminPanel}>
             <ListItemIcon>
@@ -111,7 +96,7 @@ const UserProfile: React.FC<UserProfileProps> = ({
           </MenuItem>
         )}
         
-        {(isSuperAdmin || isAdmin) && <Divider />}
+        {isAdmin && <Divider />}
         
         <MenuItem onClick={handleLogout}>
           <ListItemIcon>
