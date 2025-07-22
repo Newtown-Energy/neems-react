@@ -21,10 +21,9 @@ be picked off the menu bar across the top of the interface.
 
 # Install
 
-`npm install` should do it.
+`yarn install` should do it.
 
-But also, if you want non-docker tests, `cd docker/test` and `npm
-install` there too.
+But also, if you want tests, `cd test` and `yarn install` there too.
 
 
 # Run and Deploy
@@ -51,4 +50,4 @@ There are a few other ways to run:
 
 # Tests
 
-See `docker/test/README.md` for all the test details.
+See `test/README.md` for all the test details.
