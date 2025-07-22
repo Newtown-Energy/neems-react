@@ -25,11 +25,12 @@ import {
   Select,
   MenuItem,
   Tabs,
-  Tab
+  Tab,
+  Link
 } from '@mui/material';
-import { Add, Edit, Delete, Refresh, Person, LocationOn } from '@mui/icons-material';
+import { Add, Edit, Delete, Refresh, Person, LocationOn, Business, AdminPanelSettings } from '@mui/icons-material';
 import { useAuth } from '../components/LoginPage/useAuth';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import type { SelectChangeEvent } from '@mui/material';
 
 interface User {
@@ -65,6 +66,7 @@ interface Company {
 
 const AdminPage: React.FC = () => {
   const { userInfo } = useAuth();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [tabValue, setTabValue] = useState(0);
   const [selectedCompanyId, setSelectedCompanyId] = useState<number>(0);
@@ -91,6 +93,13 @@ const AdminPage: React.FC = () => {
   const [siteCompany, setSiteCompany] = useState<number>(0);
   const [deleteSiteDialog, setDeleteSiteDialog] = useState(false);
   const [siteToDelete, setSiteToDelete] = useState<Site | null>(null);
+
+  // Company management state
+  const [companyDialog, setCompanyDialog] = useState(false);
+  const [editingCompany, setEditingCompany] = useState<Company | null>(null);
+  const [companyName, setCompanyName] = useState('');
+  const [deleteCompanyDialog, setDeleteCompanyDialog] = useState(false);
+  const [companyToDelete, setCompanyToDelete] = useState<Company | null>(null);
 
   // Role checks
   const currentUserRoles = userInfo?.roles || [];
@@ -445,6 +454,74 @@ const AdminPage: React.FC = () => {
     }
   };
 
+  // Company management functions
+  const handleCompanyDialog = (company?: Company) => {
+    setEditingCompany(company || null);
+    setCompanyName(company?.name || '');
+    setCompanyDialog(true);
+  };
+
+  const handleCloseCompanyDialog = () => {
+    setCompanyDialog(false);
+    setEditingCompany(null);
+    setCompanyName('');
+  };
+
+  const handleSaveCompany = async () => {
+    if (!companyName.trim()) return;
+
+    setLoading(true);
+    try {
+      const isEdit = editingCompany !== null;
+      const url = isEdit ? `/api/1/companies/${editingCompany.id}` : '/api/1/companies';
+      const method = isEdit ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ name: companyName })
+      });
+
+      if (response.ok) {
+        await fetchCompanies();
+        handleCloseCompanyDialog();
+      } else {
+        throw new Error(`Failed to ${isEdit ? 'update' : 'create'} company`);
+      }
+    } catch (err) {
+      setError(`Error ${editingCompany ? 'updating' : 'creating'} company`);
+      console.error('Error saving company:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteCompany = async () => {
+    if (!companyToDelete) return;
+
+    setLoading(true);
+    try {
+      const response = await fetch(`/api/1/companies/${companyToDelete.id}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        await fetchCompanies();
+        setDeleteCompanyDialog(false);
+        setCompanyToDelete(null);
+      } else {
+        throw new Error('Failed to delete company');
+      }
+    } catch (err) {
+      setError('Error deleting company');
+      console.error('Error deleting company:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (!isAdmin) {
     return (
       <Box sx={{ p: 3 }}>
@@ -533,6 +610,9 @@ const AdminPage: React.FC = () => {
             <Tabs value={tabValue} onChange={(_, newValue) => setTabValue(newValue)}>
               <Tab icon={<Person />} label="Users" />
               <Tab icon={<LocationOn />} label="Sites" />
+              {isSuperAdmin && (
+                <Tab icon={<Business />} label="Company Add/Remove/Edit" />
+              )}
             </Tabs>
           </Box>
 
@@ -737,6 +817,129 @@ const AdminPage: React.FC = () => {
         </Card>
       )}
 
+      {/* Companies Tab - Only for Super Admins */}
+      {tabValue === 2 && isSuperAdmin && (
+        <Card>
+          <CardContent>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Typography variant="h6">
+                Company Add/Remove/Edit
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <Button
+                  variant="outlined"
+                  startIcon={<Refresh />}
+                  onClick={fetchCompanies}
+                  disabled={loading}
+                >
+                  Refresh Companies
+                </Button>
+                <Button
+                  variant="contained"
+                  startIcon={<Add />}
+                  onClick={() => handleCompanyDialog()}
+                  disabled={loading}
+                >
+                  Add Company
+                </Button>
+              </Box>
+            </Box>
+
+            {loading && companies.length === 0 ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+                <CircularProgress />
+              </Box>
+            ) : (
+              <TableContainer>
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Company Name</TableCell>
+                      <TableCell>Actions</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {companies.map((company) => (
+                      <TableRow key={company.id}>
+                        <TableCell>
+                          <Link
+                            component="button"
+                            variant="body2"
+                            onClick={() => {
+                              setSelectedCompanyId(company.id);
+                              setTabValue(0); // Switch to Users tab
+                              // Update URL parameter
+                              const newSearchParams = new URLSearchParams(searchParams);
+                              newSearchParams.set('company', company.id.toString());
+                              window.history.replaceState(null, '', `?${newSearchParams.toString()}`);
+                            }}
+                            sx={{
+                              textDecoration: 'none',
+                              color: 'primary.main',
+                              fontWeight: 'medium',
+                              '&:hover': {
+                                textDecoration: 'underline'
+                              }
+                            }}
+                          >
+                            {company.name}
+                          </Link>
+                        </TableCell>
+                        <TableCell>
+                          <IconButton
+                            size="small"
+                            onClick={() => {
+                              setSelectedCompanyId(company.id);
+                              setTabValue(0); // Switch to Users tab
+                              // Update URL parameter
+                              const newSearchParams = new URLSearchParams(searchParams);
+                              newSearchParams.set('company', company.id.toString());
+                              window.history.replaceState(null, '', `?${newSearchParams.toString()}`);
+                            }}
+                            disabled={loading}
+                            title={`Admin Panel for ${company.name}`}
+                            color="primary"
+                          >
+                            <AdminPanelSettings />
+                          </IconButton>
+                          <IconButton
+                            size="small"
+                            onClick={() => handleCompanyDialog(company)}
+                            disabled={loading}
+                            title="Edit Company"
+                          >
+                            <Edit />
+                          </IconButton>
+                          <IconButton
+                            size="small"
+                            onClick={() => {
+                              setCompanyToDelete(company);
+                              setDeleteCompanyDialog(true);
+                            }}
+                            disabled={loading}
+                            color="error"
+                            title="Delete Company"
+                          >
+                            <Delete />
+                          </IconButton>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {companies.length === 0 && !loading && (
+                      <TableRow>
+                        <TableCell colSpan={2} sx={{ textAlign: 'center', py: 3 }}>
+                          No companies found
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {/* User Add/Edit Dialog */}
       <Dialog open={userDialog} onClose={handleCloseUserDialog} maxWidth="sm" fullWidth>
         <DialogTitle>
@@ -911,6 +1114,59 @@ const AdminPage: React.FC = () => {
           </Button>
           <Button
             onClick={handleDeleteSite}
+            color="error"
+            variant="contained"
+            disabled={loading}
+          >
+            {loading ? <CircularProgress size={20} /> : 'Delete'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Company Add/Edit Dialog */}
+      <Dialog open={companyDialog} onClose={handleCloseCompanyDialog} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          {editingCompany ? 'Edit Company' : 'Add Company'}
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+            <TextField
+              label="Company Name"
+              fullWidth
+              value={companyName}
+              onChange={(e) => setCompanyName(e.target.value)}
+              disabled={loading}
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseCompanyDialog} disabled={loading}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSaveCompany}
+            variant="contained"
+            disabled={loading || !companyName.trim()}
+          >
+            {loading ? <CircularProgress size={20} /> : (editingCompany ? 'Update' : 'Create')}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Company Confirmation Dialog */}
+      <Dialog open={deleteCompanyDialog} onClose={() => setDeleteCompanyDialog(false)}>
+        <DialogTitle>Delete Company</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete the company "{companyToDelete?.name}"? This action cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteCompanyDialog(false)} disabled={loading}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleDeleteCompany}
             color="error"
             variant="contained"
             disabled={loading}
