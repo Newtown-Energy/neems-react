@@ -26,7 +26,11 @@ import {
   MenuItem,
   Tabs,
   Tab,
-  Link
+  Link,
+  FormLabel,
+  RadioGroup,
+  FormControlLabel,
+  Radio
 } from '@mui/material';
 import { Add, Edit, Delete, Refresh, Person, LocationOn, Business, AdminPanelSettings } from '@mui/icons-material';
 import { useAuth } from '../components/LoginPage/useAuth';
@@ -81,7 +85,7 @@ const AdminPage: React.FC = () => {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [userEmail, setUserEmail] = useState('');
   const [userCompany, setUserCompany] = useState<number>(0);
-  const [userRoles, setUserRoles] = useState<string[]>([]);
+  const [userRole, setUserRole] = useState<string>('');
   const [deleteUserDialog, setDeleteUserDialog] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
 
@@ -111,9 +115,9 @@ const AdminPage: React.FC = () => {
     const companyName = companies.find(comp => comp.id === companyId)?.name;
 
     if (companyName === 'Newtown Energy' || companyName === 'Newtown') {
-      return ['user', 'staff', 'admin', 'newtown-admin'];
+      return ['staff', 'admin', 'newtown-admin'];
     } else {
-      return ['user', 'staff'];
+      return ['staff', 'admin'];
     }
   };
 
@@ -277,8 +281,8 @@ const AdminPage: React.FC = () => {
   const handleUserDialog = (user?: User) => {
     setEditingUser(user || null);
     setUserEmail(user?.email || '');
-    setUserCompany(user?.company_id || 0);
-    setUserRoles(user?.roles || []);
+    setUserCompany(user?.company_id || selectedCompanyId);
+    setUserRole(user?.roles?.[0] || '');
     setUserDialog(true);
   };
 
@@ -287,11 +291,11 @@ const AdminPage: React.FC = () => {
     setEditingUser(null);
     setUserEmail('');
     setUserCompany(0);
-    setUserRoles([]);
+    setUserRole('');
   };
 
   const handleSaveUser = async () => {
-    if (!userEmail.trim() || !userCompany || userRoles.length === 0) return;
+    if (!userEmail.trim() || !userCompany || !userRole.trim()) return;
 
     setLoading(true);
     try {
@@ -938,7 +942,7 @@ const AdminPage: React.FC = () => {
       {/* User Add/Edit Dialog */}
       <Dialog open={userDialog} onClose={handleCloseUserDialog} maxWidth="sm" fullWidth>
         <DialogTitle>
-          {editingUser ? 'Edit User' : 'Add User'}
+          {editingUser ? 'Edit User' : `Add ${selectedCompanyName} User`}
         </DialogTitle>
         <DialogContent>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
@@ -951,53 +955,25 @@ const AdminPage: React.FC = () => {
               disabled={loading}
             />
 
-            <FormControl fullWidth>
-              <InputLabel>Company</InputLabel>
-              <Select
-                value={userCompany}
-                label="Company"
-                onChange={(e: SelectChangeEvent<number>) => {
-                  const companyId = Number(e.target.value);
-                  setUserCompany(companyId);
-                  // Reset roles when company changes
-                  setUserRoles([]);
-                }}
-                disabled={loading}
-              >
-                <MenuItem value={0}>Select Company</MenuItem>
-                {companies.map((company) => (
-                  <MenuItem key={company.id} value={company.id}>
-                    {company.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-
-            <FormControl fullWidth>
-              <InputLabel>Roles</InputLabel>
-              <Select
-                multiple
-                value={userRoles}
-                label="Roles"
+            <FormControl component="fieldset" fullWidth>
+              <FormLabel component="legend">Role</FormLabel>
+              <RadioGroup
+                value={userRole}
                 onChange={(e) => {
-                  const value = e.target.value;
-                  setUserRoles(typeof value === 'string' ? value.split(',') : value);
+                  setUserRole(e.target.value);
                 }}
-                disabled={loading || !userCompany}
-                renderValue={(selected) => (
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                    {selected.map((value) => (
-                      <Chip key={value} label={value} size="small" />
-                    ))}
-                  </Box>
-                )}
+                row
+                sx={{ mt: 1 }}
               >
                 {userCompany > 0 && getAvailableRoles(userCompany).map((role) => (
-                  <MenuItem key={role} value={role}>
-                    {role}
-                  </MenuItem>
+                  <FormControlLabel
+                    key={role}
+                    value={role}
+                    control={<Radio disabled={loading} />}
+                    label={role.charAt(0).toUpperCase() + role.slice(1)}
+                  />
                 ))}
-              </Select>
+              </RadioGroup>
             </FormControl>
           </Box>
         </DialogContent>
@@ -1008,7 +984,7 @@ const AdminPage: React.FC = () => {
           <Button
             onClick={handleSaveUser}
             variant="contained"
-            disabled={loading || !userEmail.trim() || !userCompany || userRoles.length === 0}
+            disabled={loading || !userEmail.trim() || !userCompany || !userRole.trim()}
           >
             {loading ? <CircularProgress size={20} /> : (editingUser ? 'Update' : 'Create')}
           </Button>
