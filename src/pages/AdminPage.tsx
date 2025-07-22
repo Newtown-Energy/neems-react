@@ -542,13 +542,8 @@ const AdminPage: React.FC = () => {
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Box>
           <Typography variant="h2" gutterBottom>
-            Admin Panel
+            {selectedCompanyName !== 'Select Company' ? `${selectedCompanyName} Admin Panel` : 'Admin Panel'}
           </Typography>
-          {selectedCompanyName !== 'Select Company' && (
-            <Typography variant="h6" color="text.secondary">
-              {selectedCompanyName}
-            </Typography>
-          )}
         </Box>
         <Button
           variant="outlined"
