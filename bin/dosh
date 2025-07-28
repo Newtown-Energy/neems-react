@@ -8,7 +8,29 @@ cd ${BASEDIR}
 
 build() {
     # Build for prod
-    npm run build
+
+   [ -d dist ] || { npm run build; exit 0; }
+   [ -d node_modules ] || { npm run build; exit 0; }
+
+   # Get the latest timestamps (in seconds since epoch) for each directory tree
+   dist_t=$(find "dist" -type d -exec stat -c '%Y' {} + | sort -nr | head -n 1)
+   [ -z "$dist_t" ] && { npm run build; exit 0; }
+
+   # Cheapest find first
+   cur_dir_t=$(find . -maxdepth 1 -type f -exec stat -c '%Y' {} + | sort -nr | head -n 1)
+   [ "$cur_dir_t" -gt "$dist_t" ] && { echo "some config file is older than src, so rebuilding"; npm run build; exit 0; }
+
+   src_t=$(find "src" -type f -exec stat -c '%Y' {} + | sort -nr | head -n 1)
+   [ "$src_t" -gt "$dist_t" ] && { echo "dist is older than src, so rebuilding"; npm run build; exit 0; }
+
+   # Most expensive find last
+   node_modules_t=$(find "node_modules" -type d -exec stat -c '%Y' {} + | sort -nr | head -n 1)
+   [ -z "$node_modules_t" ] && { npm run build; exit 0; }
+   [ "$node_modules_t" -gt "$dist_t" ] && { echo "dist is older than node_modules, so rebuilding"; npm run build; exit 0; }
+
+   # else:
+   echo "dist is newer than src, skipping rebuild"
+
 }
 
 serve() {
