@@ -34,7 +34,7 @@ import {
 } from '@mui/material';
 import { Add, Edit, Delete, Refresh, Person, LocationOn, Business, AdminPanelSettings } from '@mui/icons-material';
 import { useAuth } from '../components/LoginPage/useAuth';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import type { SelectChangeEvent } from '@mui/material';
 
 interface User {
@@ -70,7 +70,6 @@ interface Company {
 
 const AdminPage: React.FC = () => {
   const { userInfo } = useAuth();
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [tabValue, setTabValue] = useState(0);
   const [selectedCompanyId, setSelectedCompanyId] = useState<number>(0);
@@ -666,7 +665,7 @@ const AdminPage: React.FC = () => {
                         <TableCell>{user.company_name}</TableCell>
                         <TableCell>
                           <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-                            {user.roles.map((role) => (
+                            {user.roles?.map((role) => (
                               <Chip
                                 key={role}
                                 label={role}
