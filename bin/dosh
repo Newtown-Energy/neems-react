@@ -21,11 +21,6 @@ test() {
     npx jest --color --config=jest/tests/jest.config.js "$@" 2>&1 | tee >(ansi2txt | wl-copy) 
 }
 
-push() {
-    echo "Pushing dist directory to newtown.energy..."
-    rsync -r dist/ root@newtown.energy:/opt/neems/react
-}
-
 watch() {
     npm run dev
 }
