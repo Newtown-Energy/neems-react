@@ -74,6 +74,18 @@ interface Company {
   name: string;
 }
 
+const formatDateTime = (dateString: string): string => {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
+
+  if (diffInHours > 24) {
+    return date.toLocaleDateString();
+  } else {
+    return date.toLocaleTimeString();
+  }
+};
+
 const AdminPage: React.FC = () => {
   const { userInfo } = useAuth();
   const [searchParams] = useSearchParams();
@@ -290,7 +302,7 @@ const AdminPage: React.FC = () => {
     setLoading(true);
     try {
       const isEdit = editingUser !== null;
-      
+
       if (isEdit) {
         // For editing, update user basic info first
         const updateResponse = await fetch(`/api/1/users/${editingUser.id}`, {
@@ -302,7 +314,7 @@ const AdminPage: React.FC = () => {
             company_id: userCompany
           })
         });
-        
+
         if (!updateResponse.ok) {
           let errorMessage = 'Failed to update user';
           try {
@@ -337,7 +349,7 @@ const AdminPage: React.FC = () => {
           }
           throw new Error(errorMessage);
         }
-        
+
         // Note: Role management would need separate API calls to add/remove roles
         // This is a simplified version for now
       } else {
@@ -353,7 +365,7 @@ const AdminPage: React.FC = () => {
             role_names: [userRole]
           })
         });
-        
+
         if (!createResponse.ok) {
           let errorMessage = 'Failed to create user';
           try {
@@ -388,7 +400,7 @@ const AdminPage: React.FC = () => {
           }
           throw new Error(errorMessage);
         }
-        
+
         // Note: Role assignment would need separate API calls
       }
 
@@ -895,7 +907,7 @@ const AdminPage: React.FC = () => {
                             ))}
                           </Box>
                         </TableCell>
-                        <TableCell>{user.created_at}</TableCell>
+                        <TableCell>{formatDateTime(user.created_at)}</TableCell>
                         <TableCell>
                           <IconButton
                             size="small"
