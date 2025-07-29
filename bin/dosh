@@ -40,6 +40,17 @@ serve() {
 test() {
     cd test
 
+    # Check if Chrome is available for Puppeteer
+    if ! npx puppeteer browsers installed chrome &>/dev/null; then
+        echo "Chrome not found for Puppeteer. Installing Chrome..."
+        npx puppeteer browsers install chrome
+        if [ $? -ne 0 ]; then
+            echo "Failed to install Chrome. Please run 'npx puppeteer browsers install chrome' manually."
+            exit 1
+        fi
+        echo "Chrome installation completed."
+    fi
+
     npx jest --color --config=jest/tests/jest.config.js "$@" 2>&1 | tee >(ansi2txt | wl-copy) 
 }
 
