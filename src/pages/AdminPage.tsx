@@ -787,6 +787,7 @@ const AdminPage: React.FC = () => {
             <FormControl fullWidth sx={{ maxWidth: 400 }}>
               <InputLabel>Select Company</InputLabel>
               <Select
+                id="company-selector"
                 value={selectedCompanyId}
                 label="Select Company"
                 onChange={(e) => {
