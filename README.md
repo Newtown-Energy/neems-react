@@ -29,9 +29,9 @@ But also, if you want tests, `cd test` and `yarn install` there too.
 # Run and Deploy
 
 NEEMS EMS has a front end (this repo) and a back end (NEEMS Core).
-For convenience, you can run this front end with `npm run dev`.  That
+For convenience, you can run this front end with `bun run dev`.  That
 server can redirect API calls to the NEEMS Core backend by proxying
-any `/api` route.  By default, npm will redirect to
+any `/api` route.  By default, bun will redirect to
 `http://127.0.0.1:8000` but you can set NEEMS_CORE_SERVER in your
 environment to change that.
 
@@ -40,7 +40,7 @@ There are a few other ways to run:
  1. For dev of the /api routes, you can run the rust backend, NEEMS
     Core, from its directory.  That backend will server static files
     from its `static` directory, which you can symlink to `./dist`
-    (run `dosh build` or `npm run build` to generate dist files).
+    (run `dosh build` or `bun run build` to generate dist files).
 	
  2. In production, maybe you can put this behind a web server that
     serves the static files, but proxies /api calls to a running NEEMS
