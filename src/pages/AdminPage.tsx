@@ -829,7 +829,7 @@ const AdminPage: React.FC = () => {
               <Tab icon={<Person />} label="Users" />
               <Tab icon={<LocationOn />} label="Sites" />
               {isSuperAdmin && (
-                <Tab icon={<Business />} label="Company Add/Remove/Edit" />
+                <Tab icon={<Business />} label="COMPANIES" />
               )}
             </Tabs>
           </Box>
@@ -1041,7 +1041,7 @@ const AdminPage: React.FC = () => {
           <CardContent>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
               <Typography variant="h6">
-                Company Add/Remove/Edit
+                COMPANIES
               </Typography>
               <Box sx={{ display: 'flex', gap: 1 }}>
                 <Button
