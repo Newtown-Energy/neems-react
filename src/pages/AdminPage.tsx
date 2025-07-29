@@ -37,6 +37,12 @@ import { useAuth } from '../components/LoginPage/useAuth';
 import { useSearchParams } from 'react-router-dom';
 import type { SelectChangeEvent } from '@mui/material';
 
+interface Role {
+  id: number;
+  name: string;
+  description: string;
+}
+
 interface User {
   id: number;
   email: string;
@@ -44,7 +50,7 @@ interface User {
   company_id: number;
   company_name?: string; // Added by transformation
   totp_secret?: string | null;
-  roles?: string[]; // Added by transformation
+  roles: Role[]; // Now embedded in API response
   created_at: string;
   updated_at: string;
 }
@@ -87,6 +93,7 @@ const AdminPage: React.FC = () => {
   const [userRole, setUserRole] = useState<string>('');
   const [deleteUserDialog, setDeleteUserDialog] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const [userModalError, setUserModalError] = useState<string | null>(null);
 
   // Site management state
   const [siteDialog, setSiteDialog] = useState(false);
@@ -96,6 +103,7 @@ const AdminPage: React.FC = () => {
   const [siteCompany, setSiteCompany] = useState<number>(0);
   const [deleteSiteDialog, setDeleteSiteDialog] = useState(false);
   const [siteToDelete, setSiteToDelete] = useState<Site | null>(null);
+  const [siteModalError, setSiteModalError] = useState<string | null>(null);
 
   // Company management state
   const [companyDialog, setCompanyDialog] = useState(false);
@@ -103,6 +111,7 @@ const AdminPage: React.FC = () => {
   const [companyName, setCompanyName] = useState('');
   const [deleteCompanyDialog, setDeleteCompanyDialog] = useState(false);
   const [companyToDelete, setCompanyToDelete] = useState<Company | null>(null);
+  const [companyModalError, setCompanyModalError] = useState<string | null>(null);
 
   // Role checks
   const currentUserRoles = userInfo?.roles || [];
@@ -165,20 +174,6 @@ const AdminPage: React.FC = () => {
     }
   };
 
-  const fetchUserRoles = async (userId: number): Promise<string[]> => {
-    try {
-      const response = await fetch(`/api/1/users/${userId}/roles`, {
-        credentials: 'include'
-      });
-      if (response.ok) {
-        const roles = await response.json();
-        return roles.map((role: any) => role.name);
-      }
-    } catch (err) {
-      console.error(`Error fetching roles for user ${userId}:`, err);
-    }
-    return [];
-  };
 
   const fetchUsers = async () => {
     if (!selectedCompanyId) {
@@ -193,18 +188,12 @@ const AdminPage: React.FC = () => {
       });
       if (response.ok) {
         const data = await response.json();
-        // Transform API response and fetch roles for each user
-        const usersWithRoles = await Promise.all(
-          data.map(async (user: any) => {
-            const roles = await fetchUserRoles(user.id);
-            return {
-              ...user,
-              company_name: companies.find(c => c.id === user.company_id)?.name || 'Unknown',
-              roles
-            };
-          })
-        );
-        setUsers(usersWithRoles);
+        // Transform API response - roles are now embedded
+        const usersWithCompanyNames = data.map((user: any) => ({
+          ...user,
+          company_name: companies.find(c => c.id === user.company_id)?.name || 'Unknown'
+        }));
+        setUsers(usersWithCompanyNames);
       } else {
         throw new Error('Failed to fetch users');
       }
@@ -281,7 +270,8 @@ const AdminPage: React.FC = () => {
     setEditingUser(user || null);
     setUserEmail(user?.email || '');
     setUserCompany(user?.company_id || selectedCompanyId);
-    setUserRole(user?.roles?.[0] || '');
+    setUserRole(user?.roles?.[0]?.name || '');
+    setUserModalError(null);
     setUserDialog(true);
   };
 
@@ -291,6 +281,7 @@ const AdminPage: React.FC = () => {
     setUserEmail('');
     setUserCompany(0);
     setUserRole('');
+    setUserModalError(null);
   };
 
   const handleSaveUser = async () => {
@@ -313,13 +304,33 @@ const AdminPage: React.FC = () => {
         });
         
         if (!updateResponse.ok) {
-          throw new Error('Failed to update user');
+          let errorMessage = 'Failed to update user';
+          try {
+            const errorData = await updateResponse.text();
+            // Check if it's HTML (likely an error page)
+            if (errorData.includes('<!DOCTYPE html>') || errorData.includes('<html')) {
+              // Extract status code and provide user-friendly message
+              if (updateResponse.status === 409) {
+                errorMessage = 'User with this email already exists';
+              } else if (updateResponse.status === 400) {
+                errorMessage = 'Invalid user data provided';
+              } else {
+                errorMessage = `Failed to update user (${updateResponse.status})`;
+              }
+            } else {
+              errorMessage = errorData;
+            }
+          } catch {
+            // If we can't parse the error, use the status-based message
+            errorMessage = `Failed to update user (${updateResponse.status})`;
+          }
+          throw new Error(errorMessage);
         }
         
         // Note: Role management would need separate API calls to add/remove roles
         // This is a simplified version for now
       } else {
-        // For creating, we need a password_hash (this is a limitation)
+        // For creating, we need a password_hash and role_names
         const createResponse = await fetch('/api/1/users', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -327,12 +338,33 @@ const AdminPage: React.FC = () => {
           body: JSON.stringify({
             email: userEmail,
             password_hash: 'temp_password_hash', // This should be properly hashed
-            company_id: userCompany
+            company_id: userCompany,
+            role_names: [userRole]
           })
         });
         
         if (!createResponse.ok) {
-          throw new Error('Failed to create user');
+          let errorMessage = 'Failed to create user';
+          try {
+            const errorData = await createResponse.text();
+            // Check if it's HTML (likely an error page)
+            if (errorData.includes('<!DOCTYPE html>') || errorData.includes('<html')) {
+              // Extract status code and provide user-friendly message
+              if (createResponse.status === 409) {
+                errorMessage = 'User with this email already exists';
+              } else if (createResponse.status === 400) {
+                errorMessage = 'Invalid user data provided';
+              } else {
+                errorMessage = `Failed to create user (${createResponse.status})`;
+              }
+            } else {
+              errorMessage = errorData;
+            }
+          } catch {
+            // If we can't parse the error, use the status-based message
+            errorMessage = `Failed to create user (${createResponse.status})`;
+          }
+          throw new Error(errorMessage);
         }
         
         // Note: Role assignment would need separate API calls
@@ -341,7 +373,8 @@ const AdminPage: React.FC = () => {
       await fetchUsers();
       handleCloseUserDialog();
     } catch (err) {
-      setError(`Error ${editingUser ? 'updating' : 'creating'} user`);
+      const errorMessage = err instanceof Error ? err.message : `Error ${editingUser ? 'updating' : 'creating'} user`;
+      setUserModalError(errorMessage);
       console.error('Error saving user:', err);
     } finally {
       setLoading(false);
@@ -363,10 +396,31 @@ const AdminPage: React.FC = () => {
         setDeleteUserDialog(false);
         setUserToDelete(null);
       } else {
-        throw new Error('Failed to delete user');
+        let errorMessage = 'Failed to delete user';
+        try {
+          const errorData = await response.text();
+          // Check if it's HTML (likely an error page)
+          if (errorData.includes('<!DOCTYPE html>') || errorData.includes('<html')) {
+            // Extract status code and provide user-friendly message
+            if (response.status === 409) {
+              errorMessage = 'Cannot delete user - may have dependent records';
+            } else if (response.status === 404) {
+              errorMessage = 'User not found';
+            } else {
+              errorMessage = `Failed to delete user (${response.status})`;
+            }
+          } else {
+            errorMessage = errorData;
+          }
+        } catch {
+          // If we can't parse the error, use the status-based message
+          errorMessage = `Failed to delete user (${response.status})`;
+        }
+        throw new Error(errorMessage);
       }
     } catch (err) {
-      setError('Error deleting user');
+      const errorMessage = err instanceof Error ? err.message : 'Error deleting user';
+      setUserModalError(errorMessage);
       console.error('Error deleting user:', err);
     } finally {
       setLoading(false);
@@ -376,7 +430,7 @@ const AdminPage: React.FC = () => {
   const handlePasswordReset = async (userId: number) => {
     // Placeholder - doesn't do anything yet
     console.log('Password reset requested for user:', userId);
-    setError('Password reset functionality coming soon');
+    setUserModalError('Password reset functionality coming soon');
   };
 
   // Site management functions
@@ -385,6 +439,7 @@ const AdminPage: React.FC = () => {
     setSiteName(site?.name || '');
     setSiteLocation(site?.location || site?.address || '');
     setSiteCompany(site?.company_id || 0);
+    setSiteModalError(null);
     setSiteDialog(true);
   };
 
@@ -394,6 +449,7 @@ const AdminPage: React.FC = () => {
     setSiteName('');
     setSiteLocation('');
     setSiteCompany(0);
+    setSiteModalError(null);
   };
 
   const handleSaveSite = async () => {
@@ -422,10 +478,31 @@ const AdminPage: React.FC = () => {
         await fetchSites();
         handleCloseSiteDialog();
       } else {
-        throw new Error(`Failed to ${isEdit ? 'update' : 'create'} site`);
+        let errorMessage = `Failed to ${isEdit ? 'update' : 'create'} site`;
+        try {
+          const errorData = await response.text();
+          // Check if it's HTML (likely an error page)
+          if (errorData.includes('<!DOCTYPE html>') || errorData.includes('<html')) {
+            // Extract status code and provide user-friendly message
+            if (response.status === 409) {
+              errorMessage = isEdit ? 'Site name already exists' : 'Site with this name already exists';
+            } else if (response.status === 400) {
+              errorMessage = 'Invalid site data provided';
+            } else {
+              errorMessage = `Failed to ${isEdit ? 'update' : 'create'} site (${response.status})`;
+            }
+          } else {
+            errorMessage = errorData;
+          }
+        } catch {
+          // If we can't parse the error, use the status-based message
+          errorMessage = `Failed to ${isEdit ? 'update' : 'create'} site (${response.status})`;
+        }
+        throw new Error(errorMessage);
       }
     } catch (err) {
-      setError(`Error ${editingSite ? 'updating' : 'creating'} site`);
+      const errorMessage = err instanceof Error ? err.message : `Error ${editingSite ? 'updating' : 'creating'} site`;
+      setSiteModalError(errorMessage);
       console.error('Error saving site:', err);
     } finally {
       setLoading(false);
@@ -447,10 +524,31 @@ const AdminPage: React.FC = () => {
         setDeleteSiteDialog(false);
         setSiteToDelete(null);
       } else {
-        throw new Error('Failed to delete site');
+        let errorMessage = 'Failed to delete site';
+        try {
+          const errorData = await response.text();
+          // Check if it's HTML (likely an error page)
+          if (errorData.includes('<!DOCTYPE html>') || errorData.includes('<html')) {
+            // Extract status code and provide user-friendly message
+            if (response.status === 409) {
+              errorMessage = 'Cannot delete site - may have dependent records';
+            } else if (response.status === 404) {
+              errorMessage = 'Site not found';
+            } else {
+              errorMessage = `Failed to delete site (${response.status})`;
+            }
+          } else {
+            errorMessage = errorData;
+          }
+        } catch {
+          // If we can't parse the error, use the status-based message
+          errorMessage = `Failed to delete site (${response.status})`;
+        }
+        throw new Error(errorMessage);
       }
     } catch (err) {
-      setError('Error deleting site');
+      const errorMessage = err instanceof Error ? err.message : 'Error deleting site';
+      setSiteModalError(errorMessage);
       console.error('Error deleting site:', err);
     } finally {
       setLoading(false);
@@ -461,6 +559,7 @@ const AdminPage: React.FC = () => {
   const handleCompanyDialog = (company?: Company) => {
     setEditingCompany(company || null);
     setCompanyName(company?.name || '');
+    setCompanyModalError(null);
     setCompanyDialog(true);
   };
 
@@ -468,6 +567,7 @@ const AdminPage: React.FC = () => {
     setCompanyDialog(false);
     setEditingCompany(null);
     setCompanyName('');
+    setCompanyModalError(null);
   };
 
   const handleSaveCompany = async () => {
@@ -490,10 +590,31 @@ const AdminPage: React.FC = () => {
         await fetchCompanies();
         handleCloseCompanyDialog();
       } else {
-        throw new Error(`Failed to ${isEdit ? 'update' : 'create'} company`);
+        let errorMessage = `Failed to ${isEdit ? 'update' : 'create'} company`;
+        try {
+          const errorData = await response.text();
+          // Check if it's HTML (likely an error page)
+          if (errorData.includes('<!DOCTYPE html>') || errorData.includes('<html')) {
+            // Extract status code and provide user-friendly message
+            if (response.status === 409) {
+              errorMessage = isEdit ? 'Company name already exists' : 'Company with this name already exists';
+            } else if (response.status === 400) {
+              errorMessage = 'Invalid company data provided';
+            } else {
+              errorMessage = `Failed to ${isEdit ? 'update' : 'create'} company (${response.status})`;
+            }
+          } else {
+            errorMessage = errorData;
+          }
+        } catch {
+          // If we can't parse the error, use the status-based message
+          errorMessage = `Failed to ${isEdit ? 'update' : 'create'} company (${response.status})`;
+        }
+        throw new Error(errorMessage);
       }
     } catch (err) {
-      setError(`Error ${editingCompany ? 'updating' : 'creating'} company`);
+      const errorMessage = err instanceof Error ? err.message : `Error ${editingCompany ? 'updating' : 'creating'} company`;
+      setCompanyModalError(errorMessage);
       console.error('Error saving company:', err);
     } finally {
       setLoading(false);
@@ -515,10 +636,31 @@ const AdminPage: React.FC = () => {
         setDeleteCompanyDialog(false);
         setCompanyToDelete(null);
       } else {
-        throw new Error('Failed to delete company');
+        let errorMessage = 'Failed to delete company';
+        try {
+          const errorData = await response.text();
+          // Check if it's HTML (likely an error page)
+          if (errorData.includes('<!DOCTYPE html>') || errorData.includes('<html')) {
+            // Extract status code and provide user-friendly message
+            if (response.status === 409) {
+              errorMessage = 'Cannot delete company - may have dependent records';
+            } else if (response.status === 404) {
+              errorMessage = 'Company not found';
+            } else {
+              errorMessage = `Failed to delete company (${response.status})`;
+            }
+          } else {
+            errorMessage = errorData;
+          }
+        } catch {
+          // If we can't parse the error, use the status-based message
+          errorMessage = `Failed to delete company (${response.status})`;
+        }
+        throw new Error(errorMessage);
       }
     } catch (err) {
-      setError('Error deleting company');
+      const errorMessage = err instanceof Error ? err.message : 'Error deleting company';
+      setCompanyModalError(errorMessage);
       console.error('Error deleting company:', err);
     } finally {
       setLoading(false);
@@ -592,7 +734,7 @@ const AdminPage: React.FC = () => {
         </Card>
       )}
 
-      {error && (
+      {error && !userDialog && !siteDialog && !companyDialog && !deleteUserDialog && !deleteSiteDialog && !deleteCompanyDialog && (
         <Alert severity="error" sx={{ mb: 3 }}>
           {error}
         </Alert>
@@ -667,10 +809,10 @@ const AdminPage: React.FC = () => {
                           <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
                             {user.roles?.map((role) => (
                               <Chip
-                                key={role}
-                                label={role}
+                                key={role.id}
+                                label={role.name}
                                 size="small"
-                                color={role.includes('admin') ? 'primary' : 'default'}
+                                color={role.name.includes('admin') ? 'primary' : 'default'}
                               />
                             ))}
                           </Box>
@@ -944,6 +1086,11 @@ const AdminPage: React.FC = () => {
           {editingUser ? 'Edit User' : `Add ${selectedCompanyName} User`}
         </DialogTitle>
         <DialogContent>
+          {userModalError && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {userModalError}
+            </Alert>
+          )}
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
             <TextField
               label="Email Address"
@@ -996,6 +1143,11 @@ const AdminPage: React.FC = () => {
           {editingSite ? 'Edit Site' : 'Add Site'}
         </DialogTitle>
         <DialogContent>
+          {siteModalError && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {siteModalError}
+            </Alert>
+          )}
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
             <TextField
               label="Site Name"
@@ -1051,6 +1203,11 @@ const AdminPage: React.FC = () => {
       <Dialog open={deleteUserDialog} onClose={() => setDeleteUserDialog(false)}>
         <DialogTitle>Delete User</DialogTitle>
         <DialogContent>
+          {userModalError && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {userModalError}
+            </Alert>
+          )}
           <Typography>
             Are you sure you want to delete the user "{userToDelete?.email}"? This action cannot be undone.
           </Typography>
@@ -1074,6 +1231,11 @@ const AdminPage: React.FC = () => {
       <Dialog open={deleteSiteDialog} onClose={() => setDeleteSiteDialog(false)}>
         <DialogTitle>Delete Site</DialogTitle>
         <DialogContent>
+          {siteModalError && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {siteModalError}
+            </Alert>
+          )}
           <Typography>
             Are you sure you want to delete the site "{siteToDelete?.name}"? This action cannot be undone.
           </Typography>
@@ -1099,6 +1261,11 @@ const AdminPage: React.FC = () => {
           {editingCompany ? 'Edit Company' : 'Add Company'}
         </DialogTitle>
         <DialogContent>
+          {companyModalError && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {companyModalError}
+            </Alert>
+          )}
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
             <TextField
               label="Company Name"
@@ -1127,6 +1294,11 @@ const AdminPage: React.FC = () => {
       <Dialog open={deleteCompanyDialog} onClose={() => setDeleteCompanyDialog(false)}>
         <DialogTitle>Delete Company</DialogTitle>
         <DialogContent>
+          {companyModalError && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {companyModalError}
+            </Alert>
+          )}
           <Typography>
             Are you sure you want to delete the company "{companyToDelete?.name}"? This action cannot be undone.
           </Typography>
