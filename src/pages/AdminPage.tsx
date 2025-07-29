@@ -318,7 +318,18 @@ const AdminPage: React.FC = () => {
                 errorMessage = `Failed to update user (${updateResponse.status})`;
               }
             } else {
-              errorMessage = errorData;
+              // Try to parse as JSON and extract error field
+              try {
+                const jsonError = JSON.parse(errorData);
+                if (jsonError.error) {
+                  errorMessage = jsonError.error;
+                } else {
+                  errorMessage = errorData;
+                }
+              } catch {
+                // Not JSON, use raw text
+                errorMessage = errorData;
+              }
             }
           } catch {
             // If we can't parse the error, use the status-based message
@@ -358,7 +369,18 @@ const AdminPage: React.FC = () => {
                 errorMessage = `Failed to create user (${createResponse.status})`;
               }
             } else {
-              errorMessage = errorData;
+              // Try to parse as JSON and extract error field
+              try {
+                const jsonError = JSON.parse(errorData);
+                if (jsonError.error) {
+                  errorMessage = jsonError.error;
+                } else {
+                  errorMessage = errorData;
+                }
+              } catch {
+                // Not JSON, use raw text
+                errorMessage = errorData;
+              }
             }
           } catch {
             // If we can't parse the error, use the status-based message
@@ -410,7 +432,18 @@ const AdminPage: React.FC = () => {
               errorMessage = `Failed to delete user (${response.status})`;
             }
           } else {
-            errorMessage = errorData;
+            // Try to parse as JSON and extract error field
+            try {
+              const jsonError = JSON.parse(errorData);
+              if (jsonError.error) {
+                errorMessage = jsonError.error;
+              } else {
+                errorMessage = errorData;
+              }
+            } catch {
+              // Not JSON, use raw text
+              errorMessage = errorData;
+            }
           }
         } catch {
           // If we can't parse the error, use the status-based message
@@ -438,7 +471,7 @@ const AdminPage: React.FC = () => {
     setEditingSite(site || null);
     setSiteName(site?.name || '');
     setSiteLocation(site?.location || site?.address || '');
-    setSiteCompany(site?.company_id || 0);
+    setSiteCompany(site?.company_id || selectedCompanyId);
     setSiteModalError(null);
     setSiteDialog(true);
   };
@@ -448,12 +481,12 @@ const AdminPage: React.FC = () => {
     setEditingSite(null);
     setSiteName('');
     setSiteLocation('');
-    setSiteCompany(0);
+    setSiteCompany(selectedCompanyId);
     setSiteModalError(null);
   };
 
   const handleSaveSite = async () => {
-    if (!siteName.trim() || !siteLocation.trim() || !siteCompany) return;
+    if (!siteName.trim() || !siteLocation.trim()) return;
 
     setLoading(true);
     try {
@@ -470,7 +503,7 @@ const AdminPage: React.FC = () => {
           address: siteLocation, // Use 'address' instead of 'location'
           latitude: 0, // Default values - would need proper geocoding
           longitude: 0,
-          company_id: siteCompany
+          company_id: siteCompany || selectedCompanyId
         })
       });
 
@@ -492,7 +525,18 @@ const AdminPage: React.FC = () => {
               errorMessage = `Failed to ${isEdit ? 'update' : 'create'} site (${response.status})`;
             }
           } else {
-            errorMessage = errorData;
+            // Try to parse as JSON and extract error field
+            try {
+              const jsonError = JSON.parse(errorData);
+              if (jsonError.error) {
+                errorMessage = jsonError.error;
+              } else {
+                errorMessage = errorData;
+              }
+            } catch {
+              // Not JSON, use raw text
+              errorMessage = errorData;
+            }
           }
         } catch {
           // If we can't parse the error, use the status-based message
@@ -538,7 +582,18 @@ const AdminPage: React.FC = () => {
               errorMessage = `Failed to delete site (${response.status})`;
             }
           } else {
-            errorMessage = errorData;
+            // Try to parse as JSON and extract error field
+            try {
+              const jsonError = JSON.parse(errorData);
+              if (jsonError.error) {
+                errorMessage = jsonError.error;
+              } else {
+                errorMessage = errorData;
+              }
+            } catch {
+              // Not JSON, use raw text
+              errorMessage = errorData;
+            }
           }
         } catch {
           // If we can't parse the error, use the status-based message
@@ -604,7 +659,18 @@ const AdminPage: React.FC = () => {
               errorMessage = `Failed to ${isEdit ? 'update' : 'create'} company (${response.status})`;
             }
           } else {
-            errorMessage = errorData;
+            // Try to parse as JSON and extract error field
+            try {
+              const jsonError = JSON.parse(errorData);
+              if (jsonError.error) {
+                errorMessage = jsonError.error;
+              } else {
+                errorMessage = errorData;
+              }
+            } catch {
+              // Not JSON, use raw text
+              errorMessage = errorData;
+            }
           }
         } catch {
           // If we can't parse the error, use the status-based message
@@ -650,7 +716,18 @@ const AdminPage: React.FC = () => {
               errorMessage = `Failed to delete company (${response.status})`;
             }
           } else {
-            errorMessage = errorData;
+            // Try to parse as JSON and extract error field
+            try {
+              const jsonError = JSON.parse(errorData);
+              if (jsonError.error) {
+                errorMessage = jsonError.error;
+              } else {
+                errorMessage = errorData;
+              }
+            } catch {
+              // Not JSON, use raw text
+              errorMessage = errorData;
+            }
           }
         } catch {
           // If we can't parse the error, use the status-based message
@@ -1140,7 +1217,7 @@ const AdminPage: React.FC = () => {
       {/* Site Add/Edit Dialog */}
       <Dialog open={siteDialog} onClose={handleCloseSiteDialog} maxWidth="sm" fullWidth>
         <DialogTitle>
-          {editingSite ? 'Edit Site' : 'Add Site'}
+          {editingSite ? 'Edit Site' : `Add ${selectedCompanyName} Site`}
         </DialogTitle>
         <DialogContent>
           {siteModalError && (
@@ -1164,25 +1241,6 @@ const AdminPage: React.FC = () => {
               onChange={(e) => setSiteLocation(e.target.value)}
               disabled={loading}
             />
-
-            <FormControl fullWidth>
-              <InputLabel>Company</InputLabel>
-              <Select
-                value={siteCompany}
-                label="Company"
-                onChange={(e: SelectChangeEvent<number>) => {
-                  setSiteCompany(Number(e.target.value));
-                }}
-                disabled={loading}
-              >
-                <MenuItem value={0}>Select Company</MenuItem>
-                {companies.map((company) => (
-                  <MenuItem key={company.id} value={company.id}>
-                    {company.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
           </Box>
         </DialogContent>
         <DialogActions>
@@ -1192,7 +1250,7 @@ const AdminPage: React.FC = () => {
           <Button
             onClick={handleSaveSite}
             variant="contained"
-            disabled={loading || !siteName.trim() || !siteLocation.trim() || !siteCompany}
+            disabled={loading || !siteName.trim() || !siteLocation.trim()}
           >
             {loading ? <CircularProgress size={20} /> : (editingSite ? 'Update' : 'Create')}
           </Button>
