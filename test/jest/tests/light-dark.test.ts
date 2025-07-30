@@ -1,38 +1,17 @@
 import { Page } from 'puppeteer';
+import {loginAsSuperAdmin } from './test-utils';
 
 describe('Theme Switcher', () => {
   let page: Page;
 
   beforeAll(async () => {
     page = await browser.newPage();
-    await page.goto(process.env.NEEMS_REACT_PORT || 'http://localhost:5173');
-  });
-
-  afterAll(async () => {
-    await page.close();
+    await page.goto(`http://localhost:${process.env.NEEMS_REACT_PORT || '5173'}`);
   });
 
   it('should successfully login with valid credentials', async () => {
-    // Wait for login form to be present
-    await page.waitForSelector('input[type="email"]');
-    
-    // Fill in the email field
-    await page.type('input[type="email"]', 'superadmin@example.com');
-    
-    // Fill in the password field
-    await page.type('input[type="password"]', 'admin');
-    
-    // Click the login button
-    await page.click('button[type="submit"]');
-    
-    // Wait for page to change after successful login
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    // Verify login was successful by checking the current page content
-    const content = await page.content();
-    expect(content).not.toMatch('NEEMS Login');
+    await loginAsSuperAdmin(page);
   });
-
 
   test('should toggle from light to dark and back to light', async () => {
     // Wait for the theme switcher to be visible

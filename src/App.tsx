@@ -29,7 +29,7 @@ const AppContent: React.FC = () => {
   }
 
   return (
-    <Box sx={{ display: 'flex', height: '100vh' }}>
+    <Box id="authed-ui-box" sx={{ display: 'flex', height: '100vh' }}>
       <Sidebar />
       <Box component="main" sx={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
         <AppBar position="static" color="default" elevation={1}>
@@ -45,7 +45,7 @@ const AppContent: React.FC = () => {
             </Box>
           </Toolbar>
         </AppBar>
-          
+
           <Routes>
             <Route path="/" element={<OverviewPage />} />
             <Route path="/overview" element={<Navigate to="/" replace />} />
@@ -72,6 +72,3 @@ const App: React.FC = () => {
 };
 
 export default App;
-
-
-

@@ -1,16 +1,21 @@
-describe('NEEMS React App Tests', () => {
-  beforeAll(async () => {
-    // Clear cookies to ensure clean state between tests
-    const client = await page.target().createCDPSession();
-    await client.send('Network.clearBrowserCookies');
-    await client.send('Network.clearBrowserCache');
-    await client.detach();
+import { navigateToApp } from './test-utils';
 
-    await page.goto(process.env.NEEMS_REACT_PORT || 'http://localhost:5173');
+describe('NEEMS React App Tests', () => {
+
+  // it('clear the browser cache', async() => {
+  //   // Clear cookies to ensure clean state between tests
+  //   const client = await page.target().createCDPSession();
+  //   await client.send('Network.clearBrowserCookies');
+  //   await client.send('Network.clearBrowserCache');
+  //   await client.detach();
+  // });
+
+  it('should open the app', async() => {
+    await navigateToApp(page);
   });
 
   // Test that we can load the home page, render the REACT, show the login page, and find the NEEMS EMS text.
-  it('should load the home page', async () => {
+  it('should load the login page', async () => {
     const content = await page.content();
     expect(content).toMatch('NEEMS EMS');
   });

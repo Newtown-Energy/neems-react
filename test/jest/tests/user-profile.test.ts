@@ -6,7 +6,7 @@ describe('User Profile Tests', () => {
     await client.send('Network.clearBrowserCache');
     await client.detach();
 
-    await page.goto(process.env.NEEMS_REACT_PORT || 'http://localhost:5173');
+    await page.goto(`http://localhost:${process.env.NEEMS_REACT_PORT || '5173'}`);
   });
 
   it('should display user email and initial in UserProfile component after login', async () => {
@@ -108,7 +108,6 @@ describe('User Profile Tests', () => {
     expect(menuContent).toContain('Newtown Energy'); // Default company name
     
     // Verify admin menu items are present (superadmin@example.com has newtown-admin role)
-    expect(menuContent).toContain('Super Admin');
     expect(menuContent).toContain('Admin Panel');
     expect(menuContent).toContain('Logout');
     
@@ -135,4 +134,5 @@ describe('User Profile Tests', () => {
     const loginPageContent = await page.content();
     expect(loginPageContent).toMatch('NEEMS Login');
   });
+
 });

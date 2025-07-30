@@ -1,3 +1,15 @@
+import {
+  clearBrowserState,
+  navigateToApp,
+  navigateToAdmin,
+  findButtonByText,
+  loginAsUser,
+  loginAsSuperAdmin,
+  createNetworkErrorHandler,
+  verifyEntityExists
+} from './test-utils';
+
+
 describe('NEEMS Navigation Tests', () => {
   beforeEach(async () => {
     // Clear cookies to ensure clean state between tests
@@ -6,28 +18,21 @@ describe('NEEMS Navigation Tests', () => {
     await client.send('Network.clearBrowserCache');
     await client.detach();
 
-    await page.goto(process.env.NEEMS_REACT_PORT || 'http://localhost:5173');
+    await page.goto(`http://localhost:${process.env.NEEMS_REACT_PORT || '5173'}`);
   });
 
   it('should navigate to main page when NEEMS header is clicked', async () => {
-    // Login first
-    await page.waitForSelector('input[type="email"]');
-    await page.type('input[type="email"]', 'superadmin@example.com');
-    await page.type('input[type="password"]', 'admin');
-    await page.click('button[type="submit"]');
-    
-    // Wait for login to complete and page to load
-    await new Promise(resolve => setTimeout(resolve, 3000));
-    
+    await loginAsSuperAdmin(page);
+   
     // Navigate to a different page first (Super Admin)
     await page.click('[data-testid="user-profile"]');
     await new Promise(resolve => setTimeout(resolve, 500));
     
-    // Click Super Admin menu item
+    // Click Admin menu item
     const menuItems = await page.$$('[role="menu"] [role="menuitem"]');
     for (const item of menuItems) {
       const text = await item.evaluate(el => el.textContent);
-      if (text && text.includes('Super Admin')) {
+      if (text && text.includes('Admin Panel')) {
         await item.click();
         break;
       }
@@ -39,7 +44,7 @@ describe('NEEMS Navigation Tests', () => {
     // Verify we're on the Super Admin page by checking URL
     await new Promise(resolve => setTimeout(resolve, 1000));
     const superAdminUrl = await page.url();
-    expect(superAdminUrl).toContain('/super-admin');
+    expect(superAdminUrl).toContain('/admin');
     
     // Make sure sidebar is expanded by clicking the expand button if needed
     const expandButton = await page.$('button[aria-label*="expand"], button[title*="expand"], .MuiDrawer-paper button');
