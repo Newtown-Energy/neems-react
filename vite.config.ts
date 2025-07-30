@@ -5,6 +5,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     host: '0.0.0.0',
+    port: process.env.NEEMS_REACT_PORT ?? 5173,
     allowedHosts: [
       'host.docker.internal',  // Allow Docker's hostname
       'localhost'              // Keep local access

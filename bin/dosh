@@ -36,10 +36,15 @@ build() {
 }
 
 serve() {
-    bun run dev
+    watch
 }
 
 test() {
+    # Make sure we've done `bun run dev`
+    [ -z "$NEEMS_REACT_PORT" ] && export NEEMS_REACT_PORT=5173
+    timeout 1 bash -c ">/dev/tcp/localhost/${NEEMS_REACT_PORT}" || { echo "Error: localhost:${NEEMS_REACT_PORT} is not accepting connections" >&2; exit 1; }
+    echo Test server is listening at localhost:${NEEMS_REACT_PORT}
+
     cd test
 
     # Check if Chrome is available for Puppeteer
@@ -57,6 +62,7 @@ test() {
 }
 
 watch() {
+    [ -f .env ] || cp env.example .env
     bun run dev
 }
 

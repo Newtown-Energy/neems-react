@@ -6,7 +6,7 @@ describe('Login Page Tests', () => {
     await client.send('Network.clearBrowserCache');
     await client.detach();
 
-    await page.goto('http://localhost:5173');
+    await page.goto(process.env.NEEMS_REACT_PORT || 'http://localhost:5173');
   });
 
   it('should successfully login with valid credentials', async () => {

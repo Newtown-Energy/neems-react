@@ -5,7 +5,7 @@ describe('Theme Switcher', () => {
 
   beforeAll(async () => {
     page = await browser.newPage();
-    await page.goto(process.env.NEEMS_CORE_SERVER || 'http://nginx');
+    await page.goto(process.env.NEEMS_REACT_PORT || 'http://localhost:5173');
   });
 
   afterAll(async () => {

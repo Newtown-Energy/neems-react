@@ -6,7 +6,7 @@ describe('NEEMS Navigation Tests', () => {
     await client.send('Network.clearBrowserCache');
     await client.detach();
 
-    await page.goto(process.env.NEEMS_CORE_SERVER || 'http://nginx');
+    await page.goto(process.env.NEEMS_REACT_PORT || 'http://localhost:5173');
   });
 
   it('should navigate to main page when NEEMS header is clicked', async () => {

@@ -38,7 +38,7 @@ describe('Admin User Management Tests', () => {
     await client.detach();
     addDebugMessage('Browser cookies and cache cleared');
 
-    await page.goto('http://localhost:5173');
+    await page.goto(process.env.NEEMS_REACT_PORT || 'http://localhost:5173');
     addDebugMessage('Navigated to login page');
   });
 
@@ -46,7 +46,7 @@ describe('Admin User Management Tests', () => {
     // Cleanup: Delete all created test users
     try {
       addDebugMessage('Starting cleanup process');
-      await page.goto('http://localhost:5173/admin');
+      await page.goto(process.env.NEEMS_REACT_PORT || 'http://localhost:5173');
       await new Promise(resolve => setTimeout(resolve, 2000));
       
       await selectTestCompany();
@@ -82,7 +82,7 @@ describe('Admin User Management Tests', () => {
 
       addDebugMessage('Test step 2: Navigating to admin page...');
       // Navigate to admin page
-      await page.goto('http://localhost:5173/admin');
+      await page.goto(process.env.NEEMS_REACT_PORT || 'http://localhost:5173');
       await new Promise(resolve => setTimeout(resolve, 3000));
 
       // Verify we're on the admin page

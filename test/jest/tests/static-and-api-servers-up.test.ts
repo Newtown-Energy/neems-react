@@ -6,7 +6,7 @@ describe('NEEMS React App Tests', () => {
     await client.send('Network.clearBrowserCache');
     await client.detach();
 
-    await page.goto(process.env.NEEMS_CORE_SERVER || 'http://nginx');
+    await page.goto(process.env.NEEMS_REACT_PORT || 'http://localhost:5173');
   });
 
   // Test that we can load the home page, render the REACT, show the login page, and find the NEEMS EMS text.
