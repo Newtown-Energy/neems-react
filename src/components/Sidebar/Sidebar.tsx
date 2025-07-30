@@ -16,8 +16,9 @@ const Sidebar: React.FC<SidebarProps> = () => { // Removed unused className
   const getSelectedItem = () => {
     const path = location.pathname;
     if (path === '/' || path === '/overview') return 'overview';
-    if (path === '/bay1') return 'bay1';
-    if (path === '/bay2') return 'bay2';
+    if (path === '/battery1') return 'battery1';
+    if (path === '/battery2') return 'battery2';
+    if (path === '/battery3') return 'battery3';
     if (path === '/conedison') return 'conedison';
     if (path === '/fdny') return 'fdny';
     return 'overview';
@@ -26,8 +27,9 @@ const Sidebar: React.FC<SidebarProps> = () => { // Removed unused className
   // Navigation items with required icons
   const navItems = [
     { id: 'overview', icon: Dashboard, text: 'Overview' },
-    { id: 'bay1', icon: BatteryFull, text: 'Bay 1' },
-    { id: 'bay2', icon: BatteryFull, text: 'Bay 2' },
+    { id: 'battery1', icon: BatteryFull, iconImage: '/Tesla_Motors.svg', text: 'Megapack 1' },
+    { id: 'battery2', icon: BatteryFull, iconImage: '/Tesla_Motors.svg', text: 'Megapack 2' },
+    { id: 'battery3', icon: BatteryFull, iconImage: '/Tesla_Motors.svg', text: 'Megapack 3' },
     { id: 'conedison', icon: BatteryFull, iconImage: '/con-edison.svg', text: 'Con Edison' },
     { id: 'fdny', icon: BatteryFull, iconImage: '/FDNY.svg', text: 'FDNY' }
   ];

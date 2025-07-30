@@ -5,8 +5,9 @@ import Sidebar from './components/Sidebar/Sidebar';
 import ThemeSwitcher from "./components/Light-Dark/ThemeSwitcher";
 import UserProfile from './components/UserProfile/UserProfile';
 import OverviewPage from './pages/OverviewPage';
-import Bay1Page from './pages/Bay1Page';
-import Bay2Page from './pages/Bay2Page';
+import Battery1Page from './pages/Battery1Page';
+import Battery2Page from './pages/Battery2Page';
+import Battery3Page from './pages/Battery3Page';
 import ConEdisonPage from './pages/ConEdisonPage';
 import FDNYPage from './pages/FDNYPage';
 import AdminPage from './pages/AdminPage';
@@ -48,8 +49,9 @@ const AppContent: React.FC = () => {
           <Routes>
             <Route path="/" element={<OverviewPage />} />
             <Route path="/overview" element={<Navigate to="/" replace />} />
-            <Route path="/bay1" element={<Bay1Page />} />
-            <Route path="/bay2" element={<Bay2Page />} />
+            <Route path="/battery1" element={<Battery1Page />} />
+            <Route path="/battery2" element={<Battery2Page />} />
+            <Route path="/battery3" element={<Battery3Page />} />
             <Route path="/conedison" element={<ConEdisonPage />} />
             <Route path="/fdny" element={<FDNYPage />} />
             <Route path="/admin" element={<AdminPage />} />

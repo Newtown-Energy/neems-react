@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   width="253.584"
+   height="252.502"
+   version="1.1"
+   viewBox="0 0 253.58401 252.502"
+   xml:space="preserve"
+   id="svg10"
+   sodipodi:docname="Tesla_Motors.svg"
+   inkscape:version="1.4 (e7c3feb100, 2024-10-09)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:dc="http://purl.org/dc/elements/1.1/"><defs
+   id="defs10" /><sodipodi:namedview
+   id="namedview10"
+   pagecolor="#ffffff"
+   bordercolor="#000000"
+   borderopacity="0.25"
+   inkscape:showpageshadow="2"
+   inkscape:pageopacity="0.0"
+   inkscape:pagecheckerboard="0"
+   inkscape:deskcolor="#d1d1d1"
+   inkscape:zoom="2.316626"
+   inkscape:cx="139.42691"
+   inkscape:cy="180.21899"
+   inkscape:window-width="1920"
+   inkscape:window-height="1043"
+   inkscape:window-x="0"
+   inkscape:window-y="0"
+   inkscape:window-maximized="1"
+   inkscape:current-layer="svg10" />
+  
+  
+  <g
+   fill="#e82127"
+   id="g10"
+   transform="translate(-12.544)">
+    <path
+   transform="translate(-33.796,-64.797)"
+   d="M 173.146,317.299 208.622,117.78 c 33.815,0 44.481,3.708 46.021,18.843 0,0 22.684,-8.458 34.125,-25.636 C 244.122,90.299 199.263,89.366 199.263,89.366 l -26.176,31.882 0.059,-0.004 -26.176,-31.883 c 0,0 -44.86,0.934 -89.5,21.622 11.431,17.178 34.124,25.636 34.124,25.636 1.549,-15.136 12.202,-18.844 45.79,-18.868 l 35.762,199.548"
+   id="path9" />
+    <path
+   transform="translate(-33.796,-64.797)"
+   d="m 173.132,80.157 c 36.09,-0.276 77.399,5.583 119.687,24.014 5.652,-10.173 7.105,-14.669 7.105,-14.669 C 253.697,71.213 210.406,64.954 173.127,64.797 135.85,64.954 92.561,71.214 46.34,89.502 c 0,0 2.062,5.538 7.1,14.669 42.28,-18.431 83.596,-24.29 119.687,-24.014 h 0.005"
+   id="path10" />
+  </g>
+<metadata
+   id="metadata10"><rdf:RDF><cc:Work
+       rdf:about=""><dc:subject><rdf:Bag><rdf:li>Tesla</rdf:li></rdf:Bag></dc:subject></cc:Work></rdf:RDF></metadata></svg>
