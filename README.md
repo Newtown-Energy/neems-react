@@ -19,6 +19,11 @@ updated priority.
 There is a way to configure which screens are available. Screens may
 be picked off the menu bar across the top of the interface.
 
+This codebase does some things to ensure safety:
+ * Use typescript
+ * Use rust-generated types to align front and back end on the API
+ * Integration tests of major functionality
+
 # Install
 
 `yarn install` should do it.
