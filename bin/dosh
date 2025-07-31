@@ -35,6 +35,19 @@ build() {
 
 }
 
+generate-types() {
+    if [ ! -z "$NEEMS_CORE_DIR" ]; then
+        local target_dir="$NEEMS_CORE_DIR"
+    elif [ -d ../core/neems-core ]; then
+        local target_dir="../core/neems-core"
+    elif [ -d ../neems-core/neems-core ]; then
+        local target_dir="../neems-core/neems-core"
+    fi
+    pushd "$target_dir" > /dev/null
+    cargo test generate_typescript_types
+    popd > /dev/null
+}
+
 serve() {
     watch
 }

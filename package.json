@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit"  
+    "typecheck": "tsc --noEmit",
+    "generate-types": "dosh generate-types"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
