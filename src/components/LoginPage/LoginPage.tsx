@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Box, Button, TextField, Typography, Paper } from "@mui/material";
 import type { LoginSuccessResponse } from "../../types/auth";
-import type { ErrorResponse } from "../../types/generated/ErrorResponse";
+import { apiRequest, ApiError } from "../../utils/api";
 
 type Props = { onLoginSuccess: (userInfo: LoginSuccessResponse) => void };
 
@@ -19,20 +19,21 @@ const LoginPage: React.FC<Props> = ({ onLoginSuccess }) => {
     const requestBody = { email, password };
     console.log("Sending login request with body:", requestBody);
 
-    const res = await fetch("/api/1/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify(requestBody),
-    });
-    setLoading(false);
-    if (res.ok) {
-      const userInfo: LoginSuccessResponse = await res.json();
+    try {
+      const userInfo = await apiRequest<LoginSuccessResponse>("/api/1/login", {
+        method: "POST",
+        body: JSON.stringify(requestBody),
+      });
       localStorage.setItem('userEmail', email);
       onLoginSuccess(userInfo);
-    } else {
-      const data: ErrorResponse = await res.json();
-      setError(data.error || "Login failed");
+    } catch (error) {
+      if (error instanceof ApiError) {
+        setError(error.message);
+      } else {
+        setError("Login failed");
+      }
+    } finally {
+      setLoading(false);
     }
   }
 

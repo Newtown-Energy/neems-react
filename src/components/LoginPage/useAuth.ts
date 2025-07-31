@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { LoginSuccessResponse } from "../../types/auth";
+import { apiRequest, ApiError } from "../../utils/api";
 
 export function useAuth() {
   const [loading, setLoading] = useState(true);
@@ -40,28 +41,20 @@ export function useAuth() {
       setUserEmail(storedEmail);
     }
 
-    fetch('/api/1/hello', { credentials: 'include' })
-      .then(res => {
-        if (res.ok) {
-          setIsAuthenticated(true);
-          return res.json();
-        } else {
-          setIsAuthenticated(false);
+    apiRequest<LoginSuccessResponse>('/api/1/hello')
+      .then((data) => {
+        setIsAuthenticated(true);
+        saveUserInfo(data);
+      })
+      .catch((err) => {
+        setIsAuthenticated(false);
+        if (err instanceof ApiError) {
           // Only clear user data if we're actually logged out (401/403)
           // Don't clear on network errors or server errors
-          if (res.status === 401 || res.status === 403) {
+          if (err.status === 401 || err.status === 403) {
             clearUserData();
           }
-          return null;
         }
-      })
-      .then((data: LoginSuccessResponse | null) => {
-        if (data) {
-          saveUserInfo(data);
-        }
-      })
-      .catch(() => {
-        setIsAuthenticated(false);
         // Don't clear user data on network errors - user might still be logged in
         // This helps with test stability
       })
@@ -70,9 +63,8 @@ export function useAuth() {
 
   const logout = async () => {
     try {
-      await fetch('/api/1/logout', {
-        method: 'POST',
-        credentials: 'include'
+      await apiRequest('/api/1/logout', {
+        method: 'POST'
       });
     } catch (error) {
       console.error('Logout request failed:', error);

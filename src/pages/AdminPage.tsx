@@ -43,7 +43,7 @@ import type { Role } from '../types/generated/Role';
 import type { CreateUserWithRolesRequest } from '../types/generated/CreateUserWithRolesRequest';
 import type { UpdateUserRequest } from '../types/generated/UpdateUserRequest';
 import type { CreateSiteRequest } from '../types/generated/CreateSiteRequest';
-import type { ErrorResponse } from '../types/generated/ErrorResponse';
+import { apiRequest, ApiError } from '../utils/api';
 
 
 
@@ -61,36 +61,6 @@ const formatDateTime = (dateString: string): string => {
   }
 };
 
-const parseApiError = async (response: Response): Promise<string> => {
-  try {
-    const errorData = await response.text();
-    // Check if it's HTML (likely an error page)
-    if (errorData.includes('<!DOCTYPE html>') || errorData.includes('<html')) {
-      // Extract status code and provide user-friendly message
-      if (response.status === 409) {
-        return 'Resource already exists or conflict occurred';
-      } else if (response.status === 400) {
-        return 'Invalid data provided';
-      } else if (response.status === 404) {
-        return 'Resource not found';
-      } else {
-        return `Request failed (${response.status})`;
-      }
-    } else {
-      // Try to parse as JSON and extract error field
-      try {
-        const jsonError: ErrorResponse = JSON.parse(errorData);
-        return jsonError.error || errorData;
-      } catch {
-        // Not JSON, use raw text
-        return errorData;
-      }
-    }
-  } catch {
-    // If we can't parse the error, use the status-based message
-    return `Request failed (${response.status})`;
-  }
-};
 
 const AdminPage: React.FC = () => {
   const { userInfo } = useAuth();
@@ -201,23 +171,20 @@ const AdminPage: React.FC = () => {
 
     setLoading(true);
     try {
-      const response = await fetch(`/api/1/company/${selectedCompanyId}/users`, {
-        credentials: 'include'
-      });
-      if (response.ok) {
-        const data = await response.json();
-        // Transform API response - roles are now embedded
-        const usersWithCompanyNames = data.map((user: any) => ({
-          ...user,
-          company_name: companies.find(c => c.id === user.company_id)?.name || 'Unknown'
-        }));
-        setUsers(usersWithCompanyNames);
-      } else {
-        throw new Error('Failed to fetch users');
-      }
+      const data = await apiRequest<User[]>(`/api/1/company/${selectedCompanyId}/users`);
+      // Transform API response - roles are now embedded
+      const usersWithCompanyNames = data.map((user: any) => ({
+        ...user,
+        company_name: companies.find(c => c.id === user.company_id)?.name || 'Unknown'
+      }));
+      setUsers(usersWithCompanyNames);
     } catch (err) {
       console.error('Error fetching users:', err);
-      setError('Failed to load users for this company');
+      if (err instanceof ApiError) {
+        setError(`Failed to load users: ${err.message}`);
+      } else {
+        setError('Failed to load users for this company');
+      }
       setUsers([]);
     } finally {
       setLoading(false);
@@ -232,25 +199,22 @@ const AdminPage: React.FC = () => {
 
     setLoading(true);
     try {
-      const response = await fetch(`/api/1/company/${selectedCompanyId}/sites`, {
-        credentials: 'include'
-      });
-      if (response.ok) {
-        const data = await response.json();
-        // Transform API response to match our interface
-        const transformedSites = data.map((site: any) => ({
-          ...site,
-          location: site.address || `${site.latitude}, ${site.longitude}`,
-          company_name: companies.find(c => c.id === site.company_id)?.name || 'Unknown',
-          status: 'Active' // Default status since API doesn't provide this
-        }));
-        setSites(transformedSites);
-      } else {
-        throw new Error('Failed to fetch sites');
-      }
+      const data = await apiRequest<Site[]>(`/api/1/company/${selectedCompanyId}/sites`);
+      // Transform API response to match our interface
+      const transformedSites = data.map((site: any) => ({
+        ...site,
+        location: site.address || `${site.latitude}, ${site.longitude}`,
+        company_name: companies.find(c => c.id === site.company_id)?.name || 'Unknown',
+        status: 'Active' // Default status since API doesn't provide this
+      }));
+      setSites(transformedSites);
     } catch (err) {
       console.error('Error fetching sites:', err);
-      setError('Failed to load sites for this company');
+      if (err instanceof ApiError) {
+        setError(`Failed to load sites: ${err.message}`);
+      } else {
+        setError('Failed to load sites for this company');
+      }
       setSites([]);
     } finally {
       setLoading(false);
@@ -260,17 +224,13 @@ const AdminPage: React.FC = () => {
   const fetchCompanies = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/1/companies', {
-        credentials: 'include'
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setCompanies(data);
-      } else {
-        throw new Error('Failed to fetch companies');
-      }
+      const data = await apiRequest<Company[]>('/api/1/companies');
+      setCompanies(data);
     } catch (err) {
       console.error('Error fetching companies:', err);
+      if (err instanceof ApiError) {
+        setError(`Failed to load companies: ${err.message}`);
+      }
       // Mock data for development
       setCompanies([
         { id: 1, name: 'Newtown Energy' },
@@ -317,17 +277,10 @@ const AdminPage: React.FC = () => {
           company_id: userCompany,
           totp_secret: null
         };
-        const updateResponse = await fetch(`/api/1/users/${editingUser.id}`, {
+        await apiRequest(`/api/1/users/${editingUser.id}`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
           body: JSON.stringify(requestBody)
         });
-
-        if (!updateResponse.ok) {
-          const errorMessage = await parseApiError(updateResponse);
-          throw new Error(errorMessage);
-        }
 
         // Note: Role management would need separate API calls to add/remove roles
         // This is a simplified version for now
@@ -340,17 +293,10 @@ const AdminPage: React.FC = () => {
           totp_secret: null,
           role_names: [userRole]
         };
-        const createResponse = await fetch('/api/1/users', {
+        await apiRequest('/api/1/users', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
           body: JSON.stringify(requestBody)
         });
-
-        if (!createResponse.ok) {
-          const errorMessage = await parseApiError(createResponse);
-          throw new Error(errorMessage);
-        }
 
         // Note: Role assignment would need separate API calls
       }
@@ -358,7 +304,14 @@ const AdminPage: React.FC = () => {
       await fetchUsers();
       handleCloseUserDialog();
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : `Error ${editingUser ? 'updating' : 'creating'} user`;
+      let errorMessage: string;
+      if (err instanceof ApiError) {
+        errorMessage = err.message;
+      } else if (err instanceof Error) {
+        errorMessage = err.message;
+      } else {
+        errorMessage = `Error ${editingUser ? 'updating' : 'creating'} user`;
+      }
       setUserModalError(errorMessage);
       console.error('Error saving user:', err);
     } finally {
@@ -371,21 +324,21 @@ const AdminPage: React.FC = () => {
 
     setLoading(true);
     try {
-      const response = await fetch(`/api/1/users/${userToDelete.id}`, {
-        method: 'DELETE',
-        credentials: 'include'
+      await apiRequest(`/api/1/users/${userToDelete.id}`, {
+        method: 'DELETE'
       });
-
-      if (response.ok) {
-        await fetchUsers();
-        setDeleteUserDialog(false);
-        setUserToDelete(null);
-      } else {
-        const errorMessage = await parseApiError(response);
-        throw new Error(errorMessage);
-      }
+      await fetchUsers();
+      setDeleteUserDialog(false);
+      setUserToDelete(null);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Error deleting user';
+      let errorMessage: string;
+      if (err instanceof ApiError) {
+        errorMessage = err.message;
+      } else if (err instanceof Error) {
+        errorMessage = err.message;
+      } else {
+        errorMessage = 'Error deleting user';
+      }
       setUserModalError(errorMessage);
       console.error('Error deleting user:', err);
     } finally {
@@ -434,22 +387,21 @@ const AdminPage: React.FC = () => {
         longitude: 0,
         company_id: siteCompany || selectedCompanyId
       };
-      const response = await fetch(url, {
+      await apiRequest(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify(requestBody)
       });
-
-      if (response.ok) {
-        await fetchSites();
-        handleCloseSiteDialog();
-      } else {
-        const errorMessage = await parseApiError(response);
-        throw new Error(errorMessage);
-      }
+      await fetchSites();
+      handleCloseSiteDialog();
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : `Error ${editingSite ? 'updating' : 'creating'} site`;
+      let errorMessage: string;
+      if (err instanceof ApiError) {
+        errorMessage = err.message;
+      } else if (err instanceof Error) {
+        errorMessage = err.message;
+      } else {
+        errorMessage = `Error ${editingSite ? 'updating' : 'creating'} site`;
+      }
       setSiteModalError(errorMessage);
       console.error('Error saving site:', err);
     } finally {
@@ -462,21 +414,21 @@ const AdminPage: React.FC = () => {
 
     setLoading(true);
     try {
-      const response = await fetch(`/api/1/sites/${siteToDelete.id}`, {
-        method: 'DELETE',
-        credentials: 'include'
+      await apiRequest(`/api/1/sites/${siteToDelete.id}`, {
+        method: 'DELETE'
       });
-
-      if (response.ok) {
-        await fetchSites();
-        setDeleteSiteDialog(false);
-        setSiteToDelete(null);
-      } else {
-        const errorMessage = await parseApiError(response);
-        throw new Error(errorMessage);
-      }
+      await fetchSites();
+      setDeleteSiteDialog(false);
+      setSiteToDelete(null);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Error deleting site';
+      let errorMessage: string;
+      if (err instanceof ApiError) {
+        errorMessage = err.message;
+      } else if (err instanceof Error) {
+        errorMessage = err.message;
+      } else {
+        errorMessage = 'Error deleting site';
+      }
       setSiteModalError(errorMessage);
       console.error('Error deleting site:', err);
     } finally {
@@ -508,22 +460,21 @@ const AdminPage: React.FC = () => {
       const url = isEdit ? `/api/1/companies/${editingCompany.id}` : '/api/1/companies';
       const method = isEdit ? 'PUT' : 'POST';
 
-      const response = await fetch(url, {
+      await apiRequest(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({ name: companyName })
       });
-
-      if (response.ok) {
-        await fetchCompanies();
-        handleCloseCompanyDialog();
-      } else {
-        const errorMessage = await parseApiError(response);
-        throw new Error(errorMessage);
-      }
+      await fetchCompanies();
+      handleCloseCompanyDialog();
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : `Error ${editingCompany ? 'updating' : 'creating'} company`;
+      let errorMessage: string;
+      if (err instanceof ApiError) {
+        errorMessage = err.message;
+      } else if (err instanceof Error) {
+        errorMessage = err.message;
+      } else {
+        errorMessage = `Error ${editingCompany ? 'updating' : 'creating'} company`;
+      }
       setCompanyModalError(errorMessage);
       console.error('Error saving company:', err);
     } finally {
@@ -536,21 +487,21 @@ const AdminPage: React.FC = () => {
 
     setLoading(true);
     try {
-      const response = await fetch(`/api/1/companies/${companyToDelete.id}`, {
-        method: 'DELETE',
-        credentials: 'include'
+      await apiRequest(`/api/1/companies/${companyToDelete.id}`, {
+        method: 'DELETE'
       });
-
-      if (response.ok) {
-        await fetchCompanies();
-        setDeleteCompanyDialog(false);
-        setCompanyToDelete(null);
-      } else {
-        const errorMessage = await parseApiError(response);
-        throw new Error(errorMessage);
-      }
+      await fetchCompanies();
+      setDeleteCompanyDialog(false);
+      setCompanyToDelete(null);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Error deleting company';
+      let errorMessage: string;
+      if (err instanceof ApiError) {
+        errorMessage = err.message;
+      } else if (err instanceof Error) {
+        errorMessage = err.message;
+      } else {
+        errorMessage = 'Error deleting company';
+      }
       setCompanyModalError(errorMessage);
       console.error('Error deleting company:', err);
     } finally {
