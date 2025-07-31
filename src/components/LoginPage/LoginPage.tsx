@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { Box, Button, TextField, Typography, Paper } from "@mui/material";
-import type { UserInfo } from "../../types/auth";
+import type { LoginSuccessResponse } from "../../types/auth";
 
-type Props = { onLoginSuccess: (userInfo: UserInfo) => void };
+type Props = { onLoginSuccess: (userInfo: LoginSuccessResponse) => void };
 
 const LoginPage: React.FC<Props> = ({ onLoginSuccess }) => {
   const [email, setEmail] = useState("");
@@ -26,7 +26,7 @@ const LoginPage: React.FC<Props> = ({ onLoginSuccess }) => {
     });
     setLoading(false);
     if (res.ok) {
-      const userInfo: UserInfo = await res.json();
+      const userInfo: LoginSuccessResponse = await res.json();
       localStorage.setItem('userEmail', email);
       onLoginSuccess(userInfo);
     } else {

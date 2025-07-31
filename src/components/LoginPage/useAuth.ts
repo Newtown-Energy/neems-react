@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
-import type { UserInfo } from "../../types/auth";
+import type { LoginSuccessResponse } from "../../types/auth";
 
 export function useAuth() {
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
+  const [userInfo, setUserInfo] = useState<LoginSuccessResponse | null>(null);
   const [userEmail, setUserEmail] = useState<string>('');
 
   const clearUserData = () => {
@@ -14,7 +14,7 @@ export function useAuth() {
     setUserEmail('');
   };
 
-  const saveUserInfo = (info: UserInfo) => {
+  const saveUserInfo = (info: LoginSuccessResponse) => {
     localStorage.setItem('userInfo', JSON.stringify(info));
     localStorage.setItem('userEmail', info.email);
     setUserInfo(info);
@@ -55,7 +55,7 @@ export function useAuth() {
           return null;
         }
       })
-      .then((data: UserInfo | null) => {
+      .then((data: LoginSuccessResponse | null) => {
         if (data) {
           saveUserInfo(data);
         }
