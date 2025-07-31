@@ -61,6 +61,37 @@ const formatDateTime = (dateString: string): string => {
   }
 };
 
+const parseApiError = async (response: Response): Promise<string> => {
+  try {
+    const errorData = await response.text();
+    // Check if it's HTML (likely an error page)
+    if (errorData.includes('<!DOCTYPE html>') || errorData.includes('<html')) {
+      // Extract status code and provide user-friendly message
+      if (response.status === 409) {
+        return 'Resource already exists or conflict occurred';
+      } else if (response.status === 400) {
+        return 'Invalid data provided';
+      } else if (response.status === 404) {
+        return 'Resource not found';
+      } else {
+        return `Request failed (${response.status})`;
+      }
+    } else {
+      // Try to parse as JSON and extract error field
+      try {
+        const jsonError: ErrorResponse = JSON.parse(errorData);
+        return jsonError.error || errorData;
+      } catch {
+        // Not JSON, use raw text
+        return errorData;
+      }
+    }
+  } catch {
+    // If we can't parse the error, use the status-based message
+    return `Request failed (${response.status})`;
+  }
+};
+
 const AdminPage: React.FC = () => {
   const { userInfo } = useAuth();
   const [searchParams] = useSearchParams();
@@ -294,37 +325,7 @@ const AdminPage: React.FC = () => {
         });
 
         if (!updateResponse.ok) {
-          let errorMessage = 'Failed to update user';
-          try {
-            const errorData = await updateResponse.text();
-            // Check if it's HTML (likely an error page)
-            if (errorData.includes('<!DOCTYPE html>') || errorData.includes('<html')) {
-              // Extract status code and provide user-friendly message
-              if (updateResponse.status === 409) {
-                errorMessage = 'User with this email already exists';
-              } else if (updateResponse.status === 400) {
-                errorMessage = 'Invalid user data provided';
-              } else {
-                errorMessage = `Failed to update user (${updateResponse.status})`;
-              }
-            } else {
-              // Try to parse as JSON and extract error field
-              try {
-                const jsonError = JSON.parse(errorData);
-                if (jsonError.error) {
-                  errorMessage = jsonError.error;
-                } else {
-                  errorMessage = errorData;
-                }
-              } catch {
-                // Not JSON, use raw text
-                errorMessage = errorData;
-              }
-            }
-          } catch {
-            // If we can't parse the error, use the status-based message
-            errorMessage = `Failed to update user (${updateResponse.status})`;
-          }
+          const errorMessage = await parseApiError(updateResponse);
           throw new Error(errorMessage);
         }
 
@@ -347,37 +348,7 @@ const AdminPage: React.FC = () => {
         });
 
         if (!createResponse.ok) {
-          let errorMessage = 'Failed to create user';
-          try {
-            const errorData = await createResponse.text();
-            // Check if it's HTML (likely an error page)
-            if (errorData.includes('<!DOCTYPE html>') || errorData.includes('<html')) {
-              // Extract status code and provide user-friendly message
-              if (createResponse.status === 409) {
-                errorMessage = 'User with this email already exists';
-              } else if (createResponse.status === 400) {
-                errorMessage = 'Invalid user data provided';
-              } else {
-                errorMessage = `Failed to create user (${createResponse.status})`;
-              }
-            } else {
-              // Try to parse as JSON and extract error field
-              try {
-                const jsonError = JSON.parse(errorData);
-                if (jsonError.error) {
-                  errorMessage = jsonError.error;
-                } else {
-                  errorMessage = errorData;
-                }
-              } catch {
-                // Not JSON, use raw text
-                errorMessage = errorData;
-              }
-            }
-          } catch {
-            // If we can't parse the error, use the status-based message
-            errorMessage = `Failed to create user (${createResponse.status})`;
-          }
+          const errorMessage = await parseApiError(createResponse);
           throw new Error(errorMessage);
         }
 
@@ -410,37 +381,7 @@ const AdminPage: React.FC = () => {
         setDeleteUserDialog(false);
         setUserToDelete(null);
       } else {
-        let errorMessage = 'Failed to delete user';
-        try {
-          const errorData = await response.text();
-          // Check if it's HTML (likely an error page)
-          if (errorData.includes('<!DOCTYPE html>') || errorData.includes('<html')) {
-            // Extract status code and provide user-friendly message
-            if (response.status === 409) {
-              errorMessage = 'Cannot delete user - may have dependent records';
-            } else if (response.status === 404) {
-              errorMessage = 'User not found';
-            } else {
-              errorMessage = `Failed to delete user (${response.status})`;
-            }
-          } else {
-            // Try to parse as JSON and extract error field
-            try {
-              const jsonError = JSON.parse(errorData);
-              if (jsonError.error) {
-                errorMessage = jsonError.error;
-              } else {
-                errorMessage = errorData;
-              }
-            } catch {
-              // Not JSON, use raw text
-              errorMessage = errorData;
-            }
-          }
-        } catch {
-          // If we can't parse the error, use the status-based message
-          errorMessage = `Failed to delete user (${response.status})`;
-        }
+        const errorMessage = await parseApiError(response);
         throw new Error(errorMessage);
       }
     } catch (err) {
@@ -504,37 +445,7 @@ const AdminPage: React.FC = () => {
         await fetchSites();
         handleCloseSiteDialog();
       } else {
-        let errorMessage = `Failed to ${isEdit ? 'update' : 'create'} site`;
-        try {
-          const errorData = await response.text();
-          // Check if it's HTML (likely an error page)
-          if (errorData.includes('<!DOCTYPE html>') || errorData.includes('<html')) {
-            // Extract status code and provide user-friendly message
-            if (response.status === 409) {
-              errorMessage = isEdit ? 'Site name already exists' : 'Site with this name already exists';
-            } else if (response.status === 400) {
-              errorMessage = 'Invalid site data provided';
-            } else {
-              errorMessage = `Failed to ${isEdit ? 'update' : 'create'} site (${response.status})`;
-            }
-          } else {
-            // Try to parse as JSON and extract error field
-            try {
-              const jsonError = JSON.parse(errorData);
-              if (jsonError.error) {
-                errorMessage = jsonError.error;
-              } else {
-                errorMessage = errorData;
-              }
-            } catch {
-              // Not JSON, use raw text
-              errorMessage = errorData;
-            }
-          }
-        } catch {
-          // If we can't parse the error, use the status-based message
-          errorMessage = `Failed to ${isEdit ? 'update' : 'create'} site (${response.status})`;
-        }
+        const errorMessage = await parseApiError(response);
         throw new Error(errorMessage);
       }
     } catch (err) {
@@ -561,37 +472,7 @@ const AdminPage: React.FC = () => {
         setDeleteSiteDialog(false);
         setSiteToDelete(null);
       } else {
-        let errorMessage = 'Failed to delete site';
-        try {
-          const errorData = await response.text();
-          // Check if it's HTML (likely an error page)
-          if (errorData.includes('<!DOCTYPE html>') || errorData.includes('<html')) {
-            // Extract status code and provide user-friendly message
-            if (response.status === 409) {
-              errorMessage = 'Cannot delete site - may have dependent records';
-            } else if (response.status === 404) {
-              errorMessage = 'Site not found';
-            } else {
-              errorMessage = `Failed to delete site (${response.status})`;
-            }
-          } else {
-            // Try to parse as JSON and extract error field
-            try {
-              const jsonError = JSON.parse(errorData);
-              if (jsonError.error) {
-                errorMessage = jsonError.error;
-              } else {
-                errorMessage = errorData;
-              }
-            } catch {
-              // Not JSON, use raw text
-              errorMessage = errorData;
-            }
-          }
-        } catch {
-          // If we can't parse the error, use the status-based message
-          errorMessage = `Failed to delete site (${response.status})`;
-        }
+        const errorMessage = await parseApiError(response);
         throw new Error(errorMessage);
       }
     } catch (err) {
@@ -638,37 +519,7 @@ const AdminPage: React.FC = () => {
         await fetchCompanies();
         handleCloseCompanyDialog();
       } else {
-        let errorMessage = `Failed to ${isEdit ? 'update' : 'create'} company`;
-        try {
-          const errorData = await response.text();
-          // Check if it's HTML (likely an error page)
-          if (errorData.includes('<!DOCTYPE html>') || errorData.includes('<html')) {
-            // Extract status code and provide user-friendly message
-            if (response.status === 409) {
-              errorMessage = isEdit ? 'Company name already exists' : 'Company with this name already exists';
-            } else if (response.status === 400) {
-              errorMessage = 'Invalid company data provided';
-            } else {
-              errorMessage = `Failed to ${isEdit ? 'update' : 'create'} company (${response.status})`;
-            }
-          } else {
-            // Try to parse as JSON and extract error field
-            try {
-              const jsonError = JSON.parse(errorData);
-              if (jsonError.error) {
-                errorMessage = jsonError.error;
-              } else {
-                errorMessage = errorData;
-              }
-            } catch {
-              // Not JSON, use raw text
-              errorMessage = errorData;
-            }
-          }
-        } catch {
-          // If we can't parse the error, use the status-based message
-          errorMessage = `Failed to ${isEdit ? 'update' : 'create'} company (${response.status})`;
-        }
+        const errorMessage = await parseApiError(response);
         throw new Error(errorMessage);
       }
     } catch (err) {
@@ -695,37 +546,7 @@ const AdminPage: React.FC = () => {
         setDeleteCompanyDialog(false);
         setCompanyToDelete(null);
       } else {
-        let errorMessage = 'Failed to delete company';
-        try {
-          const errorData = await response.text();
-          // Check if it's HTML (likely an error page)
-          if (errorData.includes('<!DOCTYPE html>') || errorData.includes('<html')) {
-            // Extract status code and provide user-friendly message
-            if (response.status === 409) {
-              errorMessage = 'Cannot delete company - may have dependent records';
-            } else if (response.status === 404) {
-              errorMessage = 'Company not found';
-            } else {
-              errorMessage = `Failed to delete company (${response.status})`;
-            }
-          } else {
-            // Try to parse as JSON and extract error field
-            try {
-              const jsonError = JSON.parse(errorData);
-              if (jsonError.error) {
-                errorMessage = jsonError.error;
-              } else {
-                errorMessage = errorData;
-              }
-            } catch {
-              // Not JSON, use raw text
-              errorMessage = errorData;
-            }
-          }
-        } catch {
-          // If we can't parse the error, use the status-based message
-          errorMessage = `Failed to delete company (${response.status})`;
-        }
+        const errorMessage = await parseApiError(response);
         throw new Error(errorMessage);
       }
     } catch (err) {
