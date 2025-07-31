@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Box, Button, TextField, Typography, Paper } from "@mui/material";
 import type { LoginSuccessResponse } from "../../types/auth";
+import type { ErrorResponse } from "../../types/generated/ErrorResponse";
 
 type Props = { onLoginSuccess: (userInfo: LoginSuccessResponse) => void };
 
@@ -30,7 +31,7 @@ const LoginPage: React.FC<Props> = ({ onLoginSuccess }) => {
       localStorage.setItem('userEmail', email);
       onLoginSuccess(userInfo);
     } else {
-      const data = await res.json();
+      const data: ErrorResponse = await res.json();
       setError(data.error || "Login failed");
     }
   }

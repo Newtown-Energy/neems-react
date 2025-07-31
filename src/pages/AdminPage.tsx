@@ -40,6 +40,10 @@ import type { User } from '../types/generated/User';
 import type { Site } from '../types/generated/Site';
 import type { Company } from '../types/generated/Company';
 import type { Role } from '../types/generated/Role';
+import type { CreateUserWithRolesRequest } from '../types/generated/CreateUserWithRolesRequest';
+import type { UpdateUserRequest } from '../types/generated/UpdateUserRequest';
+import type { CreateSiteRequest } from '../types/generated/CreateSiteRequest';
+import type { ErrorResponse } from '../types/generated/ErrorResponse';
 
 
 
@@ -276,14 +280,17 @@ const AdminPage: React.FC = () => {
 
       if (isEdit) {
         // For editing, update user basic info first
+        const requestBody: UpdateUserRequest = {
+          email: userEmail,
+          password_hash: null,
+          company_id: userCompany,
+          totp_secret: null
+        };
         const updateResponse = await fetch(`/api/1/users/${editingUser.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
-          body: JSON.stringify({
-            email: userEmail,
-            company_id: userCompany
-          })
+          body: JSON.stringify(requestBody)
         });
 
         if (!updateResponse.ok) {
@@ -325,16 +332,18 @@ const AdminPage: React.FC = () => {
         // This is a simplified version for now
       } else {
         // For creating, we need a password_hash and role_names
+        const requestBody: CreateUserWithRolesRequest = {
+          email: userEmail,
+          password_hash: 'temp_password_hash', // This should be properly hashed
+          company_id: userCompany,
+          totp_secret: null,
+          role_names: [userRole]
+        };
         const createResponse = await fetch('/api/1/users', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
-          body: JSON.stringify({
-            email: userEmail,
-            password_hash: 'temp_password_hash', // This should be properly hashed
-            company_id: userCompany,
-            role_names: [userRole]
-          })
+          body: JSON.stringify(requestBody)
         });
 
         if (!createResponse.ok) {
@@ -477,17 +486,18 @@ const AdminPage: React.FC = () => {
       const url = isEdit ? `/api/1/sites/${editingSite.id}` : '/api/1/sites';
       const method = isEdit ? 'PUT' : 'POST';
 
+      const requestBody: CreateSiteRequest = {
+        name: siteName,
+        address: siteLocation,
+        latitude: 0, // Default values - would need proper geocoding
+        longitude: 0,
+        company_id: siteCompany || selectedCompanyId
+      };
       const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({
-          name: siteName,
-          address: siteLocation, // Use 'address' instead of 'location'
-          latitude: 0, // Default values - would need proper geocoding
-          longitude: 0,
-          company_id: siteCompany || selectedCompanyId
-        })
+        body: JSON.stringify(requestBody)
       });
 
       if (response.ok) {
