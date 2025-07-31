@@ -11,22 +11,11 @@ import {
 describe('Admin User Management Tests', () => {
   let testUsers: Array<{name: string, email: string, role: string}>;
 
-  it('should generate unique test data names to avoid conflicts', async () => {
-    // 
-    const timestamp = Date.now();
-    testUsers = [
-      { name: `Admin User ${timestamp}`, email: `admin${timestamp}@test.com`, role: 'admin' },
-      { name: `Staff User ${timestamp}`, email: `staff${timestamp}@test.com`, role: 'staff' },
+  const timestamp = Date.now();
+  testUsers = [
+    { name: `Admin User ${timestamp}`, email: `admin${timestamp}@test.com`, role: 'admin' },
+    { name: `Staff User ${timestamp}`, email: `staff${timestamp}@test.com`, role: 'staff' },
     ];
-  });
-
-  // it('should clear cookies to ensure clean slate', async () => {
-  //   // Clear cookies to ensure clean state between tests
-  //   const client = await page.target().createCDPSession();
-  //   await client.send('Network.clearBrowserCookies');
-  //   await client.send('Network.clearBrowserCache');
-  //   await client.detach();
-  // });
 
   it('should navigate to start page', async () => {
     await navigateToApp(page)
@@ -55,9 +44,9 @@ describe('Admin User Management Tests', () => {
       await switchToUsersTab();
   });
 
-  it('should create and edit users', async () => {
-      // Test each user
-      for (const user of testUsers) {
+  // Test each user
+  for (const user of testUsers) {
+    it(`should create user ${user.email}`, async () => {
 
         // Create User
         await createUser(user.email, user.role);
@@ -65,7 +54,9 @@ describe('Admin User Management Tests', () => {
         
         // Verify user was created
         await verifyUserExists(user.email);
+    }, 60000);
         
+    it('should edit user', async () => {
         // Edit User (change email)
         const editedEmail = user.email.replace('@test.com', '-edited@test.com');
         await editUser(user.email, editedEmail);
@@ -76,8 +67,8 @@ describe('Admin User Management Tests', () => {
         
         // Update email for cleanup
         user.email = editedEmail;
-      }
-  }, 60000);
+    }, 60000);
+  }
 
   it('should NOT create duplicate user', async () => {
       // Test invalid state: try to create duplicate user
@@ -96,15 +87,15 @@ describe('Admin User Management Tests', () => {
       }
   });
 
-  it('should delete users', async () => {
-      for (const user of testUsers) {
+  for (const user of testUsers) {
+    it(`should delete user ${user}`, async () => {
         try {
           await deleteUserIfExists(user.email);
         } catch (error) {
           throw new Error(`Failed to delete user ${user.email}: ${error}`);
         }
-      }
-  });
+    });
+  }
 
 // Tab navigation utilities
 async function switchToUsersTab() {
