@@ -35,11 +35,10 @@ import {
 import { Add, Edit, Delete, Refresh, Person, LocationOn, Business, AdminPanelSettings } from '@mui/icons-material';
 import { useAuth } from '../components/LoginPage/useAuth';
 import { useSearchParams } from 'react-router-dom';
-import type { SelectChangeEvent } from '@mui/material';
 import type { User } from '../types/generated/User';
+import type { UserWithRoles } from '../types/generated/UserWithRoles';
 import type { Site } from '../types/generated/Site';
 import type { Company } from '../types/generated/Company';
-import type { Role } from '../types/generated/Role';
 import type { CreateUserWithRolesRequest } from '../types/generated/CreateUserWithRolesRequest';
 import type { UpdateUserRequest } from '../types/generated/UpdateUserRequest';
 import type { CreateSiteRequest } from '../types/generated/CreateSiteRequest';
@@ -67,7 +66,7 @@ const AdminPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const [tabValue, setTabValue] = useState(0);
   const [selectedCompanyId, setSelectedCompanyId] = useState<number>(0);
-  const [users, setUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<UserWithRoles[]>([]);
   const [sites, setSites] = useState<Site[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(false);
@@ -75,12 +74,12 @@ const AdminPage: React.FC = () => {
 
   // User management state
   const [userDialog, setUserDialog] = useState(false);
-  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [editingUser, setEditingUser] = useState<UserWithRoles | null>(null);
   const [userEmail, setUserEmail] = useState('');
   const [userCompany, setUserCompany] = useState<number>(0);
   const [userRole, setUserRole] = useState<string>('');
   const [deleteUserDialog, setDeleteUserDialog] = useState(false);
-  const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const [userToDelete, setUserToDelete] = useState<UserWithRoles | null>(null);
   const [userModalError, setUserModalError] = useState<string | null>(null);
 
   // Site management state
@@ -233,10 +232,10 @@ const AdminPage: React.FC = () => {
       }
       // Mock data for development
       setCompanies([
-        { id: 1, name: 'Newtown Energy' },
-        { id: 2, name: 'NewYork-Presbyterian' },
-        { id: 3, name: 'Mount Sinai Health System' },
-        { id: 4, name: 'NYU Langone Health' }
+        { id: 1, name: 'Newtown Energy', created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+        { id: 2, name: 'NewYork-Presbyterian', created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+        { id: 3, name: 'Mount Sinai Health System', created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+        { id: 4, name: 'NYU Langone Health', created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' }
       ]);
     } finally {
       setLoading(false);
@@ -244,7 +243,7 @@ const AdminPage: React.FC = () => {
   };
 
   // User management functions
-  const handleUserDialog = (user?: User) => {
+  const handleUserDialog = (user?: UserWithRoles) => {
     setEditingUser(user || null);
     setUserEmail(user?.email || '');
     setUserCompany(user?.company_id || selectedCompanyId);
@@ -356,7 +355,7 @@ const AdminPage: React.FC = () => {
   const handleSiteDialog = (site?: Site) => {
     setEditingSite(site || null);
     setSiteName(site?.name || '');
-    setSiteLocation(site?.location || site?.address || '');
+    setSiteLocation(site?.address || '');
     setSiteCompany(site?.company_id || selectedCompanyId);
     setSiteModalError(null);
     setSiteDialog(true);
@@ -647,7 +646,7 @@ const AdminPage: React.FC = () => {
                     {users.map((user) => (
                       <TableRow key={user.id}>
                         <TableCell>{user.email}</TableCell>
-                        <TableCell>{user.company_name}</TableCell>
+                        <TableCell>{companies.find(c => c.id === user.company_id)?.name || 'Unknown'}</TableCell>
                         <TableCell>
                           <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
                             {user.roles?.map((role) => (
@@ -754,13 +753,13 @@ const AdminPage: React.FC = () => {
                     {sites.map((site) => (
                       <TableRow key={site.id}>
                         <TableCell>{site.name}</TableCell>
-                        <TableCell>{site.location || site.address}</TableCell>
-                        <TableCell>{site.company_name}</TableCell>
+                        <TableCell>{site.address}</TableCell>
+                        <TableCell>{companies.find(c => c.id === site.company_id)?.name || 'Unknown'}</TableCell>
                         <TableCell>
                           <Chip
-                            label={site.status}
+                            label="Active"
                             size="small"
-                            color={site.status === 'Active' ? 'success' : 'default'}
+                            color="success"
                           />
                         </TableCell>
                         <TableCell>

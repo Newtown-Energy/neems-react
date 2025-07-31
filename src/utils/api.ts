@@ -1,13 +1,18 @@
 import type { ErrorResponse } from '../types/generated/ErrorResponse';
 
 class ApiError extends Error {
+  status: number;
+  response?: Response;
+  
   constructor(
     message: string,
-    public status: number,
-    public response?: Response
+    status: number,
+    response?: Response
   ) {
     super(message);
     this.name = 'ApiError';
+    this.status = status;
+    this.response = response;
   }
 }
 
