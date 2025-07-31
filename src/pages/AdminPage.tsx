@@ -36,43 +36,14 @@ import { Add, Edit, Delete, Refresh, Person, LocationOn, Business, AdminPanelSet
 import { useAuth } from '../components/LoginPage/useAuth';
 import { useSearchParams } from 'react-router-dom';
 import type { SelectChangeEvent } from '@mui/material';
+import type { User } from '../types/generated/User';
+import type { Site } from '../types/generated/Site';
+import type { Company } from '../types/generated/Company';
+import type { Role } from '../types/generated/Role';
 
-interface Role {
-  id: number;
-  name: string;
-  description: string;
-}
 
-interface User {
-  id: number;
-  email: string;
-  password_hash: string;
-  company_id: number;
-  company_name?: string; // Added by transformation
-  totp_secret?: string | null;
-  roles: Role[]; // Now embedded in API response
-  created_at: string;
-  updated_at: string;
-}
 
-interface Site {
-  id: number;
-  name: string;
-  address: string;
-  latitude: number;
-  longitude: number;
-  company_id: number;
-  company_name?: string; // Added by transformation
-  location?: string; // Added by transformation for display
-  status?: string; // Added by transformation
-  created_at: string;
-  updated_at: string;
-}
 
-interface Company {
-  id: number;
-  name: string;
-}
 
 const formatDateTime = (dateString: string): string => {
   const date = new Date(dateString);
