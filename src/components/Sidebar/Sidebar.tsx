@@ -22,11 +22,12 @@ const Sidebar: React.FC<SidebarProps> = () => { // Removed unused className
     if (path === '/battery3') return 'battery3';
     if (path === '/conedison') return 'conedison';
     if (path === '/fdny') return 'fdny';
+    if (path === '/scheduler') return 'scheduler';
     return 'overview';
   };
 
   // Get navigation items from page configs
-  const enabledPageIds = ['overview', 'battery1', 'battery2', 'battery3', 'conedison', 'fdny'];
+  const enabledPageIds = ['overview', 'battery1', 'battery2', 'battery3', 'conedison', 'fdny', 'scheduler'];
   
   const navItems = enabledPageIds.map(pageId => {
     const config = getPageConfig(pageId);
@@ -38,7 +39,7 @@ const Sidebar: React.FC<SidebarProps> = () => { // Removed unused className
       iconImage: config.iconPath,
       text: config.title
     };
-  }).filter(Boolean);
+  }).filter((item): item is NonNullable<typeof item> => item !== null);
 
   const bottomItems = [
     { id: 'logout', icon: Logout, text: 'Logout' }

@@ -3,10 +3,9 @@ import ListItem from '@mui/material/ListItem';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
-import { SvgIcon } from '@mui/material';
 
 interface SidebarItemProps {
-  icon: typeof SvgIcon;
+  icon: React.ComponentType;
   iconImage?: string;
   iconAlt?: string;
   text: string;

@@ -4,6 +4,7 @@ import { pageConfig as battery2Config } from '../pages/Battery2Page';
 import { pageConfig as battery3Config } from '../pages/Battery3Page';
 import { pageConfig as conedisonConfig } from '../pages/ConEdisonPage';
 import { pageConfig as fdnyConfig } from '../pages/FDNYPage';
+import { pageConfig as schedulerConfig } from '../pages/SchedulerPage';
 
 export interface PageConfig {
   id: string;
@@ -19,6 +20,7 @@ export const pageRegistry: Record<string, PageConfig> = {
   [battery3Config.id]: battery3Config,
   [conedisonConfig.id]: conedisonConfig,
   [fdnyConfig.id]: fdnyConfig,
+  [schedulerConfig.id]: schedulerConfig,
 };
 
 export const getPageConfig = (pageId: string): PageConfig | undefined => {
