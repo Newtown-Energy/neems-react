@@ -33,7 +33,7 @@ import {
   Radio
 } from '@mui/material';
 import { Add, Edit, Delete, Refresh, Person, LocationOn, Business, AdminPanelSettings } from '@mui/icons-material';
-import { useAuth } from '../components/LoginPage/useAuth';
+import { useAuth } from './LoginPage/useAuth';
 import { useSearchParams } from 'react-router-dom';
 import type { User } from '../types/generated/User';
 import type { UserWithRoles } from '../types/generated/UserWithRoles';

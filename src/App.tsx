@@ -12,8 +12,8 @@ import ConEdisonPage from './pages/ConEdisonPage';
 import FDNYPage from './pages/FDNYPage';
 import AdminPage from './pages/AdminPage';
 import './styles/App.scss';
-import { useAuth } from './components/LoginPage/useAuth';
-import LoginPage from './components/LoginPage/LoginPage';
+import { useAuth } from './pages/LoginPage/useAuth';
+import LoginPage from './pages/LoginPage/LoginPage';
 
 const AppContent: React.FC = () => {
   const { loading, isAuthenticated, setIsAuthenticated, userEmail, userInfo, saveUserInfo, logout } = useAuth();
