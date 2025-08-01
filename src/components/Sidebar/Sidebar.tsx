@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Drawer, List, Typography, Box, Divider, IconButton } from '@mui/material';
-import { Dashboard, BatteryFull, ChevronLeft, ChevronRight, Logout } from '@mui/icons-material';
+import { ChevronLeft, ChevronRight, Logout, ArrowForward } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { SidebarItem } from './SidebarItem';
+import { getPageConfig } from '../../config/pageRegistry';
 
 interface SidebarProps {
   className?: string;
@@ -24,15 +25,20 @@ const Sidebar: React.FC<SidebarProps> = () => { // Removed unused className
     return 'overview';
   };
 
-  // Navigation items with required icons
-  const navItems = [
-    { id: 'overview', icon: Dashboard, text: 'Overview' },
-    { id: 'battery1', icon: BatteryFull, iconImage: '/Tesla_Motors.svg', text: 'Megapack 1' },
-    { id: 'battery2', icon: BatteryFull, iconImage: '/Tesla_Motors.svg', text: 'Megapack 2' },
-    { id: 'battery3', icon: BatteryFull, iconImage: '/Tesla_Motors.svg', text: 'Megapack 3' },
-    { id: 'conedison', icon: BatteryFull, iconImage: '/con-edison.svg', text: 'Con Edison' },
-    { id: 'fdny', icon: BatteryFull, iconImage: '/FDNY.svg', text: 'FDNY' }
-  ];
+  // Get navigation items from page configs
+  const enabledPageIds = ['overview', 'battery1', 'battery2', 'battery3', 'conedison', 'fdny'];
+  
+  const navItems = enabledPageIds.map(pageId => {
+    const config = getPageConfig(pageId);
+    if (!config) return null;
+    
+    return {
+      id: config.id,
+      icon: config.icon || ArrowForward,
+      iconImage: config.iconPath,
+      text: config.title
+    };
+  }).filter(Boolean);
 
   const bottomItems = [
     { id: 'logout', icon: Logout, text: 'Logout' }

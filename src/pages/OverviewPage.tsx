@@ -1,6 +1,12 @@
 import React from 'react';
 import { Box, Typography, Card, CardContent, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, List, ListItem, ListItemText, ListItemIcon } from '@mui/material';
-import { TrendingDown, CheckCircle } from '@mui/icons-material';
+import { TrendingDown, CheckCircle, Dashboard } from '@mui/icons-material';
+
+export const pageConfig = {
+  id: 'overview',
+  title: 'Overview',
+  icon: Dashboard
+};
 
 const OverviewPage: React.FC = () => {
   return (

@@ -1,6 +1,12 @@
 import React from 'react';
 import { Box, Typography } from '@mui/material';
 
+export const pageConfig = {
+  id: 'fdny',
+  title: 'FDNY',
+  iconPath: '/FDNY.svg'
+};
+
 const FDNYPage: React.FC = () => {
   return (
     <Box sx={{ p: 3 }}>
