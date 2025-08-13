@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Drawer, List, Typography, Box, Divider, IconButton } from '@mui/material';
-import { ChevronLeft, ChevronRight, Logout, ArrowForward, AdminPanelSettings } from '@mui/icons-material';
+import { ChevronLeft, ChevronRight, Logout, ArrowForward } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { SidebarItem } from './SidebarItem';
 import { getPageConfig } from '../../config/pageRegistry';

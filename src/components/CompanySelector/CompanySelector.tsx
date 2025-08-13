@@ -5,9 +5,8 @@ import {
   MenuItem,
   Typography,
   Box,
-  SelectChangeEvent,
-  CircularProgress,
 } from '@mui/material';
+import type { SelectChangeEvent } from '@mui/material';
 import { Business } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { apiRequestWithMapping } from '../../utils/api';
@@ -72,12 +71,7 @@ export const CompanySelector: React.FC<CompanySelectorProps> = ({
       setCompanies(data);
     } catch (err) {
       console.error('Error fetching companies:', err);
-      setCompanies([
-        { id: 1, name: 'Newtown Energy', created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-        { id: 2, name: 'NewYork-Presbyterian', created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-        { id: 3, name: 'Mount Sinai Health System', created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-        { id: 4, name: 'NYU Langone Health', created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' }
-      ]);
+      setCompanies([]);
     } finally {
       setLoading(false);
     }

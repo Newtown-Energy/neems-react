@@ -21,9 +21,6 @@ import {
   CircularProgress,
   Chip,
   FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
   Tabs,
   Tab,
   Link,
@@ -36,13 +33,14 @@ import { Add, Edit, Delete, Refresh, Person, LocationOn, Business, AdminPanelSet
 import { useAuth } from './LoginPage/useAuth';
 import { useSearchParams } from 'react-router-dom';
 import type { User } from '../types/generated/User';
-import type { UserWithRoles } from '../types/generated/UserWithRoles';
 import type { Site } from '../types/generated/Site';
-import type { Company } from '../types/generated/Company';
+import type { CompanyWithTimestamps } from '../types/generated/CompanyWithTimestamps';
+import type { UserWithRolesAndTimestamps } from '../types/generated/UserWithRolesAndTimestamps';
 import type { CreateUserWithRolesRequest } from '../types/generated/CreateUserWithRolesRequest';
 import type { UpdateUserRequest } from '../types/generated/UpdateUserRequest';
 import type { CreateSiteRequest } from '../types/generated/CreateSiteRequest';
-import { apiRequest, apiRequestWithMapping, apiRequestODataWithCount, ApiError, ODataQueryOptions } from '../utils/api';
+import { apiRequestWithMapping, ApiError } from '../utils/api';
+import type { ODataQueryOptions } from '../utils/api';
 
 
 
@@ -66,20 +64,20 @@ const AdminPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const [tabValue, setTabValue] = useState(0);
   const [selectedCompanyId, setSelectedCompanyId] = useState<number>(0);
-  const [users, setUsers] = useState<UserWithRoles[]>([]);
+  const [users, setUsers] = useState<UserWithRolesAndTimestamps[]>([]);
   const [sites, setSites] = useState<Site[]>([]);
-  const [companies, setCompanies] = useState<Company[]>([]);
+  const [companies, setCompanies] = useState<CompanyWithTimestamps[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // User management state
   const [userDialog, setUserDialog] = useState(false);
-  const [editingUser, setEditingUser] = useState<UserWithRoles | null>(null);
+  const [editingUser, setEditingUser] = useState<UserWithRolesAndTimestamps | null>(null);
   const [userEmail, setUserEmail] = useState('');
   const [userCompany, setUserCompany] = useState<number>(0);
   const [userRole, setUserRole] = useState<string>('');
   const [deleteUserDialog, setDeleteUserDialog] = useState(false);
-  const [userToDelete, setUserToDelete] = useState<UserWithRoles | null>(null);
+  const [userToDelete, setUserToDelete] = useState<UserWithRolesAndTimestamps | null>(null);
   const [userModalError, setUserModalError] = useState<string | null>(null);
 
   // Site management state
@@ -94,10 +92,10 @@ const AdminPage: React.FC = () => {
 
   // Company management state
   const [companyDialog, setCompanyDialog] = useState(false);
-  const [editingCompany, setEditingCompany] = useState<Company | null>(null);
+  const [editingCompany, setEditingCompany] = useState<CompanyWithTimestamps | null>(null);
   const [companyName, setCompanyName] = useState('');
   const [deleteCompanyDialog, setDeleteCompanyDialog] = useState(false);
-  const [companyToDelete, setCompanyToDelete] = useState<Company | null>(null);
+  const [companyToDelete, setCompanyToDelete] = useState<CompanyWithTimestamps | null>(null);
   const [companyModalError, setCompanyModalError] = useState<string | null>(null);
 
   // Role checks
@@ -247,27 +245,21 @@ const AdminPage: React.FC = () => {
         $orderby: 'name',
         $count: true
       };
-      const data = await apiRequestWithMapping<Company[]>('/api/1/Companies', {}, queryOptions);
+      const data = await apiRequestWithMapping<CompanyWithTimestamps[]>('/api/1/Companies', {}, queryOptions);
       setCompanies(data);
     } catch (err) {
       console.error('Error fetching companies:', err);
       if (err instanceof ApiError) {
         setError(`Failed to load companies: ${err.message}`);
       }
-      // Mock data for development
-      setCompanies([
-        { id: 1, name: 'Newtown Energy', created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-        { id: 2, name: 'NewYork-Presbyterian', created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-        { id: 3, name: 'Mount Sinai Health System', created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-        { id: 4, name: 'NYU Langone Health', created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' }
-      ]);
+      setCompanies([]);
     } finally {
       setLoading(false);
     }
   };
 
   // User management functions
-  const handleUserDialog = (user?: UserWithRoles) => {
+  const handleUserDialog = (user?: UserWithRolesAndTimestamps) => {
     setEditingUser(user || null);
     setUserEmail(user?.email || '');
     setUserCompany(user?.company_id || selectedCompanyId);
@@ -460,7 +452,7 @@ const AdminPage: React.FC = () => {
   };
 
   // Company management functions
-  const handleCompanyDialog = (company?: Company) => {
+  const handleCompanyDialog = (company?: CompanyWithTimestamps) => {
     setEditingCompany(company || null);
     setCompanyName(company?.name || '');
     setCompanyModalError(null);
