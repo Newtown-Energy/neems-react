@@ -42,7 +42,7 @@ import type { Company } from '../types/generated/Company';
 import type { CreateUserWithRolesRequest } from '../types/generated/CreateUserWithRolesRequest';
 import type { UpdateUserRequest } from '../types/generated/UpdateUserRequest';
 import type { CreateSiteRequest } from '../types/generated/CreateSiteRequest';
-import { apiRequest, ApiError } from '../utils/api';
+import { apiRequest, apiRequestWithMapping, apiRequestODataWithCount, ApiError, ODataQueryOptions } from '../utils/api';
 
 
 
@@ -136,11 +136,19 @@ const AdminPage: React.FC = () => {
     if (companyParam && companies.length > 0) {
       const companyId = parseInt(companyParam);
       setSelectedCompanyId(companyId);
-    } else if (userInfo && companies.length > 0 && !selectedCompanyId) {
+    } else if (companies.length > 0 && selectedCompanyId === 0) {
       // Default to user's own company if no parameter provided
-      const userCompany = companies.find(comp => comp.name === userInfo.company_name);
-      if (userCompany) {
-        setSelectedCompanyId(userCompany.id);
+      if (userInfo && userInfo.company_name) {
+        const userCompany = companies.find(comp => comp.name === userInfo.company_name);
+        if (userCompany) {
+          setSelectedCompanyId(userCompany.id);
+        } else if (companies.length > 0) {
+          // Fallback to first company if user's company not found
+          setSelectedCompanyId(companies[0].id);
+        }
+      } else if (companies.length > 0) {
+        // Fallback to first company if no user info
+        setSelectedCompanyId(companies[0].id);
       }
     }
   }, [searchParams, companies, userInfo, selectedCompanyId]);
@@ -170,11 +178,22 @@ const AdminPage: React.FC = () => {
 
     setLoading(true);
     try {
-      const data = await apiRequest<User[]>(`/api/1/company/${selectedCompanyId}/users`);
-      // Transform API response - roles are now embedded
+      // Use OData $expand to include company information
+      const queryOptions: ODataQueryOptions = {
+        $expand: 'Company',
+        // Other OData options that could be used:
+        // $select: 'id,email,company_id', // Select specific fields
+        // $filter: "startswith(email,'admin')", // Filter by email starting with 'admin'
+        // $orderby: 'email desc', // Order by email descending  
+        // $top: 50, // Limit to 50 users
+        // $skip: 0, // Skip 0 users (for pagination)
+        // $count: true // Include total count in response
+      };
+      const data = await apiRequestWithMapping<User[]>(`/api/1/Companies/${selectedCompanyId}/Users`, {}, queryOptions);
+      // Transform API response - roles are now embedded, company may be expanded
       const usersWithCompanyNames = data.map((user: any) => ({
         ...user,
-        company_name: companies.find(c => c.id === user.company_id)?.name || 'Unknown'
+        company_name: (user.Company?.name) || companies.find(c => c.id === user.company_id)?.name || 'Unknown'
       }));
       setUsers(usersWithCompanyNames);
     } catch (err) {
@@ -198,7 +217,7 @@ const AdminPage: React.FC = () => {
 
     setLoading(true);
     try {
-      const data = await apiRequest<Site[]>(`/api/1/company/${selectedCompanyId}/sites`);
+      const data = await apiRequestWithMapping<Site[]>(`/api/1/Companies/${selectedCompanyId}/Sites`);
       // Transform API response to match our interface
       const transformedSites = data.map((site: any) => ({
         ...site,
@@ -223,7 +242,12 @@ const AdminPage: React.FC = () => {
   const fetchCompanies = async () => {
     setLoading(true);
     try {
-      const data = await apiRequest<Company[]>('/api/1/companies');
+      // Use OData query options to get ordered results with count
+      const queryOptions: ODataQueryOptions = {
+        $orderby: 'name',
+        $count: true
+      };
+      const data = await apiRequestWithMapping<Company[]>('/api/1/Companies', {}, queryOptions);
       setCompanies(data);
     } catch (err) {
       console.error('Error fetching companies:', err);
@@ -276,7 +300,7 @@ const AdminPage: React.FC = () => {
           company_id: userCompany,
           totp_secret: null
         };
-        await apiRequest(`/api/1/users/${editingUser.id}`, {
+        await apiRequestWithMapping(`/api/1/Users/${editingUser.id}`, {
           method: 'PUT',
           body: JSON.stringify(requestBody)
         });
@@ -292,7 +316,7 @@ const AdminPage: React.FC = () => {
           totp_secret: null,
           role_names: [userRole]
         };
-        await apiRequest('/api/1/users', {
+        await apiRequestWithMapping('/api/1/Users', {
           method: 'POST',
           body: JSON.stringify(requestBody)
         });
@@ -323,7 +347,7 @@ const AdminPage: React.FC = () => {
 
     setLoading(true);
     try {
-      await apiRequest(`/api/1/users/${userToDelete.id}`, {
+      await apiRequestWithMapping(`/api/1/Users/${userToDelete.id}`, {
         method: 'DELETE'
       });
       await fetchUsers();
@@ -376,7 +400,7 @@ const AdminPage: React.FC = () => {
     setLoading(true);
     try {
       const isEdit = editingSite !== null;
-      const url = isEdit ? `/api/1/sites/${editingSite.id}` : '/api/1/sites';
+      const url = isEdit ? `/api/1/Sites/${editingSite.id}` : '/api/1/Sites';
       const method = isEdit ? 'PUT' : 'POST';
 
       const requestBody: CreateSiteRequest = {
@@ -386,7 +410,7 @@ const AdminPage: React.FC = () => {
         longitude: 0,
         company_id: siteCompany || selectedCompanyId
       };
-      await apiRequest(url, {
+      await apiRequestWithMapping(url, {
         method,
         body: JSON.stringify(requestBody)
       });
@@ -413,7 +437,7 @@ const AdminPage: React.FC = () => {
 
     setLoading(true);
     try {
-      await apiRequest(`/api/1/sites/${siteToDelete.id}`, {
+      await apiRequestWithMapping(`/api/1/Sites/${siteToDelete.id}`, {
         method: 'DELETE'
       });
       await fetchSites();
@@ -456,10 +480,10 @@ const AdminPage: React.FC = () => {
     setLoading(true);
     try {
       const isEdit = editingCompany !== null;
-      const url = isEdit ? `/api/1/companies/${editingCompany.id}` : '/api/1/companies';
+      const url = isEdit ? `/api/1/Companies/${editingCompany.id}` : '/api/1/Companies';
       const method = isEdit ? 'PUT' : 'POST';
 
-      await apiRequest(url, {
+      await apiRequestWithMapping(url, {
         method,
         body: JSON.stringify({ name: companyName })
       });
@@ -486,7 +510,7 @@ const AdminPage: React.FC = () => {
 
     setLoading(true);
     try {
-      await apiRequest(`/api/1/companies/${companyToDelete.id}`, {
+      await apiRequestWithMapping(`/api/1/Companies/${companyToDelete.id}`, {
         method: 'DELETE'
       });
       await fetchCompanies();
@@ -541,40 +565,6 @@ const AdminPage: React.FC = () => {
         </Button>
       </Box>
 
-      {/* Company Selector for Super Admins */}
-      {isSuperAdmin && (
-        <Card sx={{ mb: 3 }}>
-          <CardContent>
-            <Typography variant="h6" gutterBottom>
-              Company Selection
-            </Typography>
-            <FormControl fullWidth sx={{ maxWidth: 400 }}>
-              <InputLabel>Select Company</InputLabel>
-              <Select
-                id="company-selector"
-                value={selectedCompanyId}
-                label="Select Company"
-                onChange={(e) => {
-                  const newCompanyId = Number(e.target.value);
-                  setSelectedCompanyId(newCompanyId);
-                  // Update URL parameter
-                  const newSearchParams = new URLSearchParams(searchParams);
-                  newSearchParams.set('company', newCompanyId.toString());
-                  window.history.replaceState(null, '', `?${newSearchParams.toString()}`);
-                }}
-                disabled={loading}
-              >
-                <MenuItem value={0}>Select Company</MenuItem>
-                {companies.map((company) => (
-                  <MenuItem key={company.id} value={company.id}>
-                    {company.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </CardContent>
-        </Card>
-      )}
 
       {error && !userDialog && !siteDialog && !companyDialog && !deleteUserDialog && !deleteSiteDialog && !deleteCompanyDialog && (
         <Alert severity="error" sx={{ mb: 3 }}>
@@ -582,11 +572,7 @@ const AdminPage: React.FC = () => {
         </Alert>
       )}
 
-      {selectedCompanyId === 0 ? (
-        <Alert severity="info">
-          Please select a company to manage users and sites.
-        </Alert>
-      ) : (
+      {selectedCompanyId > 0 && (
         <>
           <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
             <Tabs value={tabValue} onChange={(_, newValue) => setTabValue(newValue)}>

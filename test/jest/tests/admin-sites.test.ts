@@ -165,9 +165,12 @@ describe('Admin Site Management Tests', () => {
           if (serverError !== null) {
             const error = serverError as { status: number; message: string };
             
-            // Verify the error message is displayed in the modal
-            const dialogContent = await page.content();
-            if (dialogContent.includes(error.message)) {
+            // Verify the error message is displayed in the modal (without dumping HTML)
+            const dialogErrorText = await page.evaluate(() => {
+              const dialog = document.querySelector('[role="dialog"]');
+              return dialog ? dialog.textContent : '';
+            });
+            if (dialogErrorText?.includes(error.message)) {
               throw new Error(`Site creation failed with server validation: ${error.message}`);
             } else {
               throw new Error(`UI failed to display server error: ${error.message}`);
@@ -232,18 +235,29 @@ describe('Admin Site Management Tests', () => {
   }
 
   async function verifySiteExists(siteName: string) {
-    const content = await page.content();
-    try {
-      expect(content).toContain(siteName);
-    } catch (error) {
-      console.log(`ERROR: Site not found on page: ${siteName}`);
-      throw error;
+    // Avoid dumping full HTML - search for site in table rows instead
+    const tableRows = await page.$$('tbody tr');
+    let found = false;
+    for (const row of tableRows) {
+      const text = await row.evaluate(el => el.textContent);
+      if (text?.includes(siteName)) {
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      throw new Error(`Site not found in table: ${siteName}`);
     }
   }
 
   async function deleteSiteIfExists(siteName: string) {
-    const content = await page.content();
-    if (content.includes(siteName)) {
+    // Check if site exists without fetching full HTML
+    const siteExists = await page.evaluate((name) => {
+      const rows = document.querySelectorAll('tbody tr');
+      return Array.from(rows).some(row => row.textContent?.includes(name));
+    }, siteName);
+    
+    if (siteExists) {
       const tableRows = await page.$$('tbody tr');
       for (const row of tableRows) {
         const text = await row.evaluate(el => el.textContent);

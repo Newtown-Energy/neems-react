@@ -15,7 +15,7 @@ describe('Admin User Management Tests', () => {
   testUsers = [
     { name: `Admin User ${timestamp}`, email: `admin${timestamp}@test.com`, role: 'admin' },
     { name: `Staff User ${timestamp}`, email: `staff${timestamp}@test.com`, role: 'staff' },
-    ];
+  ];
 
   it('should navigate to start page', async () => {
     await navigateToApp(page)
@@ -47,26 +47,35 @@ describe('Admin User Management Tests', () => {
   // Test each user
   for (const user of testUsers) {
     it(`should create user ${user.email}`, async () => {
-
-        // Create User
-        await createUser(user.email, user.role);
+        // Generate a fresh unique email to avoid conflicts with existing users
+        const uniqueTimestamp = Date.now() + Math.floor(Math.random() * 1000);
+        let emailToCreate = `${user.role}${uniqueTimestamp}@test.com`;
+        
+        // Create the user
+        await createUser(emailToCreate, user.role);
         await new Promise(resolve => setTimeout(resolve, 1000));
         
-        // Verify user was created
-        await verifyUserExists(user.email);
+        // Verify user was created and appears in the table
+        await verifyUserExists(emailToCreate);
+        
+        // Update email for subsequent tests
+        user.email = emailToCreate;
     }, 60000);
         
     it('should edit user', async () => {
-        // Edit User (change email)
-        const editedEmail = user.email.replace('@test.com', '-edited@test.com');
-        await editUser(user.email, editedEmail);
+        // Edit the user we just created
+        let currentEmail = user.email;
+        let newEmail = `${currentEmail.split('@')[0]}-edited@test.com`;
+        
+        // Perform the edit
+        await editUser(currentEmail, newEmail);
         await new Promise(resolve => setTimeout(resolve, 1000));
         
         // Verify user was edited
-        await verifyUserExists(editedEmail);
+        await verifyUserExists(newEmail);
         
         // Update email for cleanup
-        user.email = editedEmail;
+        user.email = newEmail;
     }, 60000);
   }
 
@@ -167,9 +176,12 @@ async function switchToUsersTab() {
           if (serverError !== null) {
             const error = serverError as { status: number; message: string };
             
-            // Verify the error message is displayed in the modal
-            const dialogContent = await page.content();
-            if (dialogContent.includes(error.message)) {
+            // Verify the error message is displayed in the modal (without dumping HTML)
+            const dialogErrorText = await page.evaluate(() => {
+              const dialog = document.querySelector('[role="dialog"]');
+              return dialog ? dialog.textContent : '';
+            });
+            if (dialogErrorText?.includes(error.message)) {
               throw new Error(`User creation failed with server validation: ${error.message}`);
             } else {
               throw new Error(`UI failed to display server error: ${error.message}`);
@@ -229,17 +241,29 @@ async function switchToUsersTab() {
   }
 
   async function verifyUserExists(email: string) {
-    const content = await page.content();
-    try {
-      expect(content).toContain(email);
-    } catch (error) {
-      throw error;
+    // Search for user in table rows
+    const tableRows = await page.$$('tbody tr');
+    let found = false;
+    for (const row of tableRows) {
+      const text = await row.evaluate(el => el.textContent);
+      if (text?.includes(email)) {
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      throw new Error(`User not found in table: ${email}`);
     }
   }
 
   async function deleteUserIfExists(email: string) {
-    const content = await page.content();
-    if (content.includes(email)) {
+    // Check if user exists without fetching full HTML
+    const userExists = await page.evaluate((e) => {
+      const rows = document.querySelectorAll('tbody tr');
+      return Array.from(rows).some(row => row.textContent?.includes(e));
+    }, email);
+    
+    if (userExists) {
       const tableRows = await page.$$('tbody tr');
       for (const row of tableRows) {
         const text = await row.evaluate(el => el.textContent);

@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Drawer, List, Typography, Box, Divider, IconButton } from '@mui/material';
-import { ChevronLeft, ChevronRight, Logout, ArrowForward } from '@mui/icons-material';
+import { ChevronLeft, ChevronRight, Logout, ArrowForward, AdminPanelSettings } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { SidebarItem } from './SidebarItem';
 import { getPageConfig } from '../../config/pageRegistry';
+import { CompanySelector } from '../CompanySelector/CompanySelector';
+import { useAuth } from '../../pages/LoginPage/useAuth';
 
 interface SidebarProps {
   className?: string;
@@ -13,6 +15,7 @@ const Sidebar: React.FC<SidebarProps> = () => { // Removed unused className
   const [collapsed, setCollapsed] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const { userInfo } = useAuth();
   
   const getSelectedItem = () => {
     const path = location.pathname;
@@ -23,6 +26,7 @@ const Sidebar: React.FC<SidebarProps> = () => { // Removed unused className
     if (path === '/conedison') return 'conedison';
     if (path === '/fdny') return 'fdny';
     if (path === '/scheduler') return 'scheduler';
+    if (path === '/admin') return 'admin';
     return 'overview';
   };
 
@@ -135,6 +139,14 @@ const Sidebar: React.FC<SidebarProps> = () => { // Removed unused className
           />
         ))}
       </List>
+      
+      <Divider />
+      
+      <CompanySelector 
+        collapsed={collapsed}
+        userRoles={userInfo?.roles || []}
+        userCompanyName={userInfo?.company_name}
+      />
       
       <Divider />
       
