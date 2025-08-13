@@ -1,4 +1,5 @@
 import { navigateToApp } from './test-utils';
+import type { HealthStatus } from '../../../src/types/generated/HealthStatus';
 
 describe('NEEMS React App Tests', () => {
 
@@ -24,9 +25,11 @@ describe('NEEMS React App Tests', () => {
     const response = await page.evaluate(async () => {
       const res = await fetch('/api/1/status');
       return await res.json();
-    });
+    }) as HealthStatus;
     
-    expect(response).toEqual({"status":"running"});
+    expect(response.status).toEqual("running");
+    expect(response).toHaveProperty('version');
+    expect(typeof response.version).toBe('string');
   });
 
 });
