@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Box, Button, TextField, Typography, Paper } from "@mui/material";
 import type { LoginSuccessResponse } from "../../types/auth";
 import { apiRequest, ApiError } from "../../utils/api";
+import { debugLog } from "../../utils/debug";
 
 type Props = { onLoginSuccess: (userInfo: LoginSuccessResponse) => void };
 
@@ -18,15 +19,26 @@ const LoginPage: React.FC<Props> = ({ onLoginSuccess }) => {
 
     const requestBody = { email, password };
     console.log("Sending login request with body:", requestBody);
+    debugLog('LoginPage: Login attempt', { email });
 
     try {
       const userInfo = await apiRequest<LoginSuccessResponse>("/api/1/login", {
         method: "POST",
         body: JSON.stringify(requestBody),
       });
+      debugLog('LoginPage: Login successful', {
+        email: userInfo.email,
+        roles: userInfo.roles,
+        companyName: userInfo.company_name
+      });
       localStorage.setItem('userEmail', email);
       onLoginSuccess(userInfo);
     } catch (error) {
+      debugLog('LoginPage: Login failed', {
+        email,
+        error,
+        status: error instanceof ApiError ? error.status : undefined
+      });
       if (error instanceof ApiError) {
         setError(error.message);
       } else {

@@ -6,6 +6,7 @@ import { SidebarItem } from './SidebarItem';
 import { getPageConfig } from '../../config/pageRegistry';
 import { CompanySelector } from '../CompanySelector/CompanySelector';
 import { useAuth } from '../../pages/LoginPage/useAuth';
+import { debugLog } from '../../utils/debug';
 
 interface SidebarProps {
   className?: string;
@@ -25,7 +26,7 @@ const Sidebar: React.FC<SidebarProps> = () => { // Removed unused className
     if (path === '/battery3') return 'battery3';
     if (path === '/conedison') return 'conedison';
     if (path === '/fdny') return 'fdny';
-    if (path === '/scheduler') return 'scheduler';
+    if (path === '/scheduler' || path === '/library') return 'scheduler';
     if (path === '/admin') return 'admin';
     return 'overview';
   };
@@ -54,10 +55,13 @@ const Sidebar: React.FC<SidebarProps> = () => { // Removed unused className
   }, []);
 
   const handleItemClick = (id: string) => {
-    navigate(`/${id === 'overview' ? '' : id}`);
+    const path = `/${id === 'overview' ? '' : id}`;
+    debugLog('Sidebar: Navigation click', { pageId: id, path });
+    navigate(path);
   };
 
   const handleLogout = async () => {
+    debugLog('Sidebar: Logout requested');
     try {
       const response = await fetch('/api/1/logout', {
         method: 'POST',
@@ -65,12 +69,15 @@ const Sidebar: React.FC<SidebarProps> = () => { // Removed unused className
       });
 
       if (response.ok) {
+        debugLog('Sidebar: Logout successful, reloading page');
         window.location.reload();
       } else {
         console.error('Logout failed:', response.statusText);
+        debugLog('Sidebar: Logout failed', { status: response.status, statusText: response.statusText });
       }
     } catch (error) {
       console.error('Logout error:', error);
+      debugLog('Sidebar: Logout error', error);
     }
   };
 
