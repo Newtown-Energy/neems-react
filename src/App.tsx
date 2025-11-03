@@ -11,6 +11,7 @@ import Battery3Page from './pages/Battery3Page';
 import ConEdisonPage from './pages/ConEdisonPage';
 import FDNYPage from './pages/FDNYPage';
 import AdminPage from './pages/AdminPage';
+import SchedulerPage from './pages/SchedulerPage';
 import './styles/App.scss';
 import { useAuth } from './pages/LoginPage/useAuth';
 import LoginPage from './pages/LoginPage/LoginPage';
@@ -54,6 +55,7 @@ const AppContent: React.FC = () => {
             <Route path="/battery3" element={<Battery3Page />} />
             <Route path="/conedison" element={<ConEdisonPage />} />
             <Route path="/fdny" element={<FDNYPage />} />
+            <Route path="/scheduler" element={<SchedulerPage />} />
             <Route path="/admin" element={<AdminPage />} />
           </Routes>
         </Box>
