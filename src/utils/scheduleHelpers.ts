@@ -139,3 +139,92 @@ export function isValidMinute(minute: number): boolean {
 export function getCommandTypes(): CommandType[] {
   return ['charge', 'discharge', 'trickle_charge'];
 }
+
+/**
+ * Format Date to ISO date string (YYYY-MM-DD)
+ *
+ * @param date - Date object
+ * @returns ISO date string
+ *
+ * @example
+ * toISODateString(new Date(2025, 0, 15)) // "2025-01-15"
+ */
+export function toISODateString(date: Date): string {
+  const year = date.getFullYear();
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  const day = date.getDate().toString().padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+/**
+ * Parse ISO date string to Date object
+ *
+ * @param dateString - ISO date string (YYYY-MM-DD)
+ * @returns Date object
+ *
+ * @example
+ * parseISODate("2025-01-15") // Date object for Jan 15, 2025
+ */
+export function parseISODate(dateString: string): Date {
+  const [year, month, day] = dateString.split('-').map(num => parseInt(num, 10));
+  return new Date(year, month - 1, day);
+}
+
+/**
+ * Format date for display
+ *
+ * @param date - Date object
+ * @returns Formatted date string
+ *
+ * @example
+ * formatScheduleDate(new Date(2025, 0, 15)) // "January 15, 2025"
+ */
+export function formatScheduleDate(date: Date): string {
+  return date.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
+}
+
+/**
+ * Check if a date is in the past (before today)
+ *
+ * @param date - Date to check
+ * @returns true if date is before today
+ */
+export function isPastDate(date: Date): boolean {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const checkDate = new Date(date);
+  checkDate.setHours(0, 0, 0, 0);
+  return checkDate < today;
+}
+
+/**
+ * Check if a date is today
+ *
+ * @param date - Date to check
+ * @returns true if date is today
+ */
+export function isToday(date: Date): boolean {
+  const today = new Date();
+  return (
+    date.getFullYear() === today.getFullYear() &&
+    date.getMonth() === today.getMonth() &&
+    date.getDate() === today.getDate()
+  );
+}
+
+/**
+ * Add days to a date
+ *
+ * @param date - Starting date
+ * @param days - Number of days to add (can be negative)
+ * @returns New date
+ */
+export function addDays(date: Date, days: number): Date {
+  const result = new Date(date);
+  result.setDate(result.getDate() + days);
+  return result;
+}

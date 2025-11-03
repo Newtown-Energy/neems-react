@@ -25,9 +25,28 @@ export interface MockScheduleTemplateEntry {
   is_active: boolean;
 }
 
+export interface MockSchedule {
+  id: number;
+  site_id: number;
+  schedule_date: string; // ISO date string "YYYY-MM-DD"
+  template_id: number | null; // null if custom, template_id if derived from template
+  is_override: boolean; // true if overridden from default
+}
+
+export interface MockScheduleEntry {
+  id: number;
+  schedule_id: number;
+  execution_offset_seconds: number;
+  schedule_command_id: number;
+  command_type: 'charge' | 'discharge' | 'trickle_charge';
+  is_active: boolean;
+}
+
 // Storage keys
 const STORAGE_KEY_TEMPLATES = 'mock_schedule_templates';
 const STORAGE_KEY_ENTRIES = 'mock_schedule_template_entries';
+const STORAGE_KEY_SCHEDULES = 'mock_schedules';
+const STORAGE_KEY_SCHEDULE_ENTRIES = 'mock_schedule_entries';
 
 // Default mock data
 const DEFAULT_TEMPLATES: MockScheduleTemplate[] = [
@@ -79,12 +98,30 @@ function getStoredEntries(): MockScheduleTemplateEntry[] {
   return stored ? JSON.parse(stored) : DEFAULT_ENTRIES;
 }
 
+function getStoredSchedules(): MockSchedule[] {
+  const stored = localStorage.getItem(STORAGE_KEY_SCHEDULES);
+  return stored ? JSON.parse(stored) : [];
+}
+
+function getStoredScheduleEntries(): MockScheduleEntry[] {
+  const stored = localStorage.getItem(STORAGE_KEY_SCHEDULE_ENTRIES);
+  return stored ? JSON.parse(stored) : [];
+}
+
 function saveTemplates(templates: MockScheduleTemplate[]): void {
   localStorage.setItem(STORAGE_KEY_TEMPLATES, JSON.stringify(templates));
 }
 
 function saveEntries(entries: MockScheduleTemplateEntry[]): void {
   localStorage.setItem(STORAGE_KEY_ENTRIES, JSON.stringify(entries));
+}
+
+function saveSchedules(schedules: MockSchedule[]): void {
+  localStorage.setItem(STORAGE_KEY_SCHEDULES, JSON.stringify(schedules));
+}
+
+function saveScheduleEntries(entries: MockScheduleEntry[]): void {
+  localStorage.setItem(STORAGE_KEY_SCHEDULE_ENTRIES, JSON.stringify(entries));
 }
 
 // Simulate network delay
@@ -193,4 +230,154 @@ export async function deleteMockTemplateEntry(id: number): Promise<void> {
 export function resetMockData(): void {
   saveTemplates(DEFAULT_TEMPLATES);
   saveEntries(DEFAULT_ENTRIES);
+  localStorage.removeItem(STORAGE_KEY_SCHEDULES);
+  localStorage.removeItem(STORAGE_KEY_SCHEDULE_ENTRIES);
+}
+
+/**
+ * Get schedule for a specific date
+ * Returns null if no override exists (use default template)
+ */
+export async function getMockScheduleForDate(siteId: number, date: string): Promise<MockSchedule | null> {
+  await delay();
+  const schedules = getStoredSchedules();
+  return schedules.find(s => s.site_id === siteId && s.schedule_date === date) || null;
+}
+
+/**
+ * Get all schedule entries for a specific schedule, sorted by execution_offset_seconds
+ */
+export async function getMockScheduleEntries(scheduleId: number): Promise<MockScheduleEntry[]> {
+  await delay();
+  const entries = getStoredScheduleEntries();
+  return entries
+    .filter(e => e.schedule_id === scheduleId)
+    .sort((a, b) => a.execution_offset_seconds - b.execution_offset_seconds);
+}
+
+/**
+ * Create a schedule override for a specific date by copying the default template
+ */
+export async function createMockScheduleOverride(
+  siteId: number,
+  date: string
+): Promise<{schedule: MockSchedule; entries: MockScheduleEntry[]}> {
+  await delay();
+
+  // Get default template
+  const defaultTemplate = await getMockDefaultTemplate(siteId);
+  if (!defaultTemplate) {
+    throw new Error('No default template found');
+  }
+
+  // Get template entries to copy
+  const templateEntries = await getMockTemplateEntries(defaultTemplate.id);
+
+  const schedules = getStoredSchedules();
+  const scheduleEntries = getStoredScheduleEntries();
+
+  // Generate new schedule ID
+  const newScheduleId = schedules.length > 0 ? Math.max(...schedules.map(s => s.id)) + 1 : 1;
+
+  // Create new schedule
+  const newSchedule: MockSchedule = {
+    id: newScheduleId,
+    site_id: siteId,
+    schedule_date: date,
+    template_id: defaultTemplate.id,
+    is_override: true
+  };
+
+  schedules.push(newSchedule);
+  saveSchedules(schedules);
+
+  // Copy template entries to schedule entries
+  const newEntries: MockScheduleEntry[] = templateEntries.map((templateEntry, index) => {
+    const newId = scheduleEntries.length > 0
+      ? Math.max(...scheduleEntries.map(e => e.id)) + index + 1
+      : index + 1;
+
+    return {
+      id: newId,
+      schedule_id: newScheduleId,
+      execution_offset_seconds: templateEntry.execution_offset_seconds,
+      schedule_command_id: templateEntry.schedule_command_id,
+      command_type: templateEntry.command_type,
+      is_active: templateEntry.is_active
+    };
+  });
+
+  scheduleEntries.push(...newEntries);
+  saveScheduleEntries(scheduleEntries);
+
+  return {
+    schedule: newSchedule,
+    entries: newEntries
+  };
+}
+
+/**
+ * Create a new schedule entry for a specific schedule
+ */
+export async function createMockScheduleEntry(
+  entry: Omit<MockScheduleEntry, 'id' | 'schedule_command_id'>
+): Promise<MockScheduleEntry> {
+  await delay();
+  const entries = getStoredScheduleEntries();
+
+  // Generate new ID
+  const newId = entries.length > 0 ? Math.max(...entries.map(e => e.id)) + 1 : 1;
+
+  // Generate mock schedule_command_id
+  const commandId = newId + 1000; // Offset to avoid collision
+
+  const newEntry: MockScheduleEntry = {
+    ...entry,
+    id: newId,
+    schedule_command_id: commandId
+  };
+
+  entries.push(newEntry);
+  saveScheduleEntries(entries);
+
+  return newEntry;
+}
+
+/**
+ * Update an existing schedule entry
+ */
+export async function updateMockScheduleEntry(
+  id: number,
+  updates: Partial<Omit<MockScheduleEntry, 'id' | 'schedule_id' | 'schedule_command_id'>>
+): Promise<MockScheduleEntry> {
+  await delay();
+  const entries = getStoredScheduleEntries();
+  const index = entries.findIndex(e => e.id === id);
+
+  if (index === -1) {
+    throw new Error(`Schedule entry with id ${id} not found`);
+  }
+
+  entries[index] = {
+    ...entries[index],
+    ...updates
+  };
+
+  saveScheduleEntries(entries);
+  return entries[index];
+}
+
+/**
+ * Delete a schedule entry
+ */
+export async function deleteMockScheduleEntry(id: number): Promise<void> {
+  await delay();
+  const entries = getStoredScheduleEntries();
+  const filtered = entries.filter(e => e.id !== id);
+
+  if (filtered.length === entries.length) {
+    throw new Error(`Schedule entry with id ${id} not found`);
+  }
+
+  saveScheduleEntries(filtered);
 }

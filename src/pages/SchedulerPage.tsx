@@ -27,7 +27,8 @@ import {
   RadioGroup,
   FormControlLabel,
   Radio,
-  SelectChangeEvent
+  SelectChangeEvent,
+  TextField
 } from '@mui/material';
 import {
   Add,
@@ -36,17 +37,28 @@ import {
   Schedule as ScheduleIcon,
   BatteryChargingFull,
   FlashOn,
-  PowerSettingsNew
+  PowerSettingsNew,
+  ChevronLeft,
+  ChevronRight,
+  CalendarMonth
 } from '@mui/icons-material';
 // import SiteSelector from '../components/SiteSelector/SiteSelector'; // Commented out for hard-coded site MVP
 import {
   getMockDefaultTemplate,
   getMockTemplateEntries,
-  createMockTemplateEntry,
-  updateMockTemplateEntry,
-  deleteMockTemplateEntry,
+  createMockTemplateEntry as createMockTemplateEntryFn,
+  updateMockTemplateEntry as updateMockTemplateEntryFn,
+  deleteMockTemplateEntry as deleteMockTemplateEntryFn,
+  getMockScheduleForDate,
+  getMockScheduleEntries,
+  createMockScheduleOverride,
+  createMockScheduleEntry,
+  updateMockScheduleEntry,
+  deleteMockScheduleEntry,
   type MockScheduleTemplate,
-  type MockScheduleTemplateEntry
+  type MockScheduleTemplateEntry,
+  type MockSchedule,
+  type MockScheduleEntry
 } from '../utils/mockScheduleApi';
 import {
   secondsToTime,
@@ -56,6 +68,12 @@ import {
   hasTimeConflict,
   isValidHour,
   isValidMinute,
+  toISODateString,
+  parseISODate,
+  formatScheduleDate,
+  isPastDate,
+  isToday,
+  addDays,
   type CommandType
 } from '../utils/scheduleHelpers';
 
@@ -69,17 +87,24 @@ const SchedulerPage: React.FC = () => {
   // Hard-coded site ID for MVP (TODO: replace with site selector when sites are available)
   const HARDCODED_SITE_ID = 1;
 
-  // State
+  // View mode state
+  const [viewMode, setViewMode] = useState<'default' | 'date'>('default');
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+
+  // Schedule state
   const [template, setTemplate] = useState<MockScheduleTemplate | null>(null);
-  const [entries, setEntries] = useState<MockScheduleTemplateEntry[]>([]);
+  const [currentSchedule, setCurrentSchedule] = useState<MockSchedule | null>(null);
+  const [entries, setEntries] = useState<Array<MockScheduleTemplateEntry | MockScheduleEntry>>([]);
+  const [isUsingDefault, setIsUsingDefault] = useState(false);
+  const [isReadOnly, setIsReadOnly] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Dialog state
   const [entryDialog, setEntryDialog] = useState(false);
   const [deleteDialog, setDeleteDialog] = useState(false);
-  const [editingEntry, setEditingEntry] = useState<MockScheduleTemplateEntry | null>(null);
-  const [entryToDelete, setEntryToDelete] = useState<MockScheduleTemplateEntry | null>(null);
+  const [editingEntry, setEditingEntry] = useState<MockScheduleTemplateEntry | MockScheduleEntry | null>(null);
+  const [entryToDelete, setEntryToDelete] = useState<MockScheduleTemplateEntry | MockScheduleEntry | null>(null);
 
   // Form state
   const [entryHour, setEntryHour] = useState(0);
@@ -87,16 +112,24 @@ const SchedulerPage: React.FC = () => {
   const [entryCommandType, setEntryCommandType] = useState<CommandType>('charge');
   const [formError, setFormError] = useState<string | null>(null);
 
-  // Load template and entries on mount
+  // Load schedule when view mode or date changes
   useEffect(() => {
-    loadTemplateAndEntries();
-  }, []);
+    if (viewMode === 'default') {
+      loadDefaultTemplate();
+    } else {
+      loadScheduleForDate(selectedDate);
+    }
+  }, [viewMode, selectedDate]);
 
-  const loadTemplateAndEntries = async () => {
+  // Load default template (for "Default Template" view mode)
+  const loadDefaultTemplate = async () => {
     setLoading(true);
     setError(null);
+    setIsUsingDefault(false);
+    setIsReadOnly(false);
+    setCurrentSchedule(null);
+
     try {
-      // Get default template for hard-coded site
       const defaultTemplate = await getMockDefaultTemplate(HARDCODED_SITE_ID);
 
       if (!defaultTemplate) {
@@ -107,15 +140,90 @@ const SchedulerPage: React.FC = () => {
       }
 
       setTemplate(defaultTemplate);
-
-      // Get template entries
       const templateEntries = await getMockTemplateEntries(defaultTemplate.id);
       setEntries(templateEntries);
     } catch (err) {
-      console.error('Error loading template:', err);
-      setError('Failed to load schedule template');
+      console.error('Error loading default template:', err);
+      setError('Failed to load default template');
       setTemplate(null);
       setEntries([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load schedule for a specific date
+  const loadScheduleForDate = async (date: Date) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const dateString = toISODateString(date);
+      const schedule = await getMockScheduleForDate(HARDCODED_SITE_ID, dateString);
+
+      if (schedule) {
+        // Has custom schedule override
+        setCurrentSchedule(schedule);
+        setIsUsingDefault(false);
+        const scheduleEntries = await getMockScheduleEntries(schedule.id);
+        setEntries(scheduleEntries);
+      } else {
+        // Using default template
+        setCurrentSchedule(null);
+        setIsUsingDefault(true);
+        const defaultTemplate = await getMockDefaultTemplate(HARDCODED_SITE_ID);
+        if (defaultTemplate) {
+          setTemplate(defaultTemplate);
+          const templateEntries = await getMockTemplateEntries(defaultTemplate.id);
+          setEntries(templateEntries);
+        } else {
+          setEntries([]);
+        }
+      }
+
+      // Check if date is in the past
+      setIsReadOnly(isPastDate(date));
+    } catch (err) {
+      console.error('Error loading schedule for date:', err);
+      setError('Failed to load schedule');
+      setEntries([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Date navigation handlers
+  const handlePreviousDay = () => {
+    setSelectedDate(prevDate => addDays(prevDate, -1));
+  };
+
+  const handleNextDay = () => {
+    setSelectedDate(prevDate => addDays(prevDate, 1));
+  };
+
+  const handleDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const newDate = parseISODate(event.target.value);
+    setSelectedDate(newDate);
+  };
+
+  const handleToday = () => {
+    setSelectedDate(new Date());
+  };
+
+  // Override default handler
+  const handleOverrideDefault = async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const dateString = toISODateString(selectedDate);
+      const result = await createMockScheduleOverride(HARDCODED_SITE_ID, dateString);
+
+      // Reload the schedule
+      await loadScheduleForDate(selectedDate);
+    } catch (err) {
+      console.error('Error creating override:', err);
+      setError('Failed to create custom schedule');
     } finally {
       setLoading(false);
     }
@@ -173,31 +281,54 @@ const SchedulerPage: React.FC = () => {
       return;
     }
 
-    if (!template) {
-      setFormError('No template selected');
-      return;
-    }
-
     setLoading(true);
     try {
-      if (editingEntry) {
-        // Update existing entry
-        await updateMockTemplateEntry(editingEntry.id, {
-          execution_offset_seconds: offsetSeconds,
-          command_type: entryCommandType
-        });
+      if (viewMode === 'default') {
+        // Working with template entries
+        if (!template) {
+          setFormError('No template found');
+          return;
+        }
+
+        if (editingEntry) {
+          await updateMockTemplateEntryFn(editingEntry.id, {
+            execution_offset_seconds: offsetSeconds,
+            command_type: entryCommandType
+          });
+        } else {
+          await createMockTemplateEntryFn({
+            template_id: template.id,
+            execution_offset_seconds: offsetSeconds,
+            command_type: entryCommandType,
+            is_active: true
+          });
+        }
+
+        await loadDefaultTemplate();
       } else {
-        // Create new entry
-        await createMockTemplateEntry({
-          template_id: template.id,
-          execution_offset_seconds: offsetSeconds,
-          command_type: entryCommandType,
-          is_active: true
-        });
+        // Working with schedule entries
+        if (!currentSchedule) {
+          setFormError('No schedule found');
+          return;
+        }
+
+        if (editingEntry) {
+          await updateMockScheduleEntry(editingEntry.id, {
+            execution_offset_seconds: offsetSeconds,
+            command_type: entryCommandType
+          });
+        } else {
+          await createMockScheduleEntry({
+            schedule_id: currentSchedule.id,
+            execution_offset_seconds: offsetSeconds,
+            command_type: entryCommandType,
+            is_active: true
+          });
+        }
+
+        await loadScheduleForDate(selectedDate);
       }
 
-      // Reload entries
-      await loadTemplateAndEntries();
       handleCloseEntryDialog();
     } catch (err) {
       console.error('Error saving entry:', err);
@@ -225,8 +356,14 @@ const SchedulerPage: React.FC = () => {
 
     setLoading(true);
     try {
-      await deleteMockTemplateEntry(entryToDelete.id);
-      await loadTemplateAndEntries();
+      if (viewMode === 'default') {
+        await deleteMockTemplateEntryFn(entryToDelete.id);
+        await loadDefaultTemplate();
+      } else {
+        await deleteMockScheduleEntry(entryToDelete.id);
+        await loadScheduleForDate(selectedDate);
+      }
+
       handleCloseDeleteDialog();
       // Also close entry dialog if it's open
       if (entryDialog && editingEntry?.id === entryToDelete.id) {
@@ -254,39 +391,149 @@ const SchedulerPage: React.FC = () => {
     }
   };
 
+  // Determine page title and actions
+  const getPageTitle = () => {
+    if (viewMode === 'default') {
+      return 'Default Schedule';
+    }
+    return `Schedule for ${formatScheduleDate(selectedDate)}`;
+  };
+
+  const canEdit = !isReadOnly && (viewMode === 'default' || !isUsingDefault);
+
   return (
     <Box sx={{ p: 3 }}>
       <Typography variant="h2" gutterBottom>
-        Default Schedule Editor
+        Schedule Editor
       </Typography>
 
-      {/* Main Content */}
-      {true && (
-        <>
-          {error && (
-            <Alert severity="error" sx={{ mb: 3 }}>
-              {error}
-            </Alert>
-          )}
+      {/* View Mode Toggle */}
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+            <Button
+              variant={viewMode === 'default' ? 'contained' : 'outlined'}
+              onClick={() => setViewMode('default')}
+            >
+              Default Template
+            </Button>
+            <Button
+              variant={viewMode === 'date' ? 'contained' : 'outlined'}
+              onClick={() => setViewMode('date')}
+            >
+              Date Schedule
+            </Button>
+          </Box>
+        </CardContent>
+      </Card>
 
-          {template && (
-            <Card>
+      {/* Date Navigation (only in date mode) */}
+      {viewMode === 'date' && (
+        <Card sx={{ mb: 3 }}>
+          <CardContent>
+            <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+              <IconButton onClick={handlePreviousDay} disabled={loading}>
+                <ChevronLeft />
+              </IconButton>
+
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <CalendarMonth />
+                <input
+                  type="date"
+                  value={toISODateString(selectedDate)}
+                  onChange={handleDateChange}
+                  style={{
+                    padding: '8px',
+                    fontSize: '14px',
+                    border: '1px solid #ccc',
+                    borderRadius: '4px'
+                  }}
+                />
+              </Box>
+
+              <IconButton onClick={handleNextDay} disabled={loading}>
+                <ChevronRight />
+              </IconButton>
+
+              <Button
+                variant="outlined"
+                onClick={handleToday}
+                disabled={loading || isToday(selectedDate)}
+              >
+                Today
+              </Button>
+            </Box>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Error Display */}
+      {error && (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          {error}
+        </Alert>
+      )}
+
+      {/* Main Schedule Content */}
+      {(template || currentSchedule) && (
+        <>
+          <Card>
               <CardContent>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                  <Typography variant="h6">
-                    Schedule: {template.name}
-                  </Typography>
-                  <Button
-                    variant="contained"
-                    startIcon={<Add />}
-                    onClick={handleAddEntry}
-                    disabled={loading}
-                  >
-                    Add Command
-                  </Button>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 2 }}>
+                  <Box>
+                    <Typography variant="h6">
+                      {getPageTitle()}
+                    </Typography>
+                    {viewMode === 'date' && isUsingDefault && (
+                      <Chip
+                        label="Using Default Schedule"
+                        color="info"
+                        size="small"
+                        sx={{ mt: 1 }}
+                      />
+                    )}
+                    {viewMode === 'date' && !isUsingDefault && (
+                      <Chip
+                        label="Custom Schedule"
+                        color="success"
+                        size="small"
+                        sx={{ mt: 1 }}
+                      />
+                    )}
+                    {viewMode === 'date' && isReadOnly && (
+                      <Chip
+                        label="Read-Only (Past Date)"
+                        color="warning"
+                        size="small"
+                        sx={{ mt: 1, ml: 1 }}
+                      />
+                    )}
+                  </Box>
+
+                  <Box sx={{ display: 'flex', gap: 1 }}>
+                    {viewMode === 'date' && isUsingDefault && !isReadOnly && (
+                      <Button
+                        variant="outlined"
+                        onClick={handleOverrideDefault}
+                        disabled={loading}
+                      >
+                        Override Default
+                      </Button>
+                    )}
+                    {canEdit && (
+                      <Button
+                        variant="contained"
+                        startIcon={<Add />}
+                        onClick={handleAddEntry}
+                        disabled={loading}
+                      >
+                        Add Command
+                      </Button>
+                    )}
+                  </Box>
                 </Box>
 
-                {template.description && (
+                {viewMode === 'default' && template?.description && (
                   <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                     {template.description}
                   </Typography>
@@ -330,23 +577,31 @@ const SchedulerPage: React.FC = () => {
                                 />
                               </TableCell>
                               <TableCell align="right">
-                                <IconButton
-                                  size="small"
-                                  onClick={() => handleEditEntry(entry)}
-                                  disabled={loading}
-                                  title="Edit command"
-                                >
-                                  <Edit />
-                                </IconButton>
-                                <IconButton
-                                  size="small"
-                                  onClick={() => handleDeleteClick(entry)}
-                                  disabled={loading}
-                                  color="error"
-                                  title="Delete command"
-                                >
-                                  <Delete />
-                                </IconButton>
+                                {canEdit ? (
+                                  <>
+                                    <IconButton
+                                      size="small"
+                                      onClick={() => handleEditEntry(entry)}
+                                      disabled={loading}
+                                      title="Edit command"
+                                    >
+                                      <Edit />
+                                    </IconButton>
+                                    <IconButton
+                                      size="small"
+                                      onClick={() => handleDeleteClick(entry)}
+                                      disabled={loading}
+                                      color="error"
+                                      title="Delete command"
+                                    >
+                                      <Delete />
+                                    </IconButton>
+                                  </>
+                                ) : (
+                                  <Typography variant="caption" color="text.secondary">
+                                    {isReadOnly ? 'Read-only' : 'View-only'}
+                                  </Typography>
+                                )}
                               </TableCell>
                             </TableRow>
                           ))
@@ -357,9 +612,8 @@ const SchedulerPage: React.FC = () => {
                 )}
               </CardContent>
             </Card>
-          )}
 
-          {!template && !loading && !error && (
+          {viewMode === 'default' && !template && !loading && !error && (
             <Alert severity="info">
               No default template found for this site. Please create one in the template manager.
             </Alert>
