@@ -228,3 +228,160 @@ export function addDays(date: Date, days: number): Date {
   result.setDate(result.getDate() + days);
   return result;
 }
+
+// ============================================================================
+// NEW: Application Rule Helper Functions
+// ============================================================================
+
+export type RuleType = 'default' | 'day_of_week' | 'specific_date';
+
+/**
+ * Get display label for rule type
+ */
+export function getRuleTypeLabel(ruleType: RuleType): string {
+  const labels: Record<RuleType, string> = {
+    default: 'Universal Default',
+    day_of_week: 'Day of Week',
+    specific_date: 'Specific Date'
+  };
+  return labels[ruleType];
+}
+
+/**
+ * Get icon for rule type (Material-UI icon name)
+ */
+export function getRuleTypeIcon(ruleType: RuleType): string {
+  const icons: Record<RuleType, string> = {
+    default: 'Star',
+    day_of_week: 'CalendarMonth',
+    specific_date: 'PushPin'
+  };
+  return icons[ruleType];
+}
+
+/**
+ * Get color for rule type chip
+ */
+export function getRuleTypeColor(ruleType: RuleType): 'default' | 'primary' | 'secondary' | 'success' {
+  const colors: Record<RuleType, 'default' | 'primary' | 'secondary' | 'success'> = {
+    default: 'primary',
+    day_of_week: 'secondary',
+    specific_date: 'success'
+  };
+  return colors[ruleType];
+}
+
+/**
+ * Get day of week name
+ */
+export function getDayName(dayIndex: number, short: boolean = false): string {
+  const longNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const shortNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  return short ? shortNames[dayIndex] : longNames[dayIndex];
+}
+
+/**
+ * Format days of week array to human-readable string
+ * @example [1,2,3,4,5] => "Monday-Friday"
+ * @example [0,6] => "Saturday, Sunday"
+ * @example [1,3,5] => "Mon, Wed, Fri"
+ */
+export function formatDaysOfWeek(days: number[]): string {
+  if (days.length === 0) return '';
+
+  const sorted = [...days].sort((a, b) => a - b);
+
+  // Check for common patterns
+  if (sorted.length === 5 && sorted.every((d, i) => d === i + 1)) {
+    return 'Monday-Friday';
+  }
+  if (sorted.length === 2 && sorted[0] === 0 && sorted[1] === 6) {
+    return 'Saturday, Sunday';
+  }
+  if (sorted.length === 7) {
+    return 'Every Day';
+  }
+
+  // For other patterns, use short names
+  if (sorted.length <= 3) {
+    return sorted.map(d => getDayName(d, true)).join(', ');
+  }
+
+  // For 4+ non-consecutive days, use short names
+  return sorted.map(d => getDayName(d, true)).join(', ');
+}
+
+/**
+ * Calculate specificity for a rule type
+ * Returns 0 (default), 1 (day_of_week), or 2 (specific_date)
+ */
+export function getRuleSpecificity(ruleType: RuleType): number {
+  const specificity: Record<RuleType, number> = {
+    default: 0,
+    day_of_week: 1,
+    specific_date: 2
+  };
+  return specificity[ruleType];
+}
+
+/**
+ * Generate a date range (inclusive)
+ */
+export function getDateRange(startDate: Date, endDate: Date): Date[] {
+  const dates: Date[] = [];
+  const current = new Date(startDate);
+  current.setHours(0, 0, 0, 0);
+
+  const end = new Date(endDate);
+  end.setHours(0, 0, 0, 0);
+
+  while (current <= end) {
+    dates.push(new Date(current));
+    current.setDate(current.getDate() + 1);
+  }
+
+  return dates;
+}
+
+/**
+ * Count affected dates for a rule within a date range
+ */
+export function countAffectedDates(
+  ruleType: RuleType,
+  daysOfWeek: number[] | null,
+  specificDates: string[] | null,
+  startDate: Date,
+  endDate: Date
+): number {
+  if (ruleType === 'default') {
+    // Default applies to all unmatched dates - hard to count without full context
+    return -1; // Return -1 to indicate "variable"
+  }
+
+  if (ruleType === 'specific_date' && specificDates) {
+    // Count how many specific dates fall within range
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(endDate);
+    end.setHours(0, 0, 0, 0);
+
+    return specificDates.filter(dateStr => {
+      const date = parseISODate(dateStr);
+      return date >= start && date <= end;
+    }).length;
+  }
+
+  if (ruleType === 'day_of_week' && daysOfWeek) {
+    // Count matching days of week in range
+    let count = 0;
+    const dates = getDateRange(startDate, endDate);
+    for (const date of dates) {
+      if (daysOfWeek.includes(date.getDay())) {
+        count++;
+      }
+    }
+    return count;
+  }
+
+  return 0;
+}

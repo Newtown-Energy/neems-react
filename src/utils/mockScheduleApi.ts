@@ -42,11 +42,45 @@ export interface MockScheduleEntry {
   is_active: boolean;
 }
 
+// ============================================================================
+// NEW: Schedule Library Interfaces
+// ============================================================================
+
+export interface ScheduleLibraryItem {
+  id: number;
+  site_id: number;
+  name: string;
+  description: string | null;
+  commands: ScheduleCommand[];
+  created_at: string; // ISO timestamp
+}
+
+export interface ScheduleCommand {
+  id: number;
+  execution_offset_seconds: number;
+  command_type: 'charge' | 'discharge' | 'trickle_charge';
+}
+
+export type RuleType = 'default' | 'day_of_week' | 'specific_date';
+
+export interface ApplicationRule {
+  id: number;
+  library_item_id: number;
+  rule_type: RuleType;
+  days_of_week: number[] | null; // [0-6] where 0=Sunday, multiple days allowed
+  specific_dates: string[] | null; // Array of ISO dates ["2025-01-15"]
+  created_at: string; // ISO timestamp - used for precedence
+}
+
 // Storage keys
 const STORAGE_KEY_TEMPLATES = 'mock_schedule_templates';
 const STORAGE_KEY_ENTRIES = 'mock_schedule_template_entries';
 const STORAGE_KEY_SCHEDULES = 'mock_schedules';
 const STORAGE_KEY_SCHEDULE_ENTRIES = 'mock_schedule_entries';
+
+// NEW: Storage keys for library items and application rules
+const STORAGE_KEY_LIBRARY_ITEMS = 'schedule_library_items';
+const STORAGE_KEY_APPLICATION_RULES = 'application_rules';
 
 // Default mock data
 const DEFAULT_TEMPLATES: MockScheduleTemplate[] = [
@@ -87,6 +121,73 @@ const DEFAULT_ENTRIES: MockScheduleTemplateEntry[] = [
   }
 ];
 
+// NEW: Default library items
+const DEFAULT_LIBRARY_ITEMS: ScheduleLibraryItem[] = [
+  {
+    id: 1,
+    site_id: 1,
+    name: 'Default Schedule',
+    description: 'Standard charging schedule for typical days',
+    commands: [
+      { id: 1, execution_offset_seconds: 0, command_type: 'trickle_charge' },
+      { id: 2, execution_offset_seconds: 28800, command_type: 'charge' },
+      { id: 3, execution_offset_seconds: 57600, command_type: 'discharge' }
+    ],
+    created_at: new Date('2025-01-01T00:00:00Z').toISOString()
+  },
+  {
+    id: 2,
+    site_id: 1,
+    name: 'Weekday Heavy Charge',
+    description: 'Aggressive charging schedule for weekdays',
+    commands: [
+      { id: 4, execution_offset_seconds: 21600, command_type: 'charge' }, // 06:00
+      { id: 5, execution_offset_seconds: 43200, command_type: 'charge' }, // 12:00
+      { id: 6, execution_offset_seconds: 61200, command_type: 'discharge' } // 17:00
+    ],
+    created_at: new Date('2025-01-02T00:00:00Z').toISOString()
+  },
+  {
+    id: 3,
+    site_id: 1,
+    name: 'Weekend Light',
+    description: 'Minimal operations for weekends',
+    commands: [
+      { id: 7, execution_offset_seconds: 32400, command_type: 'trickle_charge' }, // 09:00
+      { id: 8, execution_offset_seconds: 54000, command_type: 'trickle_charge' } // 15:00
+    ],
+    created_at: new Date('2025-01-03T00:00:00Z').toISOString()
+  }
+];
+
+// NEW: Default application rules
+const DEFAULT_APPLICATION_RULES: ApplicationRule[] = [
+  {
+    id: 1,
+    library_item_id: 1, // Default Schedule
+    rule_type: 'default',
+    days_of_week: null,
+    specific_dates: null,
+    created_at: new Date('2025-01-01T00:00:00Z').toISOString()
+  },
+  {
+    id: 2,
+    library_item_id: 2, // Weekday Heavy Charge
+    rule_type: 'day_of_week',
+    days_of_week: [1, 2, 3, 4, 5], // Monday-Friday
+    specific_dates: null,
+    created_at: new Date('2025-01-02T00:00:00Z').toISOString()
+  },
+  {
+    id: 3,
+    library_item_id: 3, // Weekend Light
+    rule_type: 'day_of_week',
+    days_of_week: [0, 6], // Sunday, Saturday
+    specific_dates: null,
+    created_at: new Date('2025-01-03T00:00:00Z').toISOString()
+  }
+];
+
 // Helper to get data from localStorage with fallback
 function getStoredTemplates(): MockScheduleTemplate[] {
   const stored = localStorage.getItem(STORAGE_KEY_TEMPLATES);
@@ -122,6 +223,25 @@ function saveSchedules(schedules: MockSchedule[]): void {
 
 function saveScheduleEntries(entries: MockScheduleEntry[]): void {
   localStorage.setItem(STORAGE_KEY_SCHEDULE_ENTRIES, JSON.stringify(entries));
+}
+
+// NEW: Helper functions for library items and application rules
+function getStoredLibraryItems(): ScheduleLibraryItem[] {
+  const stored = localStorage.getItem(STORAGE_KEY_LIBRARY_ITEMS);
+  return stored ? JSON.parse(stored) : DEFAULT_LIBRARY_ITEMS;
+}
+
+function getStoredApplicationRules(): ApplicationRule[] {
+  const stored = localStorage.getItem(STORAGE_KEY_APPLICATION_RULES);
+  return stored ? JSON.parse(stored) : DEFAULT_APPLICATION_RULES;
+}
+
+function saveLibraryItems(items: ScheduleLibraryItem[]): void {
+  localStorage.setItem(STORAGE_KEY_LIBRARY_ITEMS, JSON.stringify(items));
+}
+
+function saveApplicationRules(rules: ApplicationRule[]): void {
+  localStorage.setItem(STORAGE_KEY_APPLICATION_RULES, JSON.stringify(rules));
 }
 
 // Simulate network delay
@@ -224,6 +344,290 @@ export async function deleteMockTemplateEntry(id: number): Promise<void> {
   saveEntries(filtered);
 }
 
+// ============================================================================
+// NEW: Schedule Library API Functions
+// ============================================================================
+
+/**
+ * Get all library items for a site
+ */
+export async function getLibraryItems(siteId: number): Promise<ScheduleLibraryItem[]> {
+  await delay();
+  const items = getStoredLibraryItems();
+  return items.filter(item => item.site_id === siteId);
+}
+
+/**
+ * Get a single library item by ID
+ */
+export async function getLibraryItem(itemId: number): Promise<ScheduleLibraryItem | null> {
+  await delay();
+  const items = getStoredLibraryItems();
+  return items.find(item => item.id === itemId) || null;
+}
+
+/**
+ * Create a new library item
+ */
+export async function createLibraryItem(
+  item: Omit<ScheduleLibraryItem, 'id' | 'created_at'>
+): Promise<ScheduleLibraryItem> {
+  await delay();
+  const items = getStoredLibraryItems();
+
+  // Generate new ID
+  const newId = items.length > 0 ? Math.max(...items.map(i => i.id)) + 1 : 1;
+
+  const newItem: ScheduleLibraryItem = {
+    ...item,
+    id: newId,
+    created_at: new Date().toISOString()
+  };
+
+  items.push(newItem);
+  saveLibraryItems(items);
+
+  return newItem;
+}
+
+/**
+ * Update an existing library item
+ */
+export async function updateLibraryItem(
+  itemId: number,
+  updates: Partial<Omit<ScheduleLibraryItem, 'id' | 'created_at'>>
+): Promise<ScheduleLibraryItem> {
+  await delay();
+  const items = getStoredLibraryItems();
+  const index = items.findIndex(item => item.id === itemId);
+
+  if (index === -1) {
+    throw new Error(`Library item with id ${itemId} not found`);
+  }
+
+  items[index] = {
+    ...items[index],
+    ...updates
+  };
+
+  saveLibraryItems(items);
+  return items[index];
+}
+
+/**
+ * Delete a library item
+ * Also deletes all associated application rules
+ */
+export async function deleteLibraryItem(itemId: number): Promise<void> {
+  await delay();
+  const items = getStoredLibraryItems();
+  const filtered = items.filter(item => item.id !== itemId);
+
+  if (filtered.length === items.length) {
+    throw new Error(`Library item with id ${itemId} not found`);
+  }
+
+  saveLibraryItems(filtered);
+
+  // Also delete all application rules for this item
+  const rules = getStoredApplicationRules();
+  const filteredRules = rules.filter(rule => rule.library_item_id !== itemId);
+  saveApplicationRules(filteredRules);
+}
+
+/**
+ * Clone a library item (for edit-from-calendar flow)
+ */
+export async function cloneLibraryItem(
+  itemId: number,
+  newName: string
+): Promise<ScheduleLibraryItem> {
+  await delay();
+  const items = getStoredLibraryItems();
+  const original = items.find(item => item.id === itemId);
+
+  if (!original) {
+    throw new Error(`Library item with id ${itemId} not found`);
+  }
+
+  // Clone with new name and fresh IDs
+  const newId = items.length > 0 ? Math.max(...items.map(i => i.id)) + 1 : 1;
+  const maxCommandId = Math.max(...items.flatMap(i => i.commands.map(c => c.id)), 0);
+
+  const clonedItem: ScheduleLibraryItem = {
+    ...original,
+    id: newId,
+    name: newName,
+    commands: original.commands.map((cmd, idx) => ({
+      ...cmd,
+      id: maxCommandId + idx + 1
+    })),
+    created_at: new Date().toISOString()
+  };
+
+  items.push(clonedItem);
+  saveLibraryItems(items);
+
+  return clonedItem;
+}
+
+// ============================================================================
+// NEW: Application Rules API Functions
+// ============================================================================
+
+/**
+ * Get all application rules for a library item
+ */
+export async function getApplicationRules(libraryItemId: number): Promise<ApplicationRule[]> {
+  await delay();
+  const rules = getStoredApplicationRules();
+  return rules.filter(rule => rule.library_item_id === libraryItemId);
+}
+
+/**
+ * Get all application rules for a site (across all library items)
+ */
+export async function getAllApplicationRules(siteId: number): Promise<ApplicationRule[]> {
+  await delay();
+  const items = getStoredLibraryItems();
+  const siteItemIds = items.filter(item => item.site_id === siteId).map(item => item.id);
+
+  const rules = getStoredApplicationRules();
+  return rules.filter(rule => siteItemIds.includes(rule.library_item_id));
+}
+
+/**
+ * Create a new application rule
+ */
+export async function createApplicationRule(
+  rule: Omit<ApplicationRule, 'id' | 'created_at'>
+): Promise<ApplicationRule> {
+  await delay();
+  const rules = getStoredApplicationRules();
+
+  // If this is a default rule, remove any existing default rules for the same site
+  if (rule.rule_type === 'default') {
+    const items = getStoredLibraryItems();
+    const item = items.find(i => i.id === rule.library_item_id);
+    if (item) {
+      const siteItemIds = items.filter(i => i.site_id === item.site_id).map(i => i.id);
+      const filteredRules = rules.filter(
+        r => !(r.rule_type === 'default' && siteItemIds.includes(r.library_item_id))
+      );
+      saveApplicationRules(filteredRules);
+    }
+  }
+
+  // Generate new ID
+  const newId = rules.length > 0 ? Math.max(...rules.map(r => r.id)) + 1 : 1;
+
+  const newRule: ApplicationRule = {
+    ...rule,
+    id: newId,
+    created_at: new Date().toISOString()
+  };
+
+  const updatedRules = getStoredApplicationRules(); // Re-fetch in case we deleted default
+  updatedRules.push(newRule);
+  saveApplicationRules(updatedRules);
+
+  return newRule;
+}
+
+/**
+ * Delete an application rule
+ */
+export async function deleteApplicationRule(ruleId: number): Promise<void> {
+  await delay();
+  const rules = getStoredApplicationRules();
+  const filtered = rules.filter(rule => rule.id !== ruleId);
+
+  if (filtered.length === rules.length) {
+    throw new Error(`Application rule with id ${ruleId} not found`);
+  }
+
+  saveApplicationRules(filtered);
+}
+
+/**
+ * Get the effective library item for a specific date
+ * Applies precedence rules: Specific Date > Day of Week > Default
+ * For same specificity, most recent rule wins
+ */
+/**
+ * Get the effective library item and its specificity for a given date
+ */
+export async function getEffectiveLibraryItemWithSpecificity(
+  siteId: number,
+  date: Date
+): Promise<{ item: ScheduleLibraryItem | null; specificity: number } | null> {
+  await delay();
+
+  const items = getStoredLibraryItems();
+  const siteItems = items.filter(item => item.site_id === siteId);
+
+  if (siteItems.length === 0) {
+    return null;
+  }
+
+  const rules = getStoredApplicationRules();
+  const dateString = toISODateString(date);
+  const dayOfWeek = date.getDay(); // 0=Sunday, 6=Saturday
+
+  // Find all rules that match this date
+  const matchingRules: Array<{ rule: ApplicationRule; specificity: number }> = [];
+
+  for (const rule of rules) {
+    const item = siteItems.find(i => i.id === rule.library_item_id);
+    if (!item) continue;
+
+    if (rule.rule_type === 'specific_date') {
+      if (rule.specific_dates?.includes(dateString)) {
+        matchingRules.push({ rule, specificity: 2 }); // Highest
+      }
+    } else if (rule.rule_type === 'day_of_week') {
+      if (rule.days_of_week?.includes(dayOfWeek)) {
+        matchingRules.push({ rule, specificity: 1 }); // Medium
+      }
+    } else if (rule.rule_type === 'default') {
+      matchingRules.push({ rule, specificity: 0 }); // Lowest
+    }
+  }
+
+  if (matchingRules.length === 0) {
+    return null;
+  }
+
+  // Sort by specificity (desc), then by created_at (desc)
+  matchingRules.sort((a, b) => {
+    if (a.specificity !== b.specificity) {
+      return b.specificity - a.specificity;
+    }
+    return new Date(b.rule.created_at).getTime() - new Date(a.rule.created_at).getTime();
+  });
+
+  // Return the library item and specificity for the winning rule
+  const winningMatch = matchingRules[0];
+  const item = siteItems.find(item => item.id === winningMatch.rule.library_item_id) || null;
+  return { item, specificity: winningMatch.specificity };
+}
+
+export async function getEffectiveLibraryItem(
+  siteId: number,
+  date: Date
+): Promise<ScheduleLibraryItem | null> {
+  const result = await getEffectiveLibraryItemWithSpecificity(siteId, date);
+  return result?.item || null;
+}
+
+// Helper function to convert Date to ISO date string (used in getEffectiveLibraryItem)
+function toISODateString(date: Date): string {
+  const year = date.getFullYear();
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  const day = date.getDate().toString().padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 /**
  * Reset mock data to defaults (useful for testing)
  */
@@ -232,6 +636,8 @@ export function resetMockData(): void {
   saveEntries(DEFAULT_ENTRIES);
   localStorage.removeItem(STORAGE_KEY_SCHEDULES);
   localStorage.removeItem(STORAGE_KEY_SCHEDULE_ENTRIES);
+  saveLibraryItems(DEFAULT_LIBRARY_ITEMS);
+  saveApplicationRules(DEFAULT_APPLICATION_RULES);
 }
 
 /**

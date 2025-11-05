@@ -25,7 +25,7 @@ const Sidebar: React.FC<SidebarProps> = () => { // Removed unused className
     if (path === '/battery3') return 'battery3';
     if (path === '/conedison') return 'conedison';
     if (path === '/fdny') return 'fdny';
-    if (path === '/scheduler') return 'scheduler';
+    if (path === '/scheduler' || path === '/library') return 'scheduler';
     if (path === '/admin') return 'admin';
     return 'overview';
   };

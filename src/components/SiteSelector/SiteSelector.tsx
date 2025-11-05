@@ -6,7 +6,7 @@ import {
   MenuItem,
   CircularProgress,
   Alert,
-  SelectChangeEvent
+  type SelectChangeEvent
 } from '@mui/material';
 import { apiRequestWithMapping, ApiError } from '../../utils/api';
 import type { Site } from '../../types/generated/Site';

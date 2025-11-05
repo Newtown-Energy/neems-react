@@ -12,6 +12,7 @@ import ConEdisonPage from './pages/ConEdisonPage';
 import FDNYPage from './pages/FDNYPage';
 import AdminPage from './pages/AdminPage';
 import SchedulerPage from './pages/SchedulerPage';
+import LibraryPage from './pages/LibraryPage';
 import './styles/App.scss';
 import { useAuth } from './pages/LoginPage/useAuth';
 import LoginPage from './pages/LoginPage/LoginPage';
@@ -56,6 +57,7 @@ const AppContent: React.FC = () => {
             <Route path="/conedison" element={<ConEdisonPage />} />
             <Route path="/fdny" element={<FDNYPage />} />
             <Route path="/scheduler" element={<SchedulerPage />} />
+            <Route path="/library" element={<LibraryPage />} />
             <Route path="/admin" element={<AdminPage />} />
           </Routes>
         </Box>
