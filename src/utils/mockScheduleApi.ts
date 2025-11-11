@@ -7,6 +7,8 @@
  * Uses localStorage to persist changes across page refreshes.
  */
 
+import { debugLog } from './debug';
+
 export interface MockScheduleTemplate {
   id: number;
   site_id: number;
@@ -567,12 +569,20 @@ export async function getEffectiveLibraryItemWithSpecificity(
   const siteItems = items.filter(item => item.site_id === siteId);
 
   if (siteItems.length === 0) {
+    debugLog('mockScheduleApi: No library items found for site', siteId);
     return null;
   }
 
   const rules = getStoredApplicationRules();
   const dateString = toISODateString(date);
   const dayOfWeek = date.getDay(); // 0=Sunday, 6=Saturday
+
+  debugLog('mockScheduleApi: Finding schedule for date', {
+    date: dateString,
+    dayOfWeek,
+    dayName: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][dayOfWeek],
+    totalRules: rules.length
+  });
 
   // Find all rules that match this date
   const matchingRules: Array<{ rule: ApplicationRule; specificity: number }> = [];
@@ -584,17 +594,34 @@ export async function getEffectiveLibraryItemWithSpecificity(
     if (rule.rule_type === 'specific_date') {
       if (rule.specific_dates?.includes(dateString)) {
         matchingRules.push({ rule, specificity: 2 }); // Highest
+        debugLog('mockScheduleApi: Matched specific date rule', {
+          ruleId: rule.id,
+          libraryItemName: item.name,
+          specificity: 2
+        });
       }
     } else if (rule.rule_type === 'day_of_week') {
       if (rule.days_of_week?.includes(dayOfWeek)) {
         matchingRules.push({ rule, specificity: 1 }); // Medium
+        debugLog('mockScheduleApi: Matched day-of-week rule', {
+          ruleId: rule.id,
+          libraryItemName: item.name,
+          daysOfWeek: rule.days_of_week,
+          specificity: 1
+        });
       }
     } else if (rule.rule_type === 'default') {
       matchingRules.push({ rule, specificity: 0 }); // Lowest
+      debugLog('mockScheduleApi: Matched default rule', {
+        ruleId: rule.id,
+        libraryItemName: item.name,
+        specificity: 0
+      });
     }
   }
 
   if (matchingRules.length === 0) {
+    debugLog('mockScheduleApi: No matching rules found for date', dateString);
     return null;
   }
 
@@ -609,6 +636,15 @@ export async function getEffectiveLibraryItemWithSpecificity(
   // Return the library item and specificity for the winning rule
   const winningMatch = matchingRules[0];
   const item = siteItems.find(item => item.id === winningMatch.rule.library_item_id) || null;
+
+  debugLog('mockScheduleApi: Winning schedule', {
+    date: dateString,
+    schedule: item?.name,
+    specificity: winningMatch.specificity,
+    specificityType: ['default', 'day-of-week', 'specific-date'][winningMatch.specificity],
+    totalMatches: matchingRules.length
+  });
+
   return { item, specificity: winningMatch.specificity };
 }
 

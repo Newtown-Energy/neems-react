@@ -60,6 +60,7 @@ import {
   getCommandTypeColor,
   formatDaysOfWeek
 } from '../../utils/scheduleHelpers';
+import { debugLog } from '../../utils/debug';
 
 interface ScheduleLibraryProps {
   siteId: number;
@@ -113,25 +114,43 @@ const ScheduleLibrary: React.FC<ScheduleLibraryProps> = ({
   }, [siteId]);
 
   const loadLibraryItems = async () => {
+    debugLog('ScheduleLibrary: Loading library items', { siteId });
+
     setLoading(true);
     setError(null);
     try {
       const items = await getLibraryItems(siteId);
+      debugLog('ScheduleLibrary: Library items loaded', {
+        count: items.length,
+        items: items.map(i => ({ id: i.id, name: i.name, commandCount: i.commands.length }))
+      });
       setLibraryItems(items);
     } catch (err) {
       setError('Failed to load library items');
       console.error('Error loading library items:', err);
+      debugLog('ScheduleLibrary: Error loading library items', err);
     } finally {
       setLoading(false);
     }
   };
 
   const loadAllRules = async () => {
+    debugLog('ScheduleLibrary: Loading application rules', { siteId });
+
     try {
       const rules = await getAllApplicationRules(siteId);
+      debugLog('ScheduleLibrary: Application rules loaded', {
+        count: rules.length,
+        byType: {
+          default: rules.filter(r => r.rule_type === 'default').length,
+          dayOfWeek: rules.filter(r => r.rule_type === 'day_of_week').length,
+          specificDate: rules.filter(r => r.rule_type === 'specific_date').length
+        }
+      });
       setAllRules(rules);
     } catch (err) {
       console.error('Error loading rules:', err);
+      debugLog('ScheduleLibrary: Error loading rules', err);
     }
   };
 

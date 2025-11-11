@@ -50,6 +50,7 @@ import {
   getCommandTypeLabel,
   getCommandTypeColor
 } from '../../utils/scheduleHelpers';
+import { debugLog } from '../../utils/debug';
 
 interface CommandCalendarProps {
   siteId: number;
@@ -86,6 +87,12 @@ const CommandCalendar: React.FC<CommandCalendarProps> = ({
   }, [selectedDate, siteId]);
 
   const loadCalendarMonth = async () => {
+    debugLog('CommandCalendar: Loading calendar month', {
+      year: currentMonth.getFullYear(),
+      month: currentMonth.getMonth() + 1,
+      siteId
+    });
+
     setLoading(true);
     setError(null);
     try {
@@ -96,6 +103,8 @@ const CommandCalendar: React.FC<CommandCalendarProps> = ({
       for (let d = 1; d <= lastDay.getDate(); d++) {
         dates.push(new Date(currentMonth.getFullYear(), currentMonth.getMonth(), d));
       }
+
+      debugLog('CommandCalendar: Loading schedules for', dates.length, 'dates');
 
       // Load effective library item for each date with specificity
       const dataMap = new Map<string, { item: ScheduleLibraryItem | null; specificity: number }>();
@@ -108,10 +117,16 @@ const CommandCalendar: React.FC<CommandCalendarProps> = ({
         }
       }
 
+      debugLog('CommandCalendar: Calendar data loaded', {
+        totalDates: dataMap.size,
+        datesWithSchedules: Array.from(dataMap.values()).filter(d => d.item !== null).length
+      });
+
       setCalendarData(dataMap);
     } catch (err) {
       setError('Failed to load calendar data');
       console.error('Error loading calendar:', err);
+      debugLog('CommandCalendar: Error loading calendar', err);
     } finally {
       setLoading(false);
     }
@@ -120,19 +135,29 @@ const CommandCalendar: React.FC<CommandCalendarProps> = ({
   const loadSelectedDate = async () => {
     if (!selectedDate) return;
 
+    debugLog('CommandCalendar: Loading selected date', toISODateString(selectedDate));
+
     try {
       const result = await getEffectiveLibraryItemWithSpecificity(siteId, selectedDate);
       if (result) {
+        debugLog('CommandCalendar: Selected date schedule', {
+          date: toISODateString(selectedDate),
+          schedule: result.item?.name,
+          specificity: result.specificity,
+          commandCount: result.item?.commands.length
+        });
         setSelectedLibraryItem(result.item);
         setSelectedDateSpecificity(result.specificity);
         onDateSelect?.(selectedDate, result.item);
       } else {
+        debugLog('CommandCalendar: No schedule for selected date', toISODateString(selectedDate));
         setSelectedLibraryItem(null);
         setSelectedDateSpecificity(-1);
         onDateSelect?.(selectedDate, null);
       }
     } catch (err) {
       console.error('Error loading selected date:', err);
+      debugLog('CommandCalendar: Error loading selected date', err);
     }
   };
 
@@ -151,6 +176,7 @@ const CommandCalendar: React.FC<CommandCalendarProps> = ({
   };
 
   const handleDateClick = (date: Date) => {
+    debugLog('CommandCalendar: Date clicked', toISODateString(date));
     setSelectedDate(date);
   };
 

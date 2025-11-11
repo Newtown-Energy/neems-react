@@ -10,6 +10,7 @@ import {
 } from '@mui/material';
 import { apiRequestWithMapping, ApiError } from '../../utils/api';
 import type { Site } from '../../types/generated/Site';
+import { debugLog } from '../../utils/debug';
 
 interface SiteSelectorProps {
   selectedSiteId: number | null;
@@ -39,19 +40,26 @@ const SiteSelector: React.FC<SiteSelectorProps> = ({
   }, []);
 
   const fetchSites = async () => {
+    debugLog('SiteSelector: Fetching sites');
     setLoading(true);
     setError(null);
     try {
       // Fetch all sites the user has access to
       const data = await apiRequestWithMapping<Site[]>('/api/1/Sites');
+      debugLog('SiteSelector: Sites loaded', {
+        count: data.length,
+        sites: data.map(s => ({ id: s.id, name: s.name }))
+      });
       setSites(data);
 
       // Auto-select first site if none selected
       if (!selectedSiteId && data.length > 0) {
+        debugLog('SiteSelector: Auto-selecting first site', { siteId: data[0].id, name: data[0].name });
         onSiteChange(data[0].id);
       }
     } catch (err) {
       console.error('Error fetching sites:', err);
+      debugLog('SiteSelector: Error fetching sites', err);
       if (err instanceof ApiError) {
         setError(`Failed to load sites: ${err.message}`);
       } else {
@@ -65,6 +73,8 @@ const SiteSelector: React.FC<SiteSelectorProps> = ({
 
   const handleChange = (event: SelectChangeEvent<number>) => {
     const siteId = event.target.value as number;
+    const site = sites.find(s => s.id === siteId);
+    debugLog('SiteSelector: Site changed', { siteId, siteName: site?.name });
     onSiteChange(siteId);
   };
 
