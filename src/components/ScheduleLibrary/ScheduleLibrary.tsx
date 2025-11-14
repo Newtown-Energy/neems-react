@@ -41,7 +41,6 @@ import {
   Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
-  Star as StarIcon,
   CalendarMonth as CalendarMonthIcon
 } from '@mui/icons-material';
 
@@ -70,7 +69,6 @@ interface ScheduleLibraryProps {
 
 const ScheduleLibrary: React.FC<ScheduleLibraryProps> = ({
   siteId,
-  onLibraryItemSelect,
   onRequestManageRules
 }) => {
   const [libraryItems, setLibraryItems] = useState<ScheduleLibraryItem[]>([]);
@@ -103,6 +101,7 @@ const ScheduleLibrary: React.FC<ScheduleLibraryProps> = ({
   const [commandHour, setCommandHour] = useState(0);
   const [commandMinute, setCommandMinute] = useState(0);
   const [commandType, setCommandType] = useState<'charge' | 'discharge' | 'trickle_charge'>('charge');
+  const [isCommandInlineEdit, setIsCommandInlineEdit] = useState(false);
 
   // Specific dates viewer
   const [specificDatesDialogOpen, setSpecificDatesDialogOpen] = useState(false);
@@ -280,6 +279,7 @@ const ScheduleLibrary: React.FC<ScheduleLibraryProps> = ({
     setCommandHour(0);
     setCommandMinute(0);
     setCommandType('charge');
+    setIsCommandInlineEdit(isInlineEdit);
     setCommandDialogOpen(true);
   };
 
@@ -287,6 +287,7 @@ const ScheduleLibrary: React.FC<ScheduleLibraryProps> = ({
     const commands = isInlineEdit ? editCommands : formCommands;
     const command = commands[index];
     setEditingCommandIndex(index);
+    setIsCommandInlineEdit(isInlineEdit);
     const hours = Math.floor(command.execution_offset_seconds / 3600);
     const minutes = Math.floor((command.execution_offset_seconds % 3600) / 60);
     setCommandHour(hours);
@@ -314,9 +315,8 @@ const ScheduleLibrary: React.FC<ScheduleLibraryProps> = ({
   };
 
   const handleCommandSave = () => {
-    const isInlineEdit = editingItemId !== null;
-    const commands = isInlineEdit ? editCommands : formCommands;
-    const setCommands = isInlineEdit ? setEditCommands : setFormCommands;
+    const commands = isCommandInlineEdit ? editCommands : formCommands;
+    const setCommands = isCommandInlineEdit ? setEditCommands : setFormCommands;
 
     const offsetSeconds = timeToSeconds(commandHour, commandMinute);
 
@@ -644,7 +644,7 @@ const ScheduleLibrary: React.FC<ScheduleLibraryProps> = ({
               <Typography variant="h6">Commands</Typography>
               <Button
                 startIcon={<AddIcon />}
-                onClick={handleAddCommand}
+                onClick={() => handleAddCommand(false)}
                 size="small"
               >
                 Add Command

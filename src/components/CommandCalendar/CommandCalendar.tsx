@@ -23,22 +23,17 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Stack,
-  Tooltip
+  Stack
 } from '@mui/material';
 import {
   ChevronLeft as ChevronLeftIcon,
   ChevronRight as ChevronRightIcon,
   Today as TodayIcon,
-  Star as StarIcon,
-  CalendarMonth as CalendarMonthIcon,
-  PushPin as PushPinIcon,
   Edit as EditIcon
 } from '@mui/icons-material';
 
 import type { ScheduleLibraryItem } from '../../utils/mockScheduleApi';
 import {
-  getEffectiveLibraryItem,
   getEffectiveLibraryItemWithSpecificity
 } from '../../utils/mockScheduleApi';
 import {
