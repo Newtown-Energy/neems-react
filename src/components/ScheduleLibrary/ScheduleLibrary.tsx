@@ -644,7 +644,7 @@ const ScheduleLibrary: React.FC<ScheduleLibraryProps> = ({
               <Typography variant="h6">Commands</Typography>
               <Button
                 startIcon={<AddIcon />}
-                onClick={() => handleAddCommand(false)}
+                onClick={(e) => handleAddCommand(false)}
                 size="small"
               >
                 Add Command
