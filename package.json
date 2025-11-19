@@ -6,9 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "lint": "eslint .",
+		"lint": "npm run lint:eslint && npm run lint:tsc",
+		"lint:eslint": "eslint ./src --max-warnings=0",
+		"lint:tsc": "tsc --noEmit",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit",
     "generate-types": "dosh generate-types"
   },
   "dependencies": {
