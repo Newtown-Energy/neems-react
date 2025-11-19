@@ -15,6 +15,7 @@ export default tseslint.config([
       js.configs.recommended,
       ...tseslint.configs.recommendedTypeChecked,
       ...tseslint.configs.stylisticTypeChecked,
+      ...tseslint.configs.strict,
 
       // React-specific rules
       reactHooks.configs['recommended-latest'],
@@ -49,6 +50,7 @@ export default tseslint.config([
       '@typescript-eslint/no-unsafe-member-access': 'off',
       '@typescript-eslint/require-await': 'off',
       '@typescript-eslint/no-unsafe-argument': 'off',
+      '@typescript-eslint/no-non-null-assertion': 'off',
       'react-refresh/only-export-components': 'off',
       'react-hooks/exhaustive-deps': 'off',
       'react-x/no-use-context': 'off',
