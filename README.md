@@ -26,9 +26,13 @@ This codebase does some things to ensure safety:
 
 # Install
 
-`yarn install` should do it.
+This project uses [Bun](https://bun.sh) as its package manager and runtime.
 
-But also, if you want tests, `cd test` and `yarn install` there too.
+To install dependencies:
+
+```bash
+bun install
+```
 
 
 # Run and Deploy
