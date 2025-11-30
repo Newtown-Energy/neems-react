@@ -25,7 +25,8 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Stack
+  Stack,
+  TextField
 } from '@mui/material';
 import {
   ChevronLeft as ChevronLeftIcon,
@@ -41,7 +42,8 @@ import type { ScheduleLibraryItem } from '../../utils/mockScheduleApi';
 import {
   getEffectiveLibraryItemWithSpecificity,
   getAllApplicableLibraryItems,
-  createApplicationRule
+  createApplicationRule,
+  getActiveApplicationRule
 } from '../../utils/mockScheduleApi';
 import {
   toISODateString,
@@ -74,10 +76,16 @@ const CommandCalendar: React.FC<CommandCalendarProps> = ({
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedLibraryItem, setSelectedLibraryItem] = useState<ScheduleLibraryItem | null>(null);
   const [selectedDateSpecificity, setSelectedDateSpecificity] = useState<number>(-1);
+  const [selectedDateOverrideReason, setSelectedDateOverrideReason] = useState<string | null>(null);
   const [allApplicableItems, setAllApplicableItems] = useState<Array<{ item: ScheduleLibraryItem; specificity: number; isActive: boolean }>>([]);
   const [calendarData, setCalendarData] = useState<Map<string, { item: ScheduleLibraryItem | null; specificity: number }>>(new Map());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Override reason dialog state
+  const [overrideReasonDialogOpen, setOverrideReasonDialogOpen] = useState(false);
+  const [pendingScheduleSwitch, setPendingScheduleSwitch] = useState<ScheduleLibraryItem | null>(null);
+  const [overrideReason, setOverrideReason] = useState('');
 
   useEffect(() => {
     loadCalendarMonth();
@@ -148,13 +156,18 @@ const CommandCalendar: React.FC<CommandCalendarProps> = ({
       const allItems = await getAllApplicableLibraryItems(siteId, selectedDate);
       setAllApplicableItems(allItems);
 
+      // Load the active rule to get the override reason
+      const activeRule = await getActiveApplicationRule(siteId, selectedDate);
+      setSelectedDateOverrideReason(activeRule?.override_reason || null);
+
       if (result) {
         debugLog('CommandCalendar: Selected date schedule', {
           date: toISODateString(selectedDate),
           schedule: result.item?.name,
           specificity: result.specificity,
           commandCount: result.item?.commands.length,
-          totalApplicable: allItems.length
+          totalApplicable: allItems.length,
+          overrideReason: activeRule?.override_reason
         });
         setSelectedLibraryItem(result.item);
         setSelectedDateSpecificity(result.specificity);
@@ -163,6 +176,7 @@ const CommandCalendar: React.FC<CommandCalendarProps> = ({
         debugLog('CommandCalendar: No schedule for selected date', toISODateString(selectedDate));
         setSelectedLibraryItem(null);
         setSelectedDateSpecificity(-1);
+        setSelectedDateOverrideReason(null);
         setAllApplicableItems([]);
         onDateSelect?.(selectedDate, null);
       }
@@ -374,20 +388,34 @@ const CommandCalendar: React.FC<CommandCalendarProps> = ({
     setSelectedDate(null);
     setSelectedLibraryItem(null);
     setSelectedDateSpecificity(-1);
+    setSelectedDateOverrideReason(null);
     setAllApplicableItems([]);
   };
 
-  const handleSwitchToSchedule = async (item: ScheduleLibraryItem) => {
-    if (!selectedDate) return;
+  const handleSwitchToSchedule = (item: ScheduleLibraryItem) => {
+    // Open dialog to capture override reason
+    setPendingScheduleSwitch(item);
+    setOverrideReason('');
+    setOverrideReasonDialogOpen(true);
+  };
+
+  const handleConfirmScheduleSwitch = async () => {
+    if (!selectedDate || !pendingScheduleSwitch) return;
 
     try {
-      // Create a specific date rule for this schedule
+      // Create a specific date rule for this schedule with optional reason
       await createApplicationRule({
-        library_item_id: item.id,
+        library_item_id: pendingScheduleSwitch.id,
         rule_type: 'specific_date',
         days_of_week: null,
-        specific_dates: [toISODateString(selectedDate)]
+        specific_dates: [toISODateString(selectedDate)],
+        override_reason: overrideReason.trim() || null
       });
+
+      // Close the dialog
+      setOverrideReasonDialogOpen(false);
+      setPendingScheduleSwitch(null);
+      setOverrideReason('');
 
       // Reload the selected date first to show immediate feedback in the modal
       await loadSelectedDate();
@@ -398,6 +426,12 @@ const CommandCalendar: React.FC<CommandCalendarProps> = ({
       console.error('Error switching to schedule:', err);
       setError('Failed to switch schedule');
     }
+  };
+
+  const handleCancelScheduleSwitch = () => {
+    setOverrideReasonDialogOpen(false);
+    setPendingScheduleSwitch(null);
+    setOverrideReason('');
   };
 
   const renderDetailsModal = () => {
@@ -457,6 +491,17 @@ const CommandCalendar: React.FC<CommandCalendarProps> = ({
                     }
                     variant="outlined"
                   />
+                )}
+                {/* Show override reason if present */}
+                {selectedDateOverrideReason && selectedDateSpecificity === 2 && (
+                  <Box sx={{ mt: 2, p: 1.5, bgcolor: 'rgba(76, 175, 80, 0.1)', borderRadius: 1, border: '1px solid', borderColor: 'success.main' }}>
+                    <Typography variant="caption" color="success.dark" sx={{ fontWeight: 'bold', display: 'block', mb: 0.5 }}>
+                      Override Reason:
+                    </Typography>
+                    <Typography variant="body2" color="success.dark">
+                      {selectedDateOverrideReason}
+                    </Typography>
+                  </Box>
                 )}
               </Box>
 
@@ -606,6 +651,52 @@ const CommandCalendar: React.FC<CommandCalendarProps> = ({
     );
   };
 
+  const renderOverrideReasonDialog = () => {
+    return (
+      <Dialog
+        open={overrideReasonDialogOpen}
+        onClose={handleCancelScheduleSwitch}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          Override Schedule for {selectedDate && formatScheduleDate(selectedDate)}
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ pt: 2 }}>
+            <Typography variant="body2" gutterBottom>
+              You are switching to: <strong>{pendingScheduleSwitch?.name}</strong>
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Optionally provide a reason for this override to help explain why this date uses a different schedule:
+            </Typography>
+            <TextField
+              fullWidth
+              multiline
+              rows={3}
+              label="Override Reason (optional)"
+              placeholder="e.g., Holiday, special event, maintenance, etc."
+              value={overrideReason}
+              onChange={(e) => setOverrideReason(e.target.value)}
+              helperText="This will be visible when viewing this day's schedule"
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCancelScheduleSwitch}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleConfirmScheduleSwitch}
+            variant="contained"
+          >
+            Apply Override
+          </Button>
+        </DialogActions>
+      </Dialog>
+    );
+  };
+
   return (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       {/* Header */}
@@ -647,6 +738,9 @@ const CommandCalendar: React.FC<CommandCalendarProps> = ({
 
       {/* Day Details Modal */}
       {renderDetailsModal()}
+
+      {/* Override Reason Dialog */}
+      {renderOverrideReasonDialog()}
     </Box>
   );
 };

@@ -71,6 +71,7 @@ export interface ApplicationRule {
   rule_type: RuleType;
   days_of_week: number[] | null; // [0-6] where 0=Sunday, multiple days allowed
   specific_dates: string[] | null; // Array of ISO dates ["2025-01-15"]
+  override_reason?: string | null; // Optional description for why a specific-date override was applied
   created_at: string; // ISO timestamp - used for precedence
 }
 
@@ -779,6 +780,63 @@ export async function getAllApplicableLibraryItems(
   }
 
   return uniqueMatches;
+}
+
+/**
+ * Get the active application rule for a specific date
+ * Returns the rule that determines which schedule is used for this date
+ */
+export async function getActiveApplicationRule(
+  siteId: number,
+  date: Date
+): Promise<ApplicationRule | null> {
+  await delay();
+
+  const items = getStoredLibraryItems();
+  const siteItems = items.filter(item => item.site_id === siteId);
+
+  if (siteItems.length === 0) {
+    return null;
+  }
+
+  const rules = getStoredApplicationRules();
+  const dateString = toISODateString(date);
+  const dayOfWeek = date.getDay();
+
+  // Find all rules that match this date
+  const matchingRules: Array<{ rule: ApplicationRule; specificity: number }> = [];
+
+  for (const rule of rules) {
+    const item = siteItems.find(i => i.id === rule.library_item_id);
+    if (!item) continue;
+
+    if (rule.rule_type === 'specific_date') {
+      if (rule.specific_dates?.includes(dateString)) {
+        matchingRules.push({ rule, specificity: 2 });
+      }
+    } else if (rule.rule_type === 'day_of_week') {
+      if (rule.days_of_week?.includes(dayOfWeek)) {
+        matchingRules.push({ rule, specificity: 1 });
+      }
+    } else if (rule.rule_type === 'default') {
+      matchingRules.push({ rule, specificity: 0 });
+    }
+  }
+
+  if (matchingRules.length === 0) {
+    return null;
+  }
+
+  // Sort by specificity (desc), then by created_at (desc)
+  matchingRules.sort((a, b) => {
+    if (a.specificity !== b.specificity) {
+      return b.specificity - a.specificity;
+    }
+    return new Date(b.rule.created_at).getTime() - new Date(a.rule.created_at).getTime();
+  });
+
+  // Return the winning rule
+  return matchingRules[0].rule;
 }
 
 // Helper function to convert Date to ISO date string (used in getEffectiveLibraryItem)

@@ -18,7 +18,8 @@ import {
   ListItem,
   ListItemButton,
   ListItemText,
-  Alert
+  Alert,
+  TextField
 } from '@mui/material';
 import { CalendarMonth as CalendarIcon, LibraryBooks as LibraryIcon } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
@@ -59,6 +60,7 @@ const SchedulerPage: React.FC = () => {
   const [applyDifferentDialogOpen, setApplyDifferentDialogOpen] = useState(false);
   const [applyDate, setApplyDate] = useState<Date | null>(null);
   const [applyCurrentItem, setApplyCurrentItem] = useState<ScheduleLibraryItem | null>(null);
+  const [applyOverrideReason, setApplyOverrideReason] = useState('');
 
   // Refresh trigger for calendar
   const [calendarRefreshKey, setCalendarRefreshKey] = useState(0);
@@ -117,6 +119,7 @@ const SchedulerPage: React.FC = () => {
   const handleApplyDifferent = (date: Date, currentItem: ScheduleLibraryItem | null) => {
     setApplyDate(date);
     setApplyCurrentItem(currentItem);
+    setApplyOverrideReason('');
     setApplyDifferentDialogOpen(true);
   };
 
@@ -124,17 +127,19 @@ const SchedulerPage: React.FC = () => {
     if (!applyDate) return;
 
     try {
-      // Create a specific date rule for this library item
+      // Create a specific date rule for this library item with optional reason
       await createApplicationRule({
         library_item_id: item.id,
         rule_type: 'specific_date',
         days_of_week: null,
-        specific_dates: [toISODateString(applyDate)]
+        specific_dates: [toISODateString(applyDate)],
+        override_reason: applyOverrideReason.trim() || null
       });
 
       // Refresh calendar
       setCalendarRefreshKey(prev => prev + 1);
       setApplyDifferentDialogOpen(false);
+      setApplyOverrideReason('');
     } catch (err) {
       console.error('Error applying schedule:', err);
     }
@@ -219,6 +224,18 @@ const SchedulerPage: React.FC = () => {
               No schedules available. Create a schedule in the Library page first.
             </Alert>
           )}
+          <Box sx={{ mt: 3 }}>
+            <TextField
+              fullWidth
+              multiline
+              rows={3}
+              label="Override Reason (optional)"
+              placeholder="e.g., Holiday, special event, maintenance, etc."
+              value={applyOverrideReason}
+              onChange={(e) => setApplyOverrideReason(e.target.value)}
+              helperText="Explain why this date uses a different schedule"
+            />
+          </Box>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setApplyDifferentDialogOpen(false)}>
