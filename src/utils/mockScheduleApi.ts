@@ -441,6 +441,51 @@ export async function deleteLibraryItem(itemId: number): Promise<void> {
 }
 
 /**
+ * Check if a library item name is unique
+ */
+export function isLibraryItemNameUnique(
+  siteId: number,
+  name: string,
+  excludeItemId?: number
+): boolean {
+  const items = getStoredLibraryItems();
+  return !items.some(
+    item =>
+      item.site_id === siteId &&
+      item.name.toLowerCase() === name.toLowerCase() &&
+      item.id !== excludeItemId
+  );
+}
+
+/**
+ * Generate a unique name by appending a number
+ */
+export function generateUniqueLibraryItemName(
+  siteId: number,
+  baseName: string
+): string {
+  const items = getStoredLibraryItems();
+  const existingNames = items
+    .filter(item => item.site_id === siteId)
+    .map(item => item.name.toLowerCase());
+
+  // If the base name is unique, use it
+  if (!existingNames.includes(baseName.toLowerCase())) {
+    return baseName;
+  }
+
+  // Find the next available number
+  let counter = 1;
+  let candidateName = `${baseName} ${counter}`;
+  while (existingNames.includes(candidateName.toLowerCase())) {
+    counter += 1;
+    candidateName = `${baseName} ${counter}`;
+  }
+
+  return candidateName;
+}
+
+/**
  * Clone a library item (for edit-from-calendar flow)
  */
 export async function cloneLibraryItem(
@@ -455,6 +500,9 @@ export async function cloneLibraryItem(
     throw new Error(`Library item with id ${itemId} not found`);
   }
 
+  // Generate a unique name based on the provided name
+  const uniqueName = generateUniqueLibraryItemName(original.site_id, newName);
+
   // Clone with new name and fresh IDs
   const newId = items.length > 0 ? Math.max(...items.map(i => i.id)) + 1 : 1;
   const maxCommandId = Math.max(...items.flatMap(i => i.commands.map(c => c.id)), 0);
@@ -462,7 +510,7 @@ export async function cloneLibraryItem(
   const clonedItem: ScheduleLibraryItem = {
     ...original,
     id: newId,
-    name: newName,
+    name: uniqueName,
     commands: original.commands.map((cmd, idx) => ({
       ...cmd,
       id: maxCommandId + idx + 1

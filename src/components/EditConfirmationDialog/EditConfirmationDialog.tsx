@@ -22,6 +22,7 @@ import {
 } from '@mui/material';
 
 import type { ScheduleLibraryItem } from '../../utils/mockScheduleApi';
+import { isLibraryItemNameUnique } from '../../utils/mockScheduleApi';
 import { formatScheduleDate } from '../../utils/scheduleHelpers';
 
 interface EditConfirmationDialogProps {
@@ -45,18 +46,38 @@ const EditConfirmationDialog: React.FC<EditConfirmationDialogProps> = ({
 }) => {
   const [editMode, setEditMode] = useState<'copy' | 'original'>('copy');
   const [copyName, setCopyName] = useState('');
+  const [nameError, setNameError] = useState('');
 
   // Initialize copy name when dialog opens
   React.useEffect(() => {
     if (open && libraryItem) {
       setCopyName(`${libraryItem.name} (Copy)`);
+      setNameError('');
     }
   }, [open, libraryItem]);
+
+  // Validate name when it changes
+  const handleNameChange = (newName: string) => {
+    setCopyName(newName);
+
+    if (!newName.trim()) {
+      setNameError('Name is required');
+    } else if (libraryItem && !isLibraryItemNameUnique(libraryItem.site_id, newName.trim())) {
+      setNameError('A schedule with this name already exists');
+    } else {
+      setNameError('');
+    }
+  };
 
   const handleContinue = () => {
     if (editMode === 'copy') {
       if (!copyName.trim()) {
-        return; // Name is required
+        setNameError('Name is required');
+        return;
+      }
+      if (libraryItem && !isLibraryItemNameUnique(libraryItem.site_id, copyName.trim())) {
+        setNameError('A schedule with this name already exists');
+        return;
       }
       onCreateCopy(copyName.trim());
     } else {
@@ -108,10 +129,10 @@ const EditConfirmationDialog: React.FC<EditConfirmationDialogProps> = ({
                   size="small"
                   label="Name for new schedule"
                   value={copyName}
-                  onChange={e => setCopyName(e.target.value)}
+                  onChange={e => handleNameChange(e.target.value)}
                   required
-                  error={!copyName.trim()}
-                  helperText={!copyName.trim() ? 'Name is required' : ''}
+                  error={Boolean(nameError)}
+                  helperText={nameError}
                 />
               </Box>
             )}
@@ -152,7 +173,7 @@ const EditConfirmationDialog: React.FC<EditConfirmationDialogProps> = ({
         <Button
           onClick={handleContinue}
           variant="contained"
-          disabled={editMode === 'copy' && !copyName.trim()}
+          disabled={editMode === 'copy' && (!copyName.trim() || Boolean(nameError))}
         >
           Continue
         </Button>

@@ -53,7 +53,8 @@ import {
   createLibraryItem,
   updateLibraryItem,
   deleteLibraryItem,
-  getAllApplicationRules
+  getAllApplicationRules,
+  isLibraryItemNameUnique
 } from '../../utils/mockScheduleApi';
 import {
   secondsToTime,
@@ -208,6 +209,12 @@ const ScheduleLibrary: React.FC<ScheduleLibraryProps> = ({
       return;
     }
 
+    // Check for duplicate name
+    if (!isLibraryItemNameUnique(siteId, editName.trim(), itemId)) {
+      setError('A schedule with this name already exists. Please choose a different name.');
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
@@ -236,6 +243,12 @@ const ScheduleLibrary: React.FC<ScheduleLibraryProps> = ({
   const handleCreateSave = async () => {
     if (!formName.trim()) {
       setError('Name is required');
+      return;
+    }
+
+    // Check for duplicate name
+    if (!isLibraryItemNameUnique(siteId, formName.trim())) {
+      setError('A schedule with this name already exists. Please choose a different name.');
       return;
     }
 
