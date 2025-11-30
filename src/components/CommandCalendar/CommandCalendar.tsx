@@ -15,8 +15,10 @@ import {
   Alert,
   CircularProgress,
   Paper,
-  Card,
-  CardContent,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
   Table,
   TableBody,
   TableCell,
@@ -323,34 +325,40 @@ const CommandCalendar: React.FC<CommandCalendarProps> = ({
     );
   };
 
-  const renderSelectedDatePanel = () => {
+  const handleCloseDetailsModal = () => {
+    setSelectedDate(null);
+    setSelectedLibraryItem(null);
+    setSelectedDateSpecificity(-1);
+  };
+
+  const renderDetailsModal = () => {
     if (!selectedDate) {
-      return (
-        <Box sx={{ p: 3, textAlign: 'center' }}>
-          <Typography variant="body2" color="text.secondary">
-            Select a date to view details
-          </Typography>
-        </Box>
-      );
+      return null;
     }
 
     const isPast = isPastDate(selectedDate);
 
     return (
-      <Card>
-        <CardContent>
-          <Box sx={{ mb: 2 }}>
-            <Typography variant="h6" gutterBottom>
+      <Dialog
+        open={Boolean(selectedDate)}
+        onClose={handleCloseDetailsModal}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+            <Typography variant="h6" component="span">
               {formatScheduleDate(selectedDate)}
             </Typography>
             {isToday(selectedDate) && (
-              <Chip label="Today" color="primary" size="small" sx={{ mb: 1 }} />
+              <Chip label="Today" color="primary" size="small" />
             )}
             {isPast && (
-              <Chip label="Past Date (Read-Only)" color="warning" size="small" sx={{ mb: 1 }} />
+              <Chip label="Past Date (Read-Only)" color="warning" size="small" />
             )}
           </Box>
-
+        </DialogTitle>
+        <DialogContent>
           {selectedLibraryItem ? (
             <>
               <Box sx={{ mb: 2 }}>
@@ -410,48 +418,59 @@ const CommandCalendar: React.FC<CommandCalendarProps> = ({
                   </TableContainer>
                 </Box>
               )}
-
-              {/* Actions */}
+            </>
+          ) : (
+            <Alert severity="info">
+              No schedule assigned for this date
+            </Alert>
+          )}
+        </DialogContent>
+        <DialogActions>
+          {selectedLibraryItem ? (
+            <>
               {!isPast && (
-                <Stack spacing={1}>
+                <>
                   <Button
                     variant="outlined"
-                    fullWidth
-                    onClick={() => onRequestApplyDifferent?.(selectedDate, selectedLibraryItem)}
+                    onClick={() => {
+                      handleCloseDetailsModal();
+                      onRequestApplyDifferent?.(selectedDate, selectedLibraryItem);
+                    }}
                   >
                     Apply Different Schedule
                   </Button>
                   <Button
                     variant="outlined"
                     startIcon={<EditIcon />}
-                    fullWidth
-                    onClick={() => onRequestEdit?.(selectedDate, selectedLibraryItem)}
+                    onClick={() => {
+                      handleCloseDetailsModal();
+                      onRequestEdit?.(selectedDate, selectedLibraryItem);
+                    }}
                   >
                     Edit Schedule
                   </Button>
-                  {/* Cancel override button - would need logic to determine if this is an override */}
-                </Stack>
+                </>
               )}
+              <Button onClick={handleCloseDetailsModal}>Close</Button>
             </>
           ) : (
-            <Box sx={{ py: 2 }}>
-              <Alert severity="info">
-                No schedule assigned for this date
-              </Alert>
+            <>
               {!isPast && (
                 <Button
                   variant="contained"
-                  fullWidth
-                  sx={{ mt: 2 }}
-                  onClick={() => onRequestApplyDifferent?.(selectedDate, null)}
+                  onClick={() => {
+                    handleCloseDetailsModal();
+                    onRequestApplyDifferent?.(selectedDate, null);
+                  }}
                 >
                   Assign Schedule
                 </Button>
               )}
-            </Box>
+              <Button onClick={handleCloseDetailsModal}>Close</Button>
+            </>
           )}
-        </CardContent>
-      </Card>
+        </DialogActions>
+      </Dialog>
     );
   };
 
@@ -490,14 +509,12 @@ const CommandCalendar: React.FC<CommandCalendarProps> = ({
       )}
 
       {/* Calendar Grid */}
-      <Box sx={{ mb: 2 }}>
+      <Box sx={{ flex: 1 }}>
         {renderCalendarGrid()}
       </Box>
 
-      {/* Selected Date Panel */}
-      <Box>
-        {renderSelectedDatePanel()}
-      </Box>
+      {/* Day Details Modal */}
+      {renderDetailsModal()}
     </Box>
   );
 };
