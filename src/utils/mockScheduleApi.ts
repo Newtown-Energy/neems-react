@@ -707,6 +707,80 @@ export async function getEffectiveLibraryItem(
   return result?.item || null;
 }
 
+/**
+ * Get all library items that could apply to a date, sorted by specificity (highest first)
+ * Returns both the winning schedule and any overridden schedules
+ */
+export async function getAllApplicableLibraryItems(
+  siteId: number,
+  date: Date
+): Promise<Array<{ item: ScheduleLibraryItem; specificity: number; isActive: boolean }>> {
+  await delay();
+
+  const items = getStoredLibraryItems();
+  const siteItems = items.filter(item => item.site_id === siteId);
+
+  if (siteItems.length === 0) {
+    return [];
+  }
+
+  const rules = getStoredApplicationRules();
+  const dateString = toISODateString(date);
+  const dayOfWeek = date.getDay();
+
+  // Find all rules that match this date
+  const matchingRules: Array<{ rule: ApplicationRule; specificity: number }> = [];
+
+  for (const rule of rules) {
+    const item = siteItems.find(i => i.id === rule.library_item_id);
+    if (!item) continue;
+
+    if (rule.rule_type === 'specific_date') {
+      if (rule.specific_dates?.includes(dateString)) {
+        matchingRules.push({ rule, specificity: 2 });
+      }
+    } else if (rule.rule_type === 'day_of_week') {
+      if (rule.days_of_week?.includes(dayOfWeek)) {
+        matchingRules.push({ rule, specificity: 1 });
+      }
+    } else if (rule.rule_type === 'default') {
+      matchingRules.push({ rule, specificity: 0 });
+    }
+  }
+
+  if (matchingRules.length === 0) {
+    return [];
+  }
+
+  // Sort by specificity (desc), then by created_at (desc)
+  matchingRules.sort((a, b) => {
+    if (a.specificity !== b.specificity) {
+      return b.specificity - a.specificity;
+    }
+    return new Date(b.rule.created_at).getTime() - new Date(a.rule.created_at).getTime();
+  });
+
+  // Return all matching items with their specificity and active status
+  // Deduplicate by library_item_id to ensure each schedule appears only once
+  const seenItemIds = new Set<number>();
+  const uniqueMatches: Array<{ item: ScheduleLibraryItem; specificity: number; isActive: boolean }> = [];
+
+  for (const match of matchingRules) {
+    const item = siteItems.find(i => i.id === match.rule.library_item_id);
+
+    if (item && !seenItemIds.has(item.id)) {
+      seenItemIds.add(item.id);
+      uniqueMatches.push({
+        item,
+        specificity: match.specificity,
+        isActive: uniqueMatches.length === 0 // First unique item is the active one
+      });
+    }
+  }
+
+  return uniqueMatches;
+}
+
 // Helper function to convert Date to ISO date string (used in getEffectiveLibraryItem)
 function toISODateString(date: Date): string {
   const year = date.getFullYear();

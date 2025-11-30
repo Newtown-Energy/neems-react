@@ -39,7 +39,9 @@ import {
 
 import type { ScheduleLibraryItem } from '../../utils/mockScheduleApi';
 import {
-  getEffectiveLibraryItemWithSpecificity
+  getEffectiveLibraryItemWithSpecificity,
+  getAllApplicableLibraryItems,
+  createApplicationRule
 } from '../../utils/mockScheduleApi';
 import {
   toISODateString,
@@ -72,6 +74,7 @@ const CommandCalendar: React.FC<CommandCalendarProps> = ({
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedLibraryItem, setSelectedLibraryItem] = useState<ScheduleLibraryItem | null>(null);
   const [selectedDateSpecificity, setSelectedDateSpecificity] = useState<number>(-1);
+  const [allApplicableItems, setAllApplicableItems] = useState<Array<{ item: ScheduleLibraryItem; specificity: number; isActive: boolean }>>([]);
   const [calendarData, setCalendarData] = useState<Map<string, { item: ScheduleLibraryItem | null; specificity: number }>>(new Map());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -138,13 +141,20 @@ const CommandCalendar: React.FC<CommandCalendarProps> = ({
     debugLog('CommandCalendar: Loading selected date', toISODateString(selectedDate));
 
     try {
+      // Load the effective schedule
       const result = await getEffectiveLibraryItemWithSpecificity(siteId, selectedDate);
+
+      // Load all applicable schedules (including overridden ones)
+      const allItems = await getAllApplicableLibraryItems(siteId, selectedDate);
+      setAllApplicableItems(allItems);
+
       if (result) {
         debugLog('CommandCalendar: Selected date schedule', {
           date: toISODateString(selectedDate),
           schedule: result.item?.name,
           specificity: result.specificity,
-          commandCount: result.item?.commands.length
+          commandCount: result.item?.commands.length,
+          totalApplicable: allItems.length
         });
         setSelectedLibraryItem(result.item);
         setSelectedDateSpecificity(result.specificity);
@@ -153,6 +163,7 @@ const CommandCalendar: React.FC<CommandCalendarProps> = ({
         debugLog('CommandCalendar: No schedule for selected date', toISODateString(selectedDate));
         setSelectedLibraryItem(null);
         setSelectedDateSpecificity(-1);
+        setAllApplicableItems([]);
         onDateSelect?.(selectedDate, null);
       }
     } catch (err) {
@@ -363,6 +374,30 @@ const CommandCalendar: React.FC<CommandCalendarProps> = ({
     setSelectedDate(null);
     setSelectedLibraryItem(null);
     setSelectedDateSpecificity(-1);
+    setAllApplicableItems([]);
+  };
+
+  const handleSwitchToSchedule = async (item: ScheduleLibraryItem) => {
+    if (!selectedDate) return;
+
+    try {
+      // Create a specific date rule for this schedule
+      await createApplicationRule({
+        library_item_id: item.id,
+        rule_type: 'specific_date',
+        days_of_week: null,
+        specific_dates: [toISODateString(selectedDate)]
+      });
+
+      // Reload the selected date first to show immediate feedback in the modal
+      await loadSelectedDate();
+
+      // Then reload the calendar month to update the grid
+      await loadCalendarMonth();
+    } catch (err) {
+      console.error('Error switching to schedule:', err);
+      setError('Failed to switch schedule');
+    }
   };
 
   const renderDetailsModal = () => {
@@ -455,6 +490,64 @@ const CommandCalendar: React.FC<CommandCalendarProps> = ({
                       </TableBody>
                     </Table>
                   </TableContainer>
+                </Box>
+              )}
+
+              {/* Overridden schedules */}
+              {allApplicableItems.length > 1 && (
+                <Box sx={{ mt: 2 }}>
+                  <Typography variant="subtitle2" gutterBottom>
+                    Overridden Schedules:
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+                    These schedules could apply but are overridden by the active schedule
+                  </Typography>
+                  <Stack spacing={1}>
+                    {allApplicableItems
+                      .filter(item => !item.isActive)
+                      .map((applicableItem) => (
+                        <Box
+                          key={applicableItem.item.id}
+                          sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            p: 1.5,
+                            bgcolor: 'action.hover',
+                            borderRadius: 1,
+                            border: '1px solid',
+                            borderColor: 'divider'
+                          }}
+                        >
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1 }}>
+                            {applicableItem.specificity === 2 ? (
+                              <EventIcon fontSize="small" color="success" />
+                            ) : applicableItem.specificity === 1 ? (
+                              <LoopIcon fontSize="small" color="secondary" />
+                            ) : (
+                              <StarIcon fontSize="small" color="primary" />
+                            )}
+                            <Box>
+                              <Typography variant="body2">
+                                {applicableItem.item.name}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                {applicableItem.item.commands.length} command{applicableItem.item.commands.length !== 1 ? 's' : ''}
+                              </Typography>
+                            </Box>
+                          </Box>
+                          {!isPast && (
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              onClick={() => handleSwitchToSchedule(applicableItem.item)}
+                            >
+                              Switch
+                            </Button>
+                          )}
+                        </Box>
+                      ))}
+                  </Stack>
                 </Box>
               )}
             </>
