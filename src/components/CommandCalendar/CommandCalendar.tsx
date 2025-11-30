@@ -31,7 +31,10 @@ import {
   ChevronLeft as ChevronLeftIcon,
   ChevronRight as ChevronRightIcon,
   Today as TodayIcon,
-  Edit as EditIcon
+  Edit as EditIcon,
+  Event as EventIcon,
+  Loop as LoopIcon,
+  Star as StarIcon
 } from '@mui/icons-material';
 
 import type { ScheduleLibraryItem } from '../../utils/mockScheduleApi';
@@ -277,7 +280,7 @@ const CommandCalendar: React.FC<CommandCalendarProps> = ({
                     overflow: 'hidden'
                   }}
                 >
-                  {/* Date number */}
+                  {/* Date number with override icon */}
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 0.5 }}>
                     <Typography
                       variant="caption"
@@ -288,6 +291,37 @@ const CommandCalendar: React.FC<CommandCalendarProps> = ({
                     >
                       {date.getDate()}
                     </Typography>
+                    {/* Schedule type indicator icon */}
+                    {data?.specificity === 2 && (
+                      <EventIcon
+                        sx={{
+                          fontSize: 16,
+                          color: 'success.main',
+                          opacity: 0.8
+                        }}
+                        titleAccess="Specific date override"
+                      />
+                    )}
+                    {data?.specificity === 1 && (
+                      <LoopIcon
+                        sx={{
+                          fontSize: 16,
+                          color: 'secondary.main',
+                          opacity: 0.8
+                        }}
+                        titleAccess="Recurring day-of-week rule"
+                      />
+                    )}
+                    {data?.specificity === 0 && (
+                      <StarIcon
+                        sx={{
+                          fontSize: 16,
+                          color: 'primary.main',
+                          opacity: 0.6
+                        }}
+                        titleAccess="Default schedule"
+                      />
+                    )}
                   </Box>
 
                   {/* Library item name as pill */}
@@ -371,9 +405,14 @@ const CommandCalendar: React.FC<CommandCalendarProps> = ({
                     {selectedLibraryItem.description}
                   </Typography>
                 )}
-                {/* Show rule reason */}
+                {/* Show rule reason with icon */}
                 {getRuleReason() && (
                   <Chip
+                    icon={
+                      selectedDateSpecificity === 2 ? <EventIcon /> :
+                      selectedDateSpecificity === 1 ? <LoopIcon /> :
+                      <StarIcon />
+                    }
                     label={getRuleReason()}
                     size="small"
                     color={

@@ -29,8 +29,8 @@ import {
 import {
   Delete as DeleteIcon,
   Star as StarIcon,
-  CalendarMonth as CalendarMonthIcon,
-  PushPin as PushPinIcon,
+  Loop as LoopIcon,
+  Event as EventIcon,
   Add as AddIcon
 } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
@@ -272,8 +272,8 @@ const ApplicationRuleDialog: React.FC<ApplicationRuleDialogProps> = ({
 
   const getRuleIcon = (ruleType: ApplicationRule['rule_type']) => {
     if (ruleType === 'default') return <StarIcon fontSize="small" />;
-    if (ruleType === 'day_of_week') return <CalendarMonthIcon fontSize="small" />;
-    return <PushPinIcon fontSize="small" />;
+    if (ruleType === 'day_of_week') return <LoopIcon fontSize="small" />;
+    return <EventIcon fontSize="small" />;
   };
 
   return (
@@ -338,9 +338,12 @@ const ApplicationRuleDialog: React.FC<ApplicationRuleDialogProps> = ({
 
             {/* Default Rule Section */}
             <Box sx={{ mb: 3 }}>
-              <Typography variant="h6" gutterBottom>
-                Universal Default
-              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                <StarIcon color="primary" />
+                <Typography variant="h6">
+                  Universal Default
+                </Typography>
+              </Box>
               <FormControlLabel
                 control={
                   <Checkbox
@@ -357,9 +360,12 @@ const ApplicationRuleDialog: React.FC<ApplicationRuleDialogProps> = ({
 
             {/* Day of Week Rule Section */}
             <Box sx={{ mb: 3 }}>
-              <Typography variant="h6" gutterBottom>
-                Day of Week Rules
-              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                <LoopIcon color="secondary" />
+                <Typography variant="h6">
+                  Day of Week Rules
+                </Typography>
+              </Box>
               <Typography variant="body2" color="text.secondary" gutterBottom>
                 Select one or more days to create a recurring weekly rule:
               </Typography>
@@ -393,9 +399,12 @@ const ApplicationRuleDialog: React.FC<ApplicationRuleDialogProps> = ({
 
             {/* Specific Date Rule Section */}
             <Box sx={{ mb: 3 }}>
-              <Typography variant="h6" gutterBottom>
-                Specific Date Rules
-              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                <EventIcon color="success" />
+                <Typography variant="h6">
+                  Specific Date Rules
+                </Typography>
+              </Box>
 
               {/* Single Date */}
               <Typography variant="subtitle2" gutterBottom>

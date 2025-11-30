@@ -41,7 +41,10 @@ import {
   Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
-  CalendarMonth as CalendarMonthIcon
+  CalendarMonth as CalendarMonthIcon,
+  Star as StarIcon,
+  Loop as LoopIcon,
+  Event as EventIcon
 } from '@mui/icons-material';
 
 import type { ScheduleLibraryItem, ApplicationRule, ScheduleCommand } from '../../utils/mockScheduleApi';
@@ -504,6 +507,7 @@ const ScheduleLibrary: React.FC<ScheduleLibraryProps> = ({
                         {reusableRules.map(rule => (
                           <Chip
                             key={rule.id}
+                            icon={rule.rule_type === 'default' ? <StarIcon /> : <LoopIcon />}
                             label={
                               rule.rule_type === 'default'
                                 ? 'Default'
@@ -518,6 +522,7 @@ const ScheduleLibrary: React.FC<ScheduleLibraryProps> = ({
                         ))}
                         {specificDateCount > 0 && (
                           <Chip
+                            icon={<EventIcon />}
                             label={`${specificDateCount} specific date${specificDateCount !== 1 ? 's' : ''}`}
                             size="small"
                             color="success"
