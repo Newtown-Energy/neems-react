@@ -41,6 +41,7 @@ import type { UpdateUserRequest } from '../types/generated/UpdateUserRequest';
 import type { CreateSiteRequest } from '../types/generated/CreateSiteRequest';
 import { apiRequestWithMapping, ApiError } from '../utils/api';
 import type { ODataQueryOptions } from '../utils/api';
+import { debugLog } from '../utils/debug';
 
 
 
@@ -170,10 +171,12 @@ const AdminPage: React.FC = () => {
 
   const fetchUsers = async () => {
     if (!selectedCompanyId) {
+      debugLog('AdminPage: Cannot fetch users, no company selected');
       setUsers([]);
       return;
     }
 
+    debugLog('AdminPage: Fetching users', { companyId: selectedCompanyId });
     setLoading(true);
     try {
       // Use OData $expand to include company information
@@ -182,7 +185,7 @@ const AdminPage: React.FC = () => {
         // Other OData options that could be used:
         // $select: 'id,email,company_id', // Select specific fields
         // $filter: "startswith(email,'admin')", // Filter by email starting with 'admin'
-        // $orderby: 'email desc', // Order by email descending  
+        // $orderby: 'email desc', // Order by email descending
         // $top: 50, // Limit to 50 users
         // $skip: 0, // Skip 0 users (for pagination)
         // $count: true // Include total count in response
@@ -193,9 +196,15 @@ const AdminPage: React.FC = () => {
         ...user,
         company_name: (user.Company?.name) || companies.find(c => c.id === user.company_id)?.name || 'Unknown'
       }));
+      debugLog('AdminPage: Users loaded', {
+        companyId: selectedCompanyId,
+        count: usersWithCompanyNames.length,
+        users: usersWithCompanyNames.map(u => ({ id: u.id, email: u.email }))
+      });
       setUsers(usersWithCompanyNames);
     } catch (err) {
       console.error('Error fetching users:', err);
+      debugLog('AdminPage: Error fetching users', { companyId: selectedCompanyId, error: err });
       if (err instanceof ApiError) {
         setError(`Failed to load users: ${err.message}`);
       } else {
@@ -209,10 +218,12 @@ const AdminPage: React.FC = () => {
 
   const fetchSites = async () => {
     if (!selectedCompanyId) {
+      debugLog('AdminPage: Cannot fetch sites, no company selected');
       setSites([]);
       return;
     }
 
+    debugLog('AdminPage: Fetching sites', { companyId: selectedCompanyId });
     setLoading(true);
     try {
       const data = await apiRequestWithMapping<Site[]>(`/api/1/Companies/${selectedCompanyId}/Sites`);
@@ -223,9 +234,15 @@ const AdminPage: React.FC = () => {
         company_name: companies.find(c => c.id === site.company_id)?.name || 'Unknown',
         status: 'Active' // Default status since API doesn't provide this
       }));
+      debugLog('AdminPage: Sites loaded', {
+        companyId: selectedCompanyId,
+        count: transformedSites.length,
+        sites: transformedSites.map(s => ({ id: s.id, name: s.name }))
+      });
       setSites(transformedSites);
     } catch (err) {
       console.error('Error fetching sites:', err);
+      debugLog('AdminPage: Error fetching sites', { companyId: selectedCompanyId, error: err });
       if (err instanceof ApiError) {
         setError(`Failed to load sites: ${err.message}`);
       } else {
@@ -238,6 +255,7 @@ const AdminPage: React.FC = () => {
   };
 
   const fetchCompanies = async () => {
+    debugLog('AdminPage: Fetching companies');
     setLoading(true);
     try {
       // Use OData query options to get ordered results with count
@@ -246,9 +264,14 @@ const AdminPage: React.FC = () => {
         $count: true
       };
       const data = await apiRequestWithMapping<CompanyWithTimestamps[]>('/api/1/Companies', {}, queryOptions);
+      debugLog('AdminPage: Companies loaded', {
+        count: data.length,
+        companies: data.map(c => ({ id: c.id, name: c.name }))
+      });
       setCompanies(data);
     } catch (err) {
       console.error('Error fetching companies:', err);
+      debugLog('AdminPage: Error fetching companies', err);
       if (err instanceof ApiError) {
         setError(`Failed to load companies: ${err.message}`);
       }

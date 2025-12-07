@@ -1,4 +1,5 @@
 import type { ErrorResponse } from '../types/generated/ErrorResponse';
+import { debugLog } from './debug';
 
 class ApiError extends Error {
   status: number;
@@ -54,6 +55,13 @@ export async function apiRequest<T = any>(
   url: string,
   options: RequestInit = {}
 ): Promise<T> {
+  debugLog('API: Request starting', {
+    method: options.method || 'GET',
+    url,
+    hasBody: !!options.body,
+    bodyPreview: options.body ? JSON.stringify(options.body).substring(0, 100) : undefined
+  });
+
   const response = await fetch(url, {
     credentials: 'include',
     headers: {
@@ -61,6 +69,14 @@ export async function apiRequest<T = any>(
       ...options.headers,
     },
     ...options,
+  });
+
+  debugLog('API: Response received', {
+    url,
+    status: response.status,
+    statusText: response.statusText,
+    contentType: response.headers.get('content-type'),
+    contentLength: response.headers.get('content-length')
   });
 
   // Handle empty responses (like 204 No Content)
@@ -99,10 +115,20 @@ export async function apiRequest<T = any>(
   }
 
   if (response.ok) {
+    debugLog('API: Request successful', {
+      url,
+      status: response.status,
+      dataSize: JSON.stringify(data).length
+    });
     return data as T;
   } else {
     // Server returned JSON error response
     const errorData = data as ErrorResponse;
+    debugLog('API: Request failed', {
+      url,
+      status: response.status,
+      error: errorData.error || 'Request failed'
+    });
     throw new ApiError(errorData.error || 'Request failed', response.status, response);
   }
 }
@@ -145,51 +171,69 @@ const ENDPOINT_MAPPINGS: Record<string, string> = {
 
 // Function to map navigation endpoints
 function mapNavigationEndpoint(url: string): string {
+  const originalUrl = url;
+
   // Handle company navigation endpoints
   const companyUsersMatch = url.match(/^\/api\/1\/company\/(\d+)\/users$/);
   if (companyUsersMatch) {
-    return `/api/1/Companies/${companyUsersMatch[1]}/Users`;
+    const mappedUrl = `/api/1/Companies/${companyUsersMatch[1]}/Users`;
+    debugLog('API: Endpoint mapped', { from: originalUrl, to: mappedUrl });
+    return mappedUrl;
   }
-  
+
   const companySitesMatch = url.match(/^\/api\/1\/company\/(\d+)\/sites$/);
   if (companySitesMatch) {
-    return `/api/1/Companies/${companySitesMatch[1]}/Sites`;
+    const mappedUrl = `/api/1/Companies/${companySitesMatch[1]}/Sites`;
+    debugLog('API: Endpoint mapped', { from: originalUrl, to: mappedUrl });
+    return mappedUrl;
   }
-  
+
   // Handle user navigation endpoints
   const userRolesMatch = url.match(/^\/api\/1\/users\/(\d+)\/roles$/);
   if (userRolesMatch) {
-    return `/api/1/Users/${userRolesMatch[1]}/Roles`;
+    const mappedUrl = `/api/1/Users/${userRolesMatch[1]}/Roles`;
+    debugLog('API: Endpoint mapped', { from: originalUrl, to: mappedUrl });
+    return mappedUrl;
   }
-  
+
   // Handle individual resource endpoints (with IDs)
   const userIdMatch = url.match(/^\/api\/1\/users\/(\d+)(.*)$/);
   if (userIdMatch) {
-    return `/api/1/Users/${userIdMatch[1]}${userIdMatch[2]}`;
+    const mappedUrl = `/api/1/Users/${userIdMatch[1]}${userIdMatch[2]}`;
+    debugLog('API: Endpoint mapped', { from: originalUrl, to: mappedUrl });
+    return mappedUrl;
   }
-  
+
   const siteIdMatch = url.match(/^\/api\/1\/sites\/(\d+)(.*)$/);
   if (siteIdMatch) {
-    return `/api/1/Sites/${siteIdMatch[1]}${siteIdMatch[2]}`;
+    const mappedUrl = `/api/1/Sites/${siteIdMatch[1]}${siteIdMatch[2]}`;
+    debugLog('API: Endpoint mapped', { from: originalUrl, to: mappedUrl });
+    return mappedUrl;
   }
-  
+
   const companyIdMatch = url.match(/^\/api\/1\/companies\/(\d+)(.*)$/);
   if (companyIdMatch) {
-    return `/api/1/Companies/${companyIdMatch[1]}${companyIdMatch[2]}`;
+    const mappedUrl = `/api/1/Companies/${companyIdMatch[1]}${companyIdMatch[2]}`;
+    debugLog('API: Endpoint mapped', { from: originalUrl, to: mappedUrl });
+    return mappedUrl;
   }
-  
+
   const roleIdMatch = url.match(/^\/api\/1\/roles\/(\d+)(.*)$/);
   if (roleIdMatch) {
-    return `/api/1/Roles/${roleIdMatch[1]}${roleIdMatch[2]}`;
+    const mappedUrl = `/api/1/Roles/${roleIdMatch[1]}${roleIdMatch[2]}`;
+    debugLog('API: Endpoint mapped', { from: originalUrl, to: mappedUrl });
+    return mappedUrl;
   }
-  
+
   // Map basic collection endpoints
   for (const [oldEndpoint, newEndpoint] of Object.entries(ENDPOINT_MAPPINGS)) {
     if (url.startsWith(oldEndpoint)) {
-      return url.replace(oldEndpoint, newEndpoint);
+      const mappedUrl = url.replace(oldEndpoint, newEndpoint);
+      debugLog('API: Endpoint mapped', { from: originalUrl, to: mappedUrl });
+      return mappedUrl;
     }
   }
-  
+
   return url;
 }
 
