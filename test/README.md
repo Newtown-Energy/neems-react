@@ -1,7 +1,25 @@
 # NEEMS React Tester
 
-Jest tests to exercise our frontend as it hits our upstream NEEMS API
-server.
+End-to-end (E2E) browser automation tests using Jest and Puppeteer.
+
+## Testing Architecture
+
+This project uses **Jest specifically for E2E browser testing**, not unit testing:
+
+- **E2E Tests**: Jest + Puppeteer (located in `test/jest/tests/`)
+- **Unit Tests**: None currently (could use Bun's built-in test runner in the future)
+- **Package Manager**: Bun (chosen for speed and modern tooling)
+
+### Why Jest when Bun has a test framework?
+
+While Bun includes its own excellent test runner, we keep Jest for these reasons:
+
+1. **E2E-specific tooling**: `jest-puppeteer` provides convenient integration between Jest and Puppeteer for browser automation
+2. **Visual regression testing**: `jest-image-snapshot` enables screenshot comparison tests
+3. **Established pattern**: Jest + Puppeteer is a well-documented approach for E2E testing
+4. **Separation of concerns**: E2E tests are in a separate `test/` directory, not mixed with source code
+
+If we add unit tests in the future, we may use Bun's test runner for those while keeping Jest for E2E tests.
 
 # Running
 
