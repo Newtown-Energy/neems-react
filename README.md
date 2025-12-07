@@ -34,6 +34,16 @@ To install dependencies:
 bun install
 ```
 
+## Why Jest when Bun has a test framework?
+
+This project uses **Jest specifically for E2E browser automation tests**, not unit testing. We keep Jest (despite Bun having its own test runner) because:
+
+- `jest-puppeteer` provides convenient integration for browser automation
+- `jest-image-snapshot` enables visual regression testing
+- E2E tests are in a separate `test/` directory, not mixed with source code
+
+See `test/README.md` for details. If we add unit tests in the future, we may use Bun's built-in test runner for those.
+
 
 # Run and Deploy
 
