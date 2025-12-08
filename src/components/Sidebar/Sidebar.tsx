@@ -22,8 +22,6 @@ const Sidebar: React.FC<SidebarProps> = () => { // Removed unused className
     const path = location.pathname;
     if (path === '/' || path === '/overview') return 'overview';
     if (path === '/battery1') return 'battery1';
-    if (path === '/battery2') return 'battery2';
-    if (path === '/battery3') return 'battery3';
     if (path === '/conedison') return 'conedison';
     if (path === '/fdny') return 'fdny';
     if (path === '/scheduler' || path === '/library') return 'scheduler';
@@ -32,7 +30,7 @@ const Sidebar: React.FC<SidebarProps> = () => { // Removed unused className
   };
 
   // Get navigation items from page configs
-  const enabledPageIds = ['overview', 'battery1', 'battery2', 'battery3', 'conedison', 'fdny', 'scheduler'];
+  const enabledPageIds = ['overview', 'battery1', 'conedison', 'fdny', 'scheduler'];
   
   const navItems = enabledPageIds.map(pageId => {
     const config = getPageConfig(pageId);
