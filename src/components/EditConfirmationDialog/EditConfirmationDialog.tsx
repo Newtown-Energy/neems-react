@@ -22,8 +22,48 @@ import {
 } from '@mui/material';
 
 import type { ScheduleLibraryItem } from '../../utils/mockScheduleApi';
-import { isLibraryItemNameUnique } from '../../utils/mockScheduleApi';
+import { isLibraryItemNameUnique, getLibraryItems } from '../../utils/mockScheduleApi';
 import { formatScheduleDate } from '../../utils/scheduleHelpers';
+
+/**
+ * Generates a unique copy name with incrementing version numbers.
+ * Examples:
+ * - "Schedule Foo" -> "Schedule Foo (2)"
+ * - "Schedule Foo (2)" when "Schedule Foo (3)" exists -> "Schedule Foo (4)"
+ * - "Schedule Winter 2025" -> "Schedule Winter 2025 (2)"
+ */
+const getNextCopyName = (currentName: string, siteId: number, allItems: ScheduleLibraryItem[]): string => {
+  // Extract base name by removing trailing version number (if any)
+  const versionPattern = /\s*\((\d+)\)$/;
+  const match = currentName.match(versionPattern);
+  const baseName = match ? currentName.replace(versionPattern, '') : currentName;
+
+  // Find all schedules with the same base name
+  const relatedNames = allItems
+    .filter(item => item.site_id === siteId)
+    .map(item => item.name)
+    .filter(name => {
+      // Check if name matches the base name (with or without version number)
+      if (name === baseName) return true;
+      const nameMatch = name.match(/^(.+?)\s*\((\d+)\)$/);
+      return nameMatch && nameMatch[1] === baseName;
+    });
+
+  // Extract version numbers and find the highest
+  let highestVersion = 1; // Start at 1 since the original doesn't have a number
+  relatedNames.forEach(name => {
+    const versionMatch = name.match(/\((\d+)\)$/);
+    if (versionMatch) {
+      const version = parseInt(versionMatch[1], 10);
+      if (version > highestVersion) {
+        highestVersion = version;
+      }
+    }
+  });
+
+  // Return the next version
+  return `${baseName} (${highestVersion + 1})`;
+};
 
 interface EditConfirmationDialogProps {
   open: boolean;
@@ -50,10 +90,23 @@ const EditConfirmationDialog: React.FC<EditConfirmationDialogProps> = ({
 
   // Initialize copy name when dialog opens
   React.useEffect(() => {
-    if (open && libraryItem) {
-      setCopyName(`${libraryItem.name} (Copy)`);
-      setNameError('');
-    }
+    const initializeCopyName = async () => {
+      if (open && libraryItem) {
+        try {
+          const allItems = await getLibraryItems(libraryItem.site_id);
+          const nextName = getNextCopyName(libraryItem.name, libraryItem.site_id, allItems);
+          setCopyName(nextName);
+          setNameError('');
+        } catch (err) {
+          console.error('Error generating copy name:', err);
+          // Fallback to simple copy name
+          setCopyName(`${libraryItem.name} (2)`);
+          setNameError('');
+        }
+      }
+    };
+
+    void initializeCopyName();
   }, [open, libraryItem]);
 
   // Validate name when it changes
