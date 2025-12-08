@@ -1,8 +1,8 @@
 /**
  * Application Rule Dialog Component
  *
- * Unified dialog for managing application rules for a schedule library item.
- * Supports creating default, day-of-week, and specific date rules.
+ * Streamlined dialog for managing application rules for a schedule library item.
+ * Supports default rules, day-of-week recurring rules, and viewing date overrides.
  */
 
 import React, { useState, useEffect } from 'react';
@@ -24,18 +24,17 @@ import {
   IconButton,
   Divider,
   Alert,
-  CircularProgress
+  CircularProgress,
+  Collapse
 } from '@mui/material';
 import {
   Delete as DeleteIcon,
   Star as StarIcon,
   Loop as LoopIcon,
   Event as EventIcon,
-  Add as AddIcon
+  ExpandMore as ExpandMoreIcon,
+  ExpandLess as ExpandLessIcon
 } from '@mui/icons-material';
-import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
-import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 
 import type { ScheduleLibraryItem, ApplicationRule } from '../../utils/mockScheduleApi';
 import {
@@ -43,11 +42,6 @@ import {
   createApplicationRule,
   deleteApplicationRule
 } from '../../utils/mockScheduleApi';
-import {
-  getRuleTypeLabel,
-  formatDaysOfWeek,
-  toISODateString
-} from '../../utils/scheduleHelpers';
 
 interface ApplicationRuleDialogProps {
   open: boolean;
@@ -71,13 +65,12 @@ const ApplicationRuleDialog: React.FC<ApplicationRuleDialogProps> = ({
   // Default rule state
   const [isDefault, setIsDefault] = useState(false);
 
-  // Day of week rule state
-  const [selectedDays, setSelectedDays] = useState<number[]>([]);
+  // Day of week rule state (merged from all day-of-week rules)
+  const [activeDays, setActiveDays] = useState<Set<number>>(new Set());
 
-  // Specific date rule state
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [dateRangeStart, setDateRangeStart] = useState<Date | null>(null);
-  const [dateRangeEnd, setDateRangeEnd] = useState<Date | null>(null);
+  // Date overrides state
+  const [dateOverridesExpanded, setDateOverridesExpanded] = useState(false);
+  const [specificDateRules, setSpecificDateRules] = useState<ApplicationRule[]>([]);
 
   useEffect(() => {
     if (open && libraryItem) {
@@ -91,12 +84,25 @@ const ApplicationRuleDialog: React.FC<ApplicationRuleDialogProps> = ({
     setLoading(true);
     setError(null);
     try {
+      // Get rules for this item
       const fetchedRules = await getApplicationRules(libraryItem.id);
       setRules(fetchedRules);
 
       // Check if this item is currently default
       const defaultRule = fetchedRules.find(r => r.rule_type === 'default');
       setIsDefault(!!defaultRule);
+
+      // Merge all day-of-week rules into a single set
+      const dayOfWeekRules = fetchedRules.filter(r => r.rule_type === 'day_of_week');
+      const mergedDays = new Set<number>();
+      dayOfWeekRules.forEach(rule => {
+        rule.days_of_week?.forEach(day => mergedDays.add(day));
+      });
+      setActiveDays(mergedDays);
+
+      // Get specific date rules
+      const specificRules = fetchedRules.filter(r => r.rule_type === 'specific_date');
+      setSpecificDateRules(specificRules);
     } catch (err) {
       setError('Failed to load rules');
       console.error('Error loading rules:', err);
@@ -105,163 +111,65 @@ const ApplicationRuleDialog: React.FC<ApplicationRuleDialogProps> = ({
     }
   };
 
-  const handleDefaultChange = async (checked: boolean) => {
-    if (!libraryItem) return;
+  const handleDayToggle = async (dayIndex: number) => {
+    if (!libraryItem || loading) return;
+
+    const newActiveDays = new Set(activeDays);
+    if (newActiveDays.has(dayIndex)) {
+      newActiveDays.delete(dayIndex);
+    } else {
+      newActiveDays.add(dayIndex);
+    }
 
     setLoading(true);
     setError(null);
     try {
-      if (checked) {
-        // Create default rule (API will remove any existing default)
+      // Delete all existing day-of-week rules
+      const dayOfWeekRules = rules.filter(r => r.rule_type === 'day_of_week');
+      for (const rule of dayOfWeekRules) {
+        await deleteApplicationRule(rule.id);
+      }
+
+      // Create new day-of-week rule with all active days (if any)
+      if (newActiveDays.size > 0) {
         await createApplicationRule({
           library_item_id: libraryItem.id,
-          rule_type: 'default',
-          days_of_week: null,
+          rule_type: 'day_of_week',
+          days_of_week: Array.from(newActiveDays).sort((a, b) => a - b),
           specific_dates: null
         });
-      } else {
-        // Remove default rule
-        const defaultRule = rules.find(r => r.rule_type === 'default');
-        if (defaultRule) {
-          await deleteApplicationRule(defaultRule.id);
-        }
-      }
-      setIsDefault(checked);
-      await loadRules();
-      onRulesChanged?.();
-    } catch (err) {
-      setError('Failed to update default rule');
-      console.error('Error updating default rule:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleDayToggle = (dayIndex: number) => {
-    setSelectedDays(prev =>
-      prev.includes(dayIndex)
-        ? prev.filter(d => d !== dayIndex)
-        : [...prev, dayIndex].sort((a, b) => a - b)
-    );
-  };
-
-  const handleAddDayOfWeekRule = async () => {
-    if (!libraryItem || selectedDays.length === 0) return;
-
-    setLoading(true);
-    setError(null);
-    try {
-      await createApplicationRule({
-        library_item_id: libraryItem.id,
-        rule_type: 'day_of_week',
-        days_of_week: selectedDays,
-        specific_dates: null
-      });
-      setSelectedDays([]);
-      await loadRules();
-      onRulesChanged?.();
-    } catch (err) {
-      setError('Failed to create day-of-week rule');
-      console.error('Error creating day-of-week rule:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleAddSpecificDate = async () => {
-    if (!libraryItem || !selectedDate) return;
-
-    setLoading(true);
-    setError(null);
-    try {
-      await createApplicationRule({
-        library_item_id: libraryItem.id,
-        rule_type: 'specific_date',
-        days_of_week: null,
-        specific_dates: [toISODateString(selectedDate)]
-      });
-      setSelectedDate(null);
-      await loadRules();
-      onRulesChanged?.();
-    } catch (err) {
-      setError('Failed to create specific date rule');
-      console.error('Error creating specific date rule:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleAddDateRange = async () => {
-    if (!libraryItem || !dateRangeStart || !dateRangeEnd) return;
-
-    if (dateRangeEnd < dateRangeStart) {
-      setError('End date must be after start date');
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-    try {
-      // Generate all dates in range
-      const dates: string[] = [];
-      const current = new Date(dateRangeStart);
-      const end = new Date(dateRangeEnd);
-
-      // eslint-disable-next-line no-unmodified-loop-condition -- Date objects are mutated in-place via setDate
-      while (current <= end) {
-        dates.push(toISODateString(current));
-        current.setDate(current.getDate() + 1);
       }
 
-      // Create one rule with all dates
-      await createApplicationRule({
-        library_item_id: libraryItem.id,
-        rule_type: 'specific_date',
-        days_of_week: null,
-        specific_dates: dates
-      });
-
-      setDateRangeStart(null);
-      setDateRangeEnd(null);
+      setActiveDays(newActiveDays);
       await loadRules();
       onRulesChanged?.();
     } catch (err) {
-      setError('Failed to create date range rule');
-      console.error('Error creating date range rule:', err);
+      setError('Failed to update recurring rules');
+      console.error('Error updating recurring rules:', err);
+      // Reload to restore previous state
+      await loadRules();
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDeleteRule = async (ruleId: number) => {
+  const handleDeleteSpecificDateRule = async (ruleId: number) => {
     setLoading(true);
     setError(null);
     try {
       await deleteApplicationRule(ruleId);
       await loadRules();
       onRulesChanged?.();
-
-      // Update isDefault state if we deleted the default rule
-      const deletedRule = rules.find(r => r.id === ruleId);
-      if (deletedRule?.rule_type === 'default') {
-        setIsDefault(false);
-      }
     } catch (err) {
-      setError('Failed to delete rule');
-      console.error('Error deleting rule:', err);
+      setError('Failed to delete date override');
+      console.error('Error deleting date override:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const formatRuleDetails = (rule: ApplicationRule): string => {
-    if (rule.rule_type === 'default') {
-      return 'Applies to all unmatched dates';
-    }
-    if (rule.rule_type === 'day_of_week' && rule.days_of_week) {
-      return formatDaysOfWeek(rule.days_of_week);
-    }
-    if (rule.rule_type === 'specific_date' && rule.specific_dates) {
+  const formatSpecificDateDetails = (rule: ApplicationRule): string => {
+    if (rule.specific_dates) {
       if (rule.specific_dates.length === 1) {
         return rule.specific_dates[0];
       }
@@ -270,204 +178,157 @@ const ApplicationRuleDialog: React.FC<ApplicationRuleDialogProps> = ({
     return '';
   };
 
-  const getRuleIcon = (ruleType: ApplicationRule['rule_type']) => {
-    if (ruleType === 'default') return <StarIcon fontSize="small" />;
-    if (ruleType === 'day_of_week') return <LoopIcon fontSize="small" />;
-    return <EventIcon fontSize="small" />;
-  };
+  const totalSpecificDates = specificDateRules.reduce((sum, rule) => sum + (rule.specific_dates?.length || 0), 0);
 
   return (
-    <LocalizationProvider dateAdapter={AdapterDateFns}>
-      <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-        <DialogTitle>
-          Manage Rules: {libraryItem?.name}
-        </DialogTitle>
-        <DialogContent>
-          <Box sx={{ pt: 2 }}>
-            {error && (
-              <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>
-                {error}
-              </Alert>
-            )}
+    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+      <DialogTitle>
+        Manage Rules: {libraryItem?.name}
+      </DialogTitle>
+      <DialogContent>
+        <Box sx={{ pt: 2 }}>
+          {error && (
+            <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>
+              {error}
+            </Alert>
+          )}
 
-            {/* Existing Rules */}
-            <Box sx={{ mb: 3 }}>
-              <Typography variant="h6" gutterBottom>
-                Current Rules
-              </Typography>
-              {loading && rules.length === 0 ? (
-                <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
-                  <CircularProgress size={24} />
+          {loading && rules.length === 0 ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+              <CircularProgress />
+            </Box>
+          ) : (
+            <>
+              {/* Universal Default Section */}
+              {isDefault && (
+                <Box sx={{ mb: 3 }}>
+                  <Alert severity="info" icon={<StarIcon />}>
+                    This is the Default Schedule. It applies to all dates unless overridden by a recurring rule or date-specific override.
+                  </Alert>
                 </Box>
-              ) : rules.length > 0 ? (
-                <List>
-                  {rules.map(rule => (
-                    <ListItem key={rule.id} divider>
-                      <ListItemText
-                        primary={
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            {getRuleIcon(rule.rule_type)}
-                            <Typography variant="body1">
-                              {getRuleTypeLabel(rule.rule_type)}
-                            </Typography>
-                          </Box>
-                        }
-                        secondary={formatRuleDetails(rule)}
-                      />
-                      <ListItemSecondaryAction>
-                        <IconButton
-                          edge="end"
-                          onClick={() => handleDeleteRule(rule.id)}
-                          color="error"
-                          disabled={loading}
-                        >
-                          <DeleteIcon />
-                        </IconButton>
-                      </ListItemSecondaryAction>
-                    </ListItem>
-                  ))}
-                </List>
-              ) : (
-                <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
-                  No rules defined yet. Add rules below to specify when this schedule is used.
-                </Typography>
               )}
-            </Box>
 
-            <Divider sx={{ my: 3 }} />
+              {/* Only show Recurring Rules section if NOT the default schedule */}
+              {!isDefault && (
+                <>
 
-            {/* Default Rule Section */}
-            <Box sx={{ mb: 3 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                <StarIcon color="primary" />
-                <Typography variant="h6">
-                  Universal Default
-                </Typography>
-              </Box>
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={isDefault}
-                    onChange={e => handleDefaultChange(e.target.checked)}
-                    disabled={loading}
-                  />
-                }
-                label="Use this schedule as the universal default for all unmatched dates"
-              />
-            </Box>
+                  {/* Recurring Rules Section */}
+                  <Box sx={{ mb: 3 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                      <LoopIcon color="secondary" />
+                      <Typography variant="h6">
+                        Recurring Rules
+                      </Typography>
+                    </Box>
+                    <Typography variant="body2" color="text.secondary" gutterBottom sx={{ mb: 2 }}>
+                      Select which days of the week this schedule should apply to:
+                    </Typography>
+                    <FormGroup row>
+                      {DAY_NAMES.map((dayName, index) => (
+                        <FormControlLabel
+                          key={dayName}
+                          control={
+                            <Checkbox
+                              checked={activeDays.has(index)}
+                              onChange={() => handleDayToggle(index)}
+                              disabled={loading}
+                            />
+                          }
+                          label={dayName.substring(0, 3)}
+                        />
+                      ))}
+                    </FormGroup>
+                  </Box>
+                </>
+              )}
 
-            <Divider sx={{ my: 3 }} />
+              <Divider sx={{ my: 3 }} />
 
-            {/* Day of Week Rule Section */}
-            <Box sx={{ mb: 3 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                <LoopIcon color="secondary" />
-                <Typography variant="h6">
-                  Day of Week Rules
-                </Typography>
-              </Box>
-              <Typography variant="body2" color="text.secondary" gutterBottom>
-                Select one or more days to create a recurring weekly rule:
-              </Typography>
-              <FormGroup row sx={{ mb: 2 }}>
-                {DAY_NAMES.map((dayName, index) => (
-                  <FormControlLabel
-                    key={dayName}
-                    control={
-                      <Checkbox
-                        checked={selectedDays.includes(index)}
-                        onChange={() => handleDayToggle(index)}
-                        disabled={loading}
-                      />
-                    }
-                    label={dayName.substring(0, 3)}
-                  />
-                ))}
-              </FormGroup>
-              <Button
-                variant="outlined"
-                startIcon={<AddIcon />}
-                onClick={handleAddDayOfWeekRule}
-                disabled={selectedDays.length === 0 || loading}
-                size="small"
-              >
-                Add Day-of-Week Rule
-              </Button>
-            </Box>
-
-            <Divider sx={{ my: 3 }} />
-
-            {/* Specific Date Rule Section */}
-            <Box sx={{ mb: 3 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                <EventIcon color="success" />
-                <Typography variant="h6">
-                  Specific Date Rules
-                </Typography>
-              </Box>
-
-              {/* Single Date */}
-              <Typography variant="subtitle2" gutterBottom>
-                Single Date:
-              </Typography>
-              <Box sx={{ display: 'flex', gap: 2, mb: 3, alignItems: 'center' }}>
-                <DatePicker
-                  label="Select Date"
-                  value={selectedDate}
-                  onChange={setSelectedDate}
-                  disabled={loading}
-                  slotProps={{ textField: { size: 'small' } }}
-                />
-                <Button
-                  variant="outlined"
-                  startIcon={<AddIcon />}
-                  onClick={handleAddSpecificDate}
-                  disabled={!selectedDate || loading}
-                  size="small"
+              {/* Date Overrides Section */}
+              <Box sx={{ mb: 2 }}>
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    cursor: 'pointer',
+                    '&:hover': { bgcolor: 'action.hover' },
+                    p: 1,
+                    borderRadius: 1,
+                    mb: 1
+                  }}
+                  onClick={() => setDateOverridesExpanded(!dateOverridesExpanded)}
                 >
-                  Add Date
-                </Button>
-              </Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <EventIcon color="success" />
+                    <Typography variant="h6">
+                      Date Overrides
+                    </Typography>
+                    {totalSpecificDates > 0 && (
+                      <Typography variant="body2" color="text.secondary">
+                        ({totalSpecificDates} date{totalSpecificDates !== 1 ? 's' : ''})
+                      </Typography>
+                    )}
+                  </Box>
+                  {dateOverridesExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                </Box>
 
-              {/* Date Range */}
-              <Typography variant="subtitle2" gutterBottom>
-                Date Range:
-              </Typography>
-              <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
-                <DatePicker
-                  label="Start Date"
-                  value={dateRangeStart}
-                  onChange={setDateRangeStart}
-                  disabled={loading}
-                  slotProps={{ textField: { size: 'small' } }}
-                />
-                <DatePicker
-                  label="End Date"
-                  value={dateRangeEnd}
-                  onChange={setDateRangeEnd}
-                  disabled={loading}
-                  slotProps={{ textField: { size: 'small' } }}
-                />
-                <Button
-                  variant="outlined"
-                  startIcon={<AddIcon />}
-                  onClick={handleAddDateRange}
-                  disabled={!dateRangeStart || !dateRangeEnd || loading}
-                  size="small"
-                >
-                  Add Date Range
-                </Button>
+                <Collapse in={dateOverridesExpanded}>
+                  <Box sx={{ pl: 2 }}>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontStyle: 'italic' }}>
+                      Date overrides take precedence over default and recurring rules. This schedule has been applied to the dates listed below.
+                    </Typography>
+                    {specificDateRules.length > 0 ? (
+                      <List>
+                        {specificDateRules.map(rule => (
+                          <ListItem key={rule.id} divider>
+                            <ListItemText
+                              primary={formatSpecificDateDetails(rule)}
+                              secondary={
+                                rule.override_reason ? (
+                                  <Box component="span" sx={{ display: 'block', mt: 0.5 }}>
+                                    <Typography component="span" variant="caption" sx={{ fontWeight: 'bold', color: 'text.secondary' }}>
+                                      Reason:{' '}
+                                    </Typography>
+                                    <Typography component="span" variant="body2" color="text.secondary">
+                                      {rule.override_reason}
+                                    </Typography>
+                                  </Box>
+                                ) : undefined
+                              }
+                            />
+                            <ListItemSecondaryAction>
+                              <IconButton
+                                edge="end"
+                                onClick={() => handleDeleteSpecificDateRule(rule.id)}
+                                color="error"
+                                disabled={loading}
+                                size="small"
+                              >
+                                <DeleteIcon />
+                              </IconButton>
+                            </ListItemSecondaryAction>
+                          </ListItem>
+                        ))}
+                      </List>
+                    ) : (
+                      <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
+                        No date overrides. Create overrides from the calendar view.
+                      </Typography>
+                    )}
+                  </Box>
+                </Collapse>
               </Box>
-            </Box>
-          </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={onClose} disabled={loading}>
-            Close
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </LocalizationProvider>
+            </>
+          )}
+        </Box>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose} disabled={loading}>
+          Close
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 };
 
