@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Drawer, List, Typography, Box, Divider, IconButton } from '@mui/material';
-import { ChevronLeft, ChevronRight, Logout, ArrowForward } from '@mui/icons-material';
+import { ChevronLeft, ChevronRight, Logout, ArrowForward, Help } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { SidebarItem } from './SidebarItem';
 import { getPageConfig } from '../../config/pageRegistry';
@@ -45,6 +45,7 @@ const Sidebar: React.FC<SidebarProps> = () => { // Removed unused className
   }).filter((item): item is NonNullable<typeof item> => item !== null);
 
   const bottomItems = [
+    { id: 'help', icon: Help, text: 'Ask for help' },
     { id: 'logout', icon: Logout, text: 'Logout' }
   ];
 
@@ -56,6 +57,11 @@ const Sidebar: React.FC<SidebarProps> = () => { // Removed unused className
     const path = `/${id === 'overview' ? '' : id}`;
     debugLog('Sidebar: Navigation click', { pageId: id, path });
     navigate(path);
+  };
+
+  const handleHelp = () => {
+    const mailtoLink = 'mailto:admin@newtownenergy.com?subject=Support%20request';
+    window.location.href = mailtoLink;
   };
 
   const handleLogout = async () => {
@@ -163,7 +169,13 @@ const Sidebar: React.FC<SidebarProps> = () => { // Removed unused className
             text={item.text}
             collapsed={collapsed}
             selected={getSelectedItem() === item.id}
-            onClick={item.id === 'logout' ? handleLogout : () => handleItemClick(item.id)}
+            onClick={
+              item.id === 'logout'
+                ? handleLogout
+                : item.id === 'help'
+                ? handleHelp
+                : () => handleItemClick(item.id)
+            }
           />
         ))}
       </List>
