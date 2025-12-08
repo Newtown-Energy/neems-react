@@ -407,8 +407,11 @@ const ScheduleLibrary: React.FC<ScheduleLibraryProps> = ({
             })
             .map(item => {
             const rules = getRulesForItem(item.id);
-            const reusableRules = getReusableRules(item.id);
             const isDefault = rules.some(r => r.rule_type === 'default');
+            // For default schedule, only show default rule, not recurring rules
+            const reusableRules = isDefault
+              ? rules.filter(r => r.rule_type === 'default')
+              : getReusableRules(item.id);
             const specificDateRules = rules.filter(r => r.rule_type === 'specific_date');
             const specificDateCount = specificDateRules.reduce((sum, rule) => sum + (rule.specific_dates?.length || 0), 0);
 
