@@ -3,7 +3,7 @@ import { Box, Typography } from '@mui/material';
 
 export const pageConfig = {
   id: 'battery1',
-  title: 'Megapack 1',
+  title: 'Tesla Site Controller',
   iconPath: '/Tesla_Motors.svg'
 };
 
@@ -11,10 +11,10 @@ const Battery1Page: React.FC = () => {
   return (
     <Box sx={{ p: 3 }}>
       <Typography variant="h2" gutterBottom>
-        Battery 1
+        Tesla Site Controller
       </Typography>
       <Typography variant="body1">
-        Battery 1 monitoring and control interface.
+        Tesla Site Controller monitoring and control interface.
       </Typography>
     </Box>
   );
