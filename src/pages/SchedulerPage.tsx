@@ -27,12 +27,12 @@ import { useNavigate } from 'react-router-dom';
 import CommandCalendar from '../components/CommandCalendar';
 import EditConfirmationDialog from '../components/EditConfirmationDialog';
 
-import type { ScheduleLibraryItem } from '../utils/mockScheduleApi';
+import type { ScheduleLibraryItem } from '../types/generated/ScheduleLibraryItem';
 import {
   getLibraryItems,
   cloneLibraryItem,
   createApplicationRule
-} from '../utils/mockScheduleApi';
+} from '../utils/scheduleApi';
 import { toISODateString } from '../utils/scheduleHelpers';
 
 export const pageConfig = {
@@ -96,11 +96,11 @@ const SchedulerPage: React.FC = () => {
       const clonedItem = await cloneLibraryItem(editLibraryItem.id, newName);
 
       // Create a specific date rule for this date
-      await createApplicationRule({
-        library_item_id: clonedItem.id,
+      await createApplicationRule(clonedItem.id, {
         rule_type: 'specific_date',
         days_of_week: null,
-        specific_dates: [toISODateString(editDate)]
+        specific_dates: [toISODateString(editDate)],
+        override_reason: null
       });
 
       // Refresh calendar
@@ -128,8 +128,7 @@ const SchedulerPage: React.FC = () => {
 
     try {
       // Create a specific date rule for this library item with optional reason
-      await createApplicationRule({
-        library_item_id: item.id,
+      await createApplicationRule(item.id, {
         rule_type: 'specific_date',
         days_of_week: null,
         specific_dates: [toISODateString(applyDate)],

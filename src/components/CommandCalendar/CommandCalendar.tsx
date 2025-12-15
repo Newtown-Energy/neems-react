@@ -38,13 +38,14 @@ import {
   Star as StarIcon
 } from '@mui/icons-material';
 
-import type { ScheduleLibraryItem } from '../../utils/mockScheduleApi';
+import type { ScheduleLibraryItem } from '../../types/generated/ScheduleLibraryItem';
+import type { CalendarDaySchedule } from '../../types/generated/CalendarDaySchedule';
 import {
-  getEffectiveLibraryItemWithSpecificity,
-  getAllApplicableLibraryItems,
+  getEffectiveSchedule,
+  getCalendarSchedules,
   createApplicationRule,
-  getActiveApplicationRule
-} from '../../utils/mockScheduleApi';
+  getAllApplicableLibraryItems
+} from '../../utils/scheduleApi';
 import {
   toISODateString,
   formatScheduleDate,
@@ -77,8 +78,8 @@ const CommandCalendar: React.FC<CommandCalendarProps> = ({
   const [selectedLibraryItem, setSelectedLibraryItem] = useState<ScheduleLibraryItem | null>(null);
   const [selectedDateSpecificity, setSelectedDateSpecificity] = useState<number>(-1);
   const [selectedDateOverrideReason, setSelectedDateOverrideReason] = useState<string | null>(null);
-  const [allApplicableItems, setAllApplicableItems] = useState<Array<{ item: ScheduleLibraryItem; specificity: number; isActive: boolean }>>([]);
-  const [calendarData, setCalendarData] = useState<Map<string, { item: ScheduleLibraryItem | null; specificity: number }>>(new Map());
+  const [applicableLibraryItems, setApplicableLibraryItems] = useState<Array<{ item: ScheduleLibraryItem; specificity: number; isActive: boolean }>>([]);
+  const [calendarData, setCalendarData] = useState<Map<string, CalendarDaySchedule>>(new Map());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -107,30 +108,22 @@ const CommandCalendar: React.FC<CommandCalendarProps> = ({
     setLoading(true);
     setError(null);
     try {
-      const lastDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
+      // Use the efficient calendar endpoint to get all dates at once
+      const calendarSchedules = await getCalendarSchedules(
+        siteId,
+        currentMonth.getFullYear(),
+        currentMonth.getMonth() + 1
+      );
 
-      // Get all dates in the month
-      const dates: Date[] = [];
-      for (let d = 1; d <= lastDay.getDate(); d += 1) {
-        dates.push(new Date(currentMonth.getFullYear(), currentMonth.getMonth(), d));
-      }
-
-      debugLog('CommandCalendar: Loading schedules for', dates.length, 'dates');
-
-      // Load effective library item for each date with specificity
-      const dataMap = new Map<string, { item: ScheduleLibraryItem | null; specificity: number }>();
-      for (const date of dates) {
-        const result = await getEffectiveLibraryItemWithSpecificity(siteId, date);
-        if (result) {
-          dataMap.set(toISODateString(date), { item: result.item, specificity: result.specificity });
-        } else {
-          dataMap.set(toISODateString(date), { item: null, specificity: -1 });
-        }
-      }
+      // Convert to Map for easy lookup
+      const dataMap = new Map<string, CalendarDaySchedule>();
+      Object.entries(calendarSchedules).forEach(([dateStr, schedule]) => {
+        dataMap.set(dateStr, schedule);
+      });
 
       debugLog('CommandCalendar: Calendar data loaded', {
         totalDates: dataMap.size,
-        datesWithSchedules: Array.from(dataMap.values()).filter(d => d.item !== null).length
+        datesWithSchedules: Array.from(dataMap.values()).filter(d => d.library_item_id !== null).length
       });
 
       setCalendarData(dataMap);
@@ -149,35 +142,32 @@ const CommandCalendar: React.FC<CommandCalendarProps> = ({
     debugLog('CommandCalendar: Loading selected date', toISODateString(selectedDate));
 
     try {
-      // Load the effective schedule
-      const result = await getEffectiveLibraryItemWithSpecificity(siteId, selectedDate);
+      // Load all applicable library items (winning and overridden schedules)
+      const allApplicable = await getAllApplicableLibraryItems(siteId, selectedDate);
+      setApplicableLibraryItems(allApplicable);
 
-      // Load all applicable schedules (including overridden ones)
-      const allItems = await getAllApplicableLibraryItems(siteId, selectedDate);
-      setAllApplicableItems(allItems);
-
-      // Load the active rule to get the override reason
-      const activeRule = await getActiveApplicationRule(siteId, selectedDate);
-      setSelectedDateOverrideReason(activeRule?.override_reason || null);
+      // Load the effective schedule with full details
+      const result = await getEffectiveSchedule(siteId, selectedDate);
 
       if (result) {
         debugLog('CommandCalendar: Selected date schedule', {
           date: toISODateString(selectedDate),
-          schedule: result.item?.name,
+          schedule: result.library_item?.name,
           specificity: result.specificity,
-          commandCount: result.item?.commands.length,
-          totalApplicable: allItems.length,
-          overrideReason: activeRule?.override_reason
+          commandCount: result.library_item?.commands.length,
+          overrideReason: result.rule?.override_reason,
+          totalApplicable: allApplicable.length
         });
-        setSelectedLibraryItem(result.item);
+        setSelectedLibraryItem(result.library_item);
         setSelectedDateSpecificity(result.specificity);
-        onDateSelect?.(selectedDate, result.item);
+        setSelectedDateOverrideReason(result.rule?.override_reason || null);
+        onDateSelect?.(selectedDate, result.library_item);
       } else {
         debugLog('CommandCalendar: No schedule for selected date', toISODateString(selectedDate));
         setSelectedLibraryItem(null);
         setSelectedDateSpecificity(-1);
         setSelectedDateOverrideReason(null);
-        setAllApplicableItems([]);
+        setApplicableLibraryItems([]);
         onDateSelect?.(selectedDate, null);
       }
     } catch (err) {
@@ -265,20 +255,20 @@ const CommandCalendar: React.FC<CommandCalendarProps> = ({
 
               const dateKey = toISODateString(date);
               const data = calendarData.get(dateKey);
-              const item = data?.item;
+              const hasSchedule = data && data.library_item_id;
               const isSelected = selectedDate && toISODateString(selectedDate) === dateKey;
               const isTodayDate = isToday(date);
               const isPast = isPastDate(date);
 
               // Determine background color for schedule name based on specificity
               let scheduleNameBgColor = 'transparent';
-              if (data?.specificity === 2) {
+              if (data && data.specificity === 2) {
                 // Specific date - green tint
                 scheduleNameBgColor = 'rgba(76, 175, 80, 0.15)';
-              } else if (data?.specificity === 1) {
+              } else if (data && data.specificity === 1) {
                 // Day of week - purple tint
                 scheduleNameBgColor = 'rgba(156, 39, 176, 0.15)';
-              } else if (data?.specificity === 0) {
+              } else if (data && data.specificity === 0) {
                 // Default - blue tint
                 scheduleNameBgColor = 'rgba(25, 118, 210, 0.15)';
               }
@@ -350,7 +340,7 @@ const CommandCalendar: React.FC<CommandCalendarProps> = ({
                   </Box>
 
                   {/* Library item name as pill */}
-                  {item && (
+                  {hasSchedule && (
                     <Box
                       sx={{
                         display: 'inline-block',
@@ -370,7 +360,7 @@ const CommandCalendar: React.FC<CommandCalendarProps> = ({
                           fontSize: '0.7rem'
                         }}
                       >
-                        {item.name}
+                        {data.library_item_name}
                       </Typography>
                     </Box>
                   )}
@@ -389,7 +379,7 @@ const CommandCalendar: React.FC<CommandCalendarProps> = ({
     setSelectedLibraryItem(null);
     setSelectedDateSpecificity(-1);
     setSelectedDateOverrideReason(null);
-    setAllApplicableItems([]);
+    setApplicableLibraryItems([]);
   };
 
   const handleSwitchToSchedule = (item: ScheduleLibraryItem) => {
@@ -404,8 +394,7 @@ const CommandCalendar: React.FC<CommandCalendarProps> = ({
 
     try {
       // Create a specific date rule for this schedule with optional reason
-      await createApplicationRule({
-        library_item_id: pendingScheduleSwitch.id,
+      await createApplicationRule(pendingScheduleSwitch.id, {
         rule_type: 'specific_date',
         days_of_week: null,
         specific_dates: [toISODateString(selectedDate)],
@@ -505,51 +494,18 @@ const CommandCalendar: React.FC<CommandCalendarProps> = ({
                 )}
               </Box>
 
-              {/* Commands table */}
-              {selectedLibraryItem.commands.length > 0 && (
-                <Box sx={{ mb: 2 }}>
-                  <Typography variant="subtitle2" gutterBottom>
-                    Commands:
-                  </Typography>
-                  <TableContainer component={Paper} variant="outlined">
-                    <Table size="small">
-                      <TableHead>
-                        <TableRow>
-                          <TableCell>Time</TableCell>
-                          <TableCell>Type</TableCell>
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {selectedLibraryItem.commands.map((command) => (
-                          <TableRow key={command.id}>
-                            <TableCell>{secondsToTime(command.execution_offset_seconds)}</TableCell>
-                            <TableCell>
-                              <Chip
-                                label={getCommandTypeLabel(command.command_type)}
-                                color={getCommandTypeColor(command.command_type)}
-                                size="small"
-                              />
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
-                </Box>
-              )}
-
               {/* Overridden schedules */}
-              {allApplicableItems.length > 1 && (
-                <Box sx={{ mt: 2 }}>
+              {applicableLibraryItems.length > 1 && !isPast && (
+                <Box sx={{ mb: 2 }}>
                   <Typography variant="subtitle2" gutterBottom>
                     Overridden Schedules:
                   </Typography>
-                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-                    These schedules could apply but are overridden by the active schedule
+                  <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
+                    The following schedules also match this date but are not active:
                   </Typography>
                   <Stack spacing={1}>
-                    {allApplicableItems
-                      .filter(item => !item.isActive)
+                    {applicableLibraryItems
+                      .filter((item) => !item.isActive)
                       .map((applicableItem) => (
                         <Box
                           key={applicableItem.item.id}
@@ -593,6 +549,39 @@ const CommandCalendar: React.FC<CommandCalendarProps> = ({
                         </Box>
                       ))}
                   </Stack>
+                </Box>
+              )}
+
+              {/* Commands table */}
+              {selectedLibraryItem.commands.length > 0 && (
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="subtitle2" gutterBottom>
+                    Commands:
+                  </Typography>
+                  <TableContainer component={Paper} variant="outlined">
+                    <Table size="small">
+                      <TableHead>
+                        <TableRow>
+                          <TableCell>Time</TableCell>
+                          <TableCell>Type</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {selectedLibraryItem.commands.map((command) => (
+                          <TableRow key={command.id}>
+                            <TableCell>{secondsToTime(command.execution_offset_seconds)}</TableCell>
+                            <TableCell>
+                              <Chip
+                                label={getCommandTypeLabel(command.command_type)}
+                                color={getCommandTypeColor(command.command_type)}
+                                size="small"
+                              />
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
                 </Box>
               )}
             </>

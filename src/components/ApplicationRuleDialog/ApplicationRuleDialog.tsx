@@ -36,12 +36,13 @@ import {
   ExpandLess as ExpandLessIcon
 } from '@mui/icons-material';
 
-import type { ScheduleLibraryItem, ApplicationRule } from '../../utils/mockScheduleApi';
+import type { ScheduleLibraryItem } from '../../types/generated/ScheduleLibraryItem';
+import type { ApplicationRule } from '../../types/generated/ApplicationRule';
 import {
   getApplicationRules,
   createApplicationRule,
   deleteApplicationRule
-} from '../../utils/mockScheduleApi';
+} from '../../utils/scheduleApi';
 
 interface ApplicationRuleDialogProps {
   open: boolean;
@@ -132,11 +133,11 @@ const ApplicationRuleDialog: React.FC<ApplicationRuleDialogProps> = ({
 
       // Create new day-of-week rule with all active days (if any)
       if (newActiveDays.size > 0) {
-        await createApplicationRule({
-          library_item_id: libraryItem.id,
+        await createApplicationRule(libraryItem.id, {
           rule_type: 'day_of_week',
           days_of_week: Array.from(newActiveDays).sort((a, b) => a - b),
-          specific_dates: null
+          specific_dates: null,
+          override_reason: null
         });
       }
 

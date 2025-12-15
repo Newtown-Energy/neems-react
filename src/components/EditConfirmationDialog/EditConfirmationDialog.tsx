@@ -21,8 +21,8 @@ import {
   Alert
 } from '@mui/material';
 
-import type { ScheduleLibraryItem } from '../../utils/mockScheduleApi';
-import { isLibraryItemNameUnique, getLibraryItems } from '../../utils/mockScheduleApi';
+import type { ScheduleLibraryItem } from '../../types/generated/ScheduleLibraryItem';
+import { getLibraryItems } from '../../utils/scheduleApi';
 import { formatScheduleDate } from '../../utils/scheduleHelpers';
 
 /**
@@ -115,8 +115,6 @@ const EditConfirmationDialog: React.FC<EditConfirmationDialogProps> = ({
 
     if (!newName.trim()) {
       setNameError('Name is required');
-    } else if (libraryItem && !isLibraryItemNameUnique(libraryItem.site_id, newName.trim())) {
-      setNameError('A schedule with this name already exists');
     } else {
       setNameError('');
     }
@@ -126,10 +124,6 @@ const EditConfirmationDialog: React.FC<EditConfirmationDialogProps> = ({
     if (editMode === 'copy') {
       if (!copyName.trim()) {
         setNameError('Name is required');
-        return;
-      }
-      if (libraryItem && !isLibraryItemNameUnique(libraryItem.site_id, copyName.trim())) {
-        setNameError('A schedule with this name already exists');
         return;
       }
       onCreateCopy(copyName.trim());

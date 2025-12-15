@@ -47,15 +47,16 @@ import {
   Event as EventIcon
 } from '@mui/icons-material';
 
-import type { ScheduleLibraryItem, ApplicationRule, ScheduleCommand } from '../../utils/mockScheduleApi';
+import type { ScheduleLibraryItem } from '../../types/generated/ScheduleLibraryItem';
+import type { ApplicationRule } from '../../types/generated/ApplicationRule';
+import type { ScheduleCommandDto } from '../../types/generated/ScheduleCommandDto';
 import {
   getLibraryItems,
   createLibraryItem,
   updateLibraryItem,
   deleteLibraryItem,
-  getAllApplicationRules,
-  isLibraryItemNameUnique
-} from '../../utils/mockScheduleApi';
+  getAllApplicationRules
+} from '../../utils/scheduleApi';
 import {
   secondsToTime,
   timeToSeconds,
@@ -92,12 +93,12 @@ const ScheduleLibrary: React.FC<ScheduleLibraryProps> = ({
   // Form states for create dialog
   const [formName, setFormName] = useState('');
   const [formDescription, setFormDescription] = useState('');
-  const [formCommands, setFormCommands] = useState<ScheduleCommand[]>([]);
+  const [formCommands, setFormCommands] = useState<ScheduleCommandDto[]>([]);
 
   // Inline edit states
   const [editName, setEditName] = useState('');
   const [editDescription, setEditDescription] = useState('');
-  const [editCommands, setEditCommands] = useState<ScheduleCommand[]>([]);
+  const [editCommands, setEditCommands] = useState<ScheduleCommandDto[]>([]);
 
   // Command editing
   const [commandDialogOpen, setCommandDialogOpen] = useState(false);
@@ -209,12 +210,6 @@ const ScheduleLibrary: React.FC<ScheduleLibraryProps> = ({
       return;
     }
 
-    // Check for duplicate name
-    if (!isLibraryItemNameUnique(siteId, editName.trim(), itemId)) {
-      setError('A schedule with this name already exists. Please choose a different name.');
-      return;
-    }
-
     setLoading(true);
     setError(null);
     try {
@@ -246,17 +241,10 @@ const ScheduleLibrary: React.FC<ScheduleLibraryProps> = ({
       return;
     }
 
-    // Check for duplicate name
-    if (!isLibraryItemNameUnique(siteId, formName.trim())) {
-      setError('A schedule with this name already exists. Please choose a different name.');
-      return;
-    }
-
     setLoading(true);
     setError(null);
     try {
-      await createLibraryItem({
-        site_id: siteId,
+      await createLibraryItem(siteId, {
         name: formName.trim(),
         description: formDescription.trim() || null,
         commands: formCommands
@@ -346,7 +334,7 @@ const ScheduleLibrary: React.FC<ScheduleLibraryProps> = ({
       return;
     }
 
-    const newCommand: ScheduleCommand = {
+    const newCommand: ScheduleCommandDto = {
       id: editingCommandIndex !== null ? commands[editingCommandIndex].id : Date.now(),
       execution_offset_seconds: offsetSeconds,
       command_type: commandType

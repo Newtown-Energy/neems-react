@@ -5,9 +5,9 @@
  * including time conversion and validation.
  */
 
-import type { MockScheduleTemplateEntry } from './mockScheduleApi';
-
-export type CommandType = 'charge' | 'discharge' | 'trickle_charge';
+import type { CommandType } from '../types/generated/CommandType';
+import type { RuleType } from '../types/generated/RuleType';
+import type { ScheduleCommandDto } from '../types/generated/ScheduleCommandDto';
 
 /**
  * Convert seconds offset to HH:MM string format
@@ -70,7 +70,7 @@ export function parseTimeString(timeString: string): { hour: number; minute: num
  * @returns true if conflict exists, false otherwise
  */
 export function hasTimeConflict(
-  entries: MockScheduleTemplateEntry[],
+  entries: ScheduleCommandDto[],
   offsetSeconds: number,
   excludeId?: number
 ): boolean {
@@ -232,8 +232,6 @@ export function addDays(date: Date, days: number): Date {
 // ============================================================================
 // NEW: Application Rule Helper Functions
 // ============================================================================
-
-export type RuleType = 'default' | 'day_of_week' | 'specific_date';
 
 /**
  * Get display label for rule type
