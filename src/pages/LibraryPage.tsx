@@ -17,7 +17,7 @@ import { useNavigate } from 'react-router-dom';
 import ScheduleLibrary from '../components/ScheduleLibrary';
 import ApplicationRuleDialog from '../components/ApplicationRuleDialog';
 
-import type { ScheduleLibraryItem } from '../utils/mockScheduleApi';
+import type { ScheduleLibraryItem } from '../types/generated/ScheduleLibraryItem';
 
 export const pageConfig = {
   id: 'library',
