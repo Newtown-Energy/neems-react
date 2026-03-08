@@ -1,9 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { Box, AppBar, Toolbar } from '@mui/material';
+import { Box } from '@mui/material';
 import Sidebar from './components/Sidebar/Sidebar';
-
-import UserProfile from './components/UserProfile/UserProfile';
 import OverviewPage from './pages/OverviewPage';
 import Battery1Page from './pages/Battery1Page';
 import Battery2Page from './pages/Battery2Page';
@@ -19,12 +17,11 @@ import LoginPage from './pages/LoginPage/LoginPage';
 import { debugLog } from './utils/debug';
 
 const AppContent: React.FC = () => {
-  const { loading, isAuthenticated, setIsAuthenticated, userEmail, userInfo, saveUserInfo, logout } = useAuth();
+  const { loading, isAuthenticated, setIsAuthenticated, userInfo, saveUserInfo } = useAuth();
 
   debugLog('Router: AppContent render', {
     loading,
     isAuthenticated,
-    userEmail,
     currentPath: window.location.pathname
   });
 
@@ -48,19 +45,6 @@ const AppContent: React.FC = () => {
     <Box id="authed-ui-box" sx={{ display: 'flex', height: '100vh' }}>
       <Sidebar />
       <Box component="main" sx={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
-        <AppBar position="static" color="default" elevation={1}>
-          <Toolbar sx={{ justifyContent: 'space-between' }}>
-              <Box></Box>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <UserProfile
-                email={userEmail || 'Unknown User'}
-                userInfo={userInfo}
-                onLogout={logout}
-              />
-            </Box>
-          </Toolbar>
-        </AppBar>
-
           <Routes>
             <Route path="/" element={<OverviewPage />} />
             <Route path="/overview" element={<Navigate to="/" replace />} />

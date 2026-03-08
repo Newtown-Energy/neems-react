@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Drawer, List, Typography, Box, Divider, IconButton } from '@mui/material';
-import { ChevronLeft, ChevronRight, Logout, ArrowForward, Help } from '@mui/icons-material';
+import { ChevronLeft, ChevronRight, Logout, ArrowForward, Help, AdminPanelSettings } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { SidebarItem } from './SidebarItem';
 import { getPageConfig } from '../../config/pageRegistry';
@@ -29,6 +29,9 @@ const Sidebar: React.FC<SidebarProps> = () => { // Removed unused className
     return 'overview';
   };
 
+  const userRoles = userInfo?.roles || [];
+  const isAdmin = userRoles.includes('admin') || userRoles.includes('newtown-admin') || userRoles.includes('newtown-staff');
+
   // Get navigation items from page configs
   const enabledPageIds = ['overview', 'battery1', 'conedison', 'fdny', 'scheduler'];
   
@@ -45,6 +48,7 @@ const Sidebar: React.FC<SidebarProps> = () => { // Removed unused className
   }).filter((item): item is NonNullable<typeof item> => item !== null);
 
   const bottomItems = [
+    ...(isAdmin ? [{ id: 'admin', icon: AdminPanelSettings, text: 'Admin Panel' }] : []),
     { id: 'help', icon: Help, text: 'Ask for help' },
     { id: 'logout', icon: Logout, text: 'Logout' }
   ];
@@ -134,7 +138,15 @@ const Sidebar: React.FC<SidebarProps> = () => { // Removed unused className
           {collapsed ? <ChevronRight /> : <ChevronLeft />}
         </IconButton>
       </Box>
-      
+
+      {!collapsed && userInfo?.email && (
+        <Box sx={{ px: 2, pb: 1 }}>
+          <Typography variant="body2" color="text.secondary" noWrap>
+            {userInfo.email}
+          </Typography>
+        </Box>
+      )}
+
       <Divider />
       
       <List sx={{ flex: 1 }}>
