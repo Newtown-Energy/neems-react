@@ -1,4 +1,3 @@
-// theme.ts
 import { createTheme } from '@mui/material/styles';
 import type { ThemeOptions } from '@mui/material/styles';
 import materialTheme from './material-theme.json';
@@ -45,7 +44,7 @@ const baseTheme: ThemeOptions = {
   },
 };
 
-const lightTheme = createTheme({
+export const theme = createTheme({
   ...baseTheme,
   palette: {
     mode: 'light',
@@ -63,7 +62,7 @@ const lightTheme = createTheme({
     },
     error: {
       main: materialTheme.schemes.light.error,
-      light: materialTheme.palettes.secondary[80], // Using secondary palette for error as per your theme
+      light: materialTheme.palettes.secondary[80],
       dark: materialTheme.palettes.secondary[40],
       contrastText: materialTheme.schemes.light.onError,
     },
@@ -77,11 +76,11 @@ const lightTheme = createTheme({
     },
     divider: materialTheme.schemes.light.outlineVariant,
     action: {
-      active: materialTheme.schemes.light.primary, // or onSurface for general icons
+      active: materialTheme.schemes.light.primary,
       hover: materialTheme.schemes.light.primaryContainer,
-      hoverOpacity: 0.08, // Material 3 recommends 8% opacity for hover
+      hoverOpacity: 0.08,
       selected: materialTheme.schemes.light.secondaryContainer,
-      selectedOpacity: 0.12, // Material 3 recommends 12% opacity for selected
+      selectedOpacity: 0.12,
       disabled: materialTheme.schemes.light.onSurface,
       disabledOpacity: 0.38,
       focus: materialTheme.schemes.light.primary,
@@ -110,7 +109,7 @@ const lightTheme = createTheme({
     MuiListItemButton: {
       styleOverrides: {
         root: {
-          color: materialTheme.schemes.light.onSurfaceVariant, // Default text color
+          color: materialTheme.schemes.light.onSurfaceVariant,
           '&:hover': {
             backgroundColor: materialTheme.schemes.light.primaryContainer,
             color: materialTheme.schemes.light.onPrimaryContainer,
@@ -129,71 +128,10 @@ const lightTheme = createTheme({
     MuiListItemIcon: {
       styleOverrides: {
         root: {
-          color: 'inherit', // Inherits from parent ListItemButton
-          minWidth: '40px', // Better icon alignment
+          color: 'inherit',
+          minWidth: '40px',
         },
       },
     },
   },
 });
-
-const darkTheme = createTheme({
-  ...baseTheme,
-  palette: {
-    mode: 'dark',
-    primary: {
-      main: materialTheme.schemes.dark.primary,
-      light: materialTheme.palettes.primary[80],
-      dark: materialTheme.palettes.primary[40],
-      contrastText: materialTheme.schemes.dark.onPrimary,
-    },
-    secondary: {
-      main: materialTheme.schemes.dark.secondary,
-      light: materialTheme.palettes.secondary[80],
-      dark: materialTheme.palettes.secondary[40],
-      contrastText: materialTheme.schemes.dark.onSecondary,
-    },
-    error: {
-      main: materialTheme.schemes.dark.error,
-      light: materialTheme.palettes.secondary[80],
-      dark: materialTheme.palettes.secondary[40],
-      contrastText: materialTheme.schemes.dark.onError,
-    },
-    background: {
-      default: materialTheme.schemes.dark.background,
-      paper: materialTheme.schemes.dark.surface,
-    },
-    text: {
-      primary: materialTheme.schemes.dark.onSurface,
-      secondary: materialTheme.schemes.dark.onSurfaceVariant,
-    },
-    divider: materialTheme.schemes.dark.outlineVariant,
-    action: {
-      active: materialTheme.schemes.dark.primary,
-      hover: materialTheme.schemes.dark.primaryContainer,
-    },
-  },
-  components: {
-    ...baseTheme.components,
-    MuiAppBar: {
-      styleOverrides: {
-        root: {
-          backgroundColor: materialTheme.schemes.dark.surfaceContainerHigh,
-          color: materialTheme.schemes.dark.onSurface,
-        },
-      },
-    },
-    MuiPaper: {
-      styleOverrides: {
-        root: {
-          backgroundColor: materialTheme.schemes.dark.surface,
-          color: materialTheme.schemes.dark.onSurface,
-        },
-      },
-    },
-  },
-});
-
-export const getTheme = (themeMode: 'light' | 'dark') => {
-  return themeMode === 'dark' ? darkTheme : lightTheme;
-};

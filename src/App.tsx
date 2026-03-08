@@ -2,7 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Box, AppBar, Toolbar } from '@mui/material';
 import Sidebar from './components/Sidebar/Sidebar';
-import ThemeSwitcher from "./components/Light-Dark/ThemeSwitcher";
+
 import UserProfile from './components/UserProfile/UserProfile';
 import OverviewPage from './pages/OverviewPage';
 import Battery1Page from './pages/Battery1Page';
@@ -52,7 +52,6 @@ const AppContent: React.FC = () => {
           <Toolbar sx={{ justifyContent: 'space-between' }}>
               <Box></Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <ThemeSwitcher />
               <UserProfile
                 email={userEmail || 'Unknown User'}
                 userInfo={userInfo}
