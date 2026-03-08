@@ -1,13 +1,5 @@
 import { apiRequestWithMapping } from './api';
-import type { ScheduleLibraryItem } from '../types/generated/ScheduleLibraryItem';
-import type { ApplicationRule } from '../types/generated/ApplicationRule';
-import type { CreateLibraryItemRequest } from '../types/generated/CreateLibraryItemRequest';
-import type { UpdateLibraryItemRequest } from '../types/generated/UpdateLibraryItemRequest';
-import type { CloneLibraryItemRequest } from '../types/generated/CloneLibraryItemRequest';
-import type { CreateApplicationRuleRequest } from '../types/generated/CreateApplicationRuleRequest';
-import type { EffectiveScheduleResponse } from '../types/generated/EffectiveScheduleResponse';
-import type { CalendarDaySchedule } from '../types/generated/CalendarDaySchedule';
-import type { CalendarDayScheduleMatches } from '../types/generated/CalendarDayScheduleMatches';
+import type { ScheduleLibraryItem, ApplicationRule, CreateLibraryItemRequest, UpdateLibraryItemRequest, CloneLibraryItemRequest, CreateApplicationRuleRequest, EffectiveScheduleResponse, CalendarDaySchedule, CalendarDayScheduleMatches } from '@newtown-energy/types';
 
 // ============================================================================
 // Library Items

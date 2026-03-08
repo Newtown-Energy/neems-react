@@ -1,2 +1,2 @@
-export type { LoginSuccessResponse } from './generated/LoginSuccessResponse';
-export type { LoginSuccessResponse as UserInfo } from './generated/LoginSuccessResponse';
+export type { LoginSuccessResponse } from '@newtown-energy/types';
+export type { LoginSuccessResponse as UserInfo } from '@newtown-energy/types';

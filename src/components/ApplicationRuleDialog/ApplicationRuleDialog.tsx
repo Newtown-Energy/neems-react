@@ -36,8 +36,7 @@ import {
   ExpandLess as ExpandLessIcon
 } from '@mui/icons-material';
 
-import type { ScheduleLibraryItem } from '../../types/generated/ScheduleLibraryItem';
-import type { ApplicationRule } from '../../types/generated/ApplicationRule';
+import type { ScheduleLibraryItem, ApplicationRule } from '@newtown-energy/types';
 import {
   getApplicationRules,
   createApplicationRule,

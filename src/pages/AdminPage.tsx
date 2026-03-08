@@ -32,13 +32,7 @@ import {
 import { Add, Edit, Delete, Refresh, Person, LocationOn, Business, AdminPanelSettings } from '@mui/icons-material';
 import { useAuth } from './LoginPage/useAuth';
 import { useSearchParams } from 'react-router-dom';
-import type { User } from '../types/generated/User';
-import type { Site } from '../types/generated/Site';
-import type { CompanyWithTimestamps } from '../types/generated/CompanyWithTimestamps';
-import type { UserWithRolesAndTimestamps } from '../types/generated/UserWithRolesAndTimestamps';
-import type { CreateUserWithRolesRequest } from '../types/generated/CreateUserWithRolesRequest';
-import type { UpdateUserRequest } from '../types/generated/UpdateUserRequest';
-import type { CreateSiteRequest } from '../types/generated/CreateSiteRequest';
+import type { User, Site, CompanyWithTimestamps, UserWithRolesAndTimestamps, CreateUserWithRolesRequest, UpdateUserRequest, CreateSiteRequest } from '@newtown-energy/types';
 import { apiRequestWithMapping, ApiError } from '../utils/api';
 import type { ODataQueryOptions } from '../utils/api';
 import { debugLog } from '../utils/debug';

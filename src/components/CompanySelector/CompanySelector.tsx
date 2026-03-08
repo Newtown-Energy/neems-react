@@ -10,7 +10,7 @@ import type { SelectChangeEvent } from '@mui/material';
 import { Business } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { apiRequestWithMapping } from '../../utils/api';
-import type { Company } from '../../types/generated/Company';
+import type { Company } from '@newtown-energy/types';
 import { debugLog } from '../../utils/debug';
 
 interface CompanySelectorProps {

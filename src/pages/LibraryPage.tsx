@@ -17,7 +17,7 @@ import { useNavigate } from 'react-router-dom';
 import ScheduleLibrary from '../components/ScheduleLibrary';
 import ApplicationRuleDialog from '../components/ApplicationRuleDialog';
 
-import type { ScheduleLibraryItem } from '../types/generated/ScheduleLibraryItem';
+import type { ScheduleLibraryItem } from '@newtown-energy/types';
 
 export const pageConfig = {
   id: 'library',

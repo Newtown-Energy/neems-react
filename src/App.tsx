@@ -17,7 +17,7 @@ import LoginPage from './pages/LoginPage/LoginPage';
 import { debugLog } from './utils/debug';
 
 const AppContent: React.FC = () => {
-  const { loading, isAuthenticated, setIsAuthenticated, userInfo, saveUserInfo } = useAuth();
+  const { loading, isAuthenticated, setIsAuthenticated, saveUserInfo } = useAuth();
 
   debugLog('Router: AppContent render', {
     loading,

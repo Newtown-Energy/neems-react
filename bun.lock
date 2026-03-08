@@ -15,6 +15,7 @@
         "react-router-dom": "^7.7.0",
       },
       "devDependencies": {
+        "@newtown-energy/types": "^0.1.4",
         "@types/jest": "^29.5.14",
         "@types/node": "^24.0.10",
         "@types/react": "^19.1.8",
@@ -301,6 +302,8 @@
     "@mui/x-date-pickers": ["@mui/x-date-pickers@8.21.0", "", { "dependencies": { "@babel/runtime": "^7.28.4", "@mui/utils": "^7.3.5", "@mui/x-internals": "8.21.0", "@types/react-transition-group": "^4.4.12", "clsx": "^2.1.1", "prop-types": "^15.8.1", "react-transition-group": "^4.4.5" }, "peerDependencies": { "@emotion/react": "^11.9.0", "@emotion/styled": "^11.8.1", "@mui/material": "^5.15.14 || ^6.0.0 || ^7.0.0", "@mui/system": "^5.15.14 || ^6.0.0 || ^7.0.0", "date-fns": "^2.25.0 || ^3.2.0 || ^4.0.0", "date-fns-jalali": "^2.13.0-0 || ^3.2.0-0 || ^4.0.0-0", "dayjs": "^1.10.7", "luxon": "^3.0.2", "moment": "^2.29.4", "moment-hijri": "^2.1.2 || ^3.0.0", "moment-jalaali": "^0.7.4 || ^0.8.0 || ^0.9.0 || ^0.10.0", "react": "^17.0.0 || ^18.0.0 || ^19.0.0", "react-dom": "^17.0.0 || ^18.0.0 || ^19.0.0" }, "optionalPeers": ["@emotion/react", "@emotion/styled", "date-fns", "date-fns-jalali", "dayjs", "luxon", "moment", "moment-hijri", "moment-jalaali"] }, "sha512-nQ6T6RIHTO7AcUlh7+mICcbwcTOlu+GSSrBsF1Z6pdqbMaxxucABRW3cnC8PdYrSok4+zkkSdTzgKOSCGW+c1g=="],
 
     "@mui/x-internals": ["@mui/x-internals@8.21.0", "", { "dependencies": { "@babel/runtime": "^7.28.4", "@mui/utils": "^7.3.5", "reselect": "^5.1.1", "use-sync-external-store": "^1.6.0" }, "peerDependencies": { "react": "^17.0.0 || ^18.0.0 || ^19.0.0" } }, "sha512-tOU6iKi9phIQXWVzQvslKR/y5q+L/NKiBpSqtTDMV7aAxm2mOtCiO6POH2je1nw8iromrQAJfpV9pXDDRgZ01w=="],
+
+    "@newtown-energy/types": ["@newtown-energy/types@0.1.4", "", {}, "sha512-E/azi7gBqucU81c8odUFWwwLmjPrTaWRBVrG2wv2/Oh8/7FzbqGyW1uMWn5sxD+OQJduBBR/2wEJBKFSNgZSzg=="],
 
     "@nodelib/fs.scandir": ["@nodelib/fs.scandir@2.1.5", "", { "dependencies": { "@nodelib/fs.stat": "2.0.5", "run-parallel": "^1.1.9" } }, "sha512-vq24Bq3ym5HEQm2NKCr3yXDwjc7vTsEThRDnkp2DK9p1uqLR+DHurm/NOTo0KG7HYHU7eppKZj3MyqYuMBf62g=="],
 

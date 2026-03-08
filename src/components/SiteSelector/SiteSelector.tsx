@@ -9,7 +9,7 @@ import {
   type SelectChangeEvent
 } from '@mui/material';
 import { apiRequestWithMapping, ApiError } from '../../utils/api';
-import type { Site } from '../../types/generated/Site';
+import type { Site } from '@newtown-energy/types';
 import { debugLog } from '../../utils/debug';
 
 interface SiteSelectorProps {

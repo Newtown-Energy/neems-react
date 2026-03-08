@@ -1,4 +1,4 @@
-import type { ErrorResponse } from '../types/generated/ErrorResponse';
+import type { ErrorResponse } from '@newtown-energy/types';
 import { debugLog } from './debug';
 
 class ApiError extends Error {

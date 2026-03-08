@@ -47,9 +47,7 @@ import {
   Event as EventIcon
 } from '@mui/icons-material';
 
-import type { ScheduleLibraryItem } from '../../types/generated/ScheduleLibraryItem';
-import type { ApplicationRule } from '../../types/generated/ApplicationRule';
-import type { ScheduleCommandDto } from '../../types/generated/ScheduleCommandDto';
+import type { ScheduleLibraryItem, ApplicationRule, ScheduleCommandDto } from '@newtown-energy/types';
 import {
   getLibraryItems,
   createLibraryItem,
