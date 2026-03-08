@@ -21,7 +21,7 @@ import {
   Alert
 } from '@mui/material';
 
-import type { ScheduleLibraryItem } from '../../types/generated/ScheduleLibraryItem';
+import type { ScheduleLibraryItem } from '@newtown-energy/types';
 import { getLibraryItems } from '../../utils/scheduleApi';
 import { formatScheduleDate } from '../../utils/scheduleHelpers';
 

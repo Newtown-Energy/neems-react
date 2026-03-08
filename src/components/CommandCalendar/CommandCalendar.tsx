@@ -38,8 +38,7 @@ import {
   Star as StarIcon
 } from '@mui/icons-material';
 
-import type { ScheduleLibraryItem } from '../../types/generated/ScheduleLibraryItem';
-import type { CalendarDaySchedule } from '../../types/generated/CalendarDaySchedule';
+import type { ScheduleLibraryItem, CalendarDaySchedule } from '@newtown-energy/types';
 import {
   getEffectiveSchedule,
   getCalendarSchedules,

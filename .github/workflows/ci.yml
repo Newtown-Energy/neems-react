@@ -1,4 +1,4 @@
-name: Lint
+name: CI
 
 on:
   push:
@@ -24,3 +24,12 @@ jobs:
           bun-version: latest
       - run: bun install
       - run: bun run lint:tsc
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install
+      - run: bun run build

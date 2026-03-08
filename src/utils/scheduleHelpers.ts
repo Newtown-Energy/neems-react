@@ -5,9 +5,7 @@
  * including time conversion and validation.
  */
 
-import type { CommandType } from '../types/generated/CommandType';
-import type { RuleType } from '../types/generated/RuleType';
-import type { ScheduleCommandDto } from '../types/generated/ScheduleCommandDto';
+import type { CommandType, RuleType, ScheduleCommandDto } from '@newtown-energy/types';
 
 /**
  * Convert seconds offset to HH:MM string format

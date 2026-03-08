@@ -27,7 +27,7 @@ import { useNavigate } from 'react-router-dom';
 import CommandCalendar from '../components/CommandCalendar';
 import EditConfirmationDialog from '../components/EditConfirmationDialog';
 
-import type { ScheduleLibraryItem } from '../types/generated/ScheduleLibraryItem';
+import type { ScheduleLibraryItem } from '@newtown-energy/types';
 import {
   getLibraryItems,
   cloneLibraryItem,
@@ -93,7 +93,7 @@ const SchedulerPage: React.FC = () => {
 
     try {
       // Clone the library item
-      const clonedItem = await cloneLibraryItem(editLibraryItem.id, newName);
+      const clonedItem = await cloneLibraryItem(editLibraryItem.id, { name: newName, description: null });
 
       // Create a specific date rule for this date
       await createApplicationRule(clonedItem.id, {
