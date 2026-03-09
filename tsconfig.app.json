@@ -15,6 +15,15 @@
     "noEmit": true,
     "jsx": "react-jsx",
 
+    /* Local types resolution (falls back to published package) */
+    "baseUrl": ".",
+    "paths": {
+      "@newtown-energy/types": [
+        "../local-types",
+        "./node_modules/@newtown-energy/types/dist"
+      ]
+    },
+
     /* Linting */
     "strict": true,
     "noUnusedLocals": true,
