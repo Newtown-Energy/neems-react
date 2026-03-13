@@ -14,6 +14,8 @@ jobs:
         with:
           bun-version: latest
       - run: bun install
+        env:
+          GITHUB_PACKAGES_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: bun run lint:eslint
   tsc:
     runs-on: ubuntu-latest
@@ -23,6 +25,8 @@ jobs:
         with:
           bun-version: latest
       - run: bun install
+        env:
+          GITHUB_PACKAGES_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: bun run lint:tsc
   build:
     runs-on: ubuntu-latest
@@ -32,4 +36,6 @@ jobs:
         with:
           bun-version: latest
       - run: bun install
+        env:
+          GITHUB_PACKAGES_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: bun run build
