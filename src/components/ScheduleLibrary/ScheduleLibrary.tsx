@@ -60,7 +60,11 @@ import {
   timeToSeconds,
   getCommandTypeLabel,
   getCommandTypeColor,
-  formatDaysOfWeek
+  formatDaysOfWeek,
+  formatDuration,
+  formatSoC,
+  durationToSeconds,
+  secondsToDuration
 } from '../../utils/scheduleHelpers';
 import { debugLog } from '../../utils/debug';
 
@@ -105,6 +109,9 @@ const ScheduleLibrary: React.FC<ScheduleLibraryProps> = ({
   const [commandMinute, setCommandMinute] = useState(0);
   const [commandType, setCommandType] = useState<'charge' | 'discharge' | 'trickle_charge'>('charge');
   const [isCommandInlineEdit, setIsCommandInlineEdit] = useState(false);
+  const [commandDurationHours, setCommandDurationHours] = useState<number | null>(null);
+  const [commandDurationMinutes, setCommandDurationMinutes] = useState<number | null>(null);
+  const [commandTargetSoc, setCommandTargetSoc] = useState<number | null>(null);
 
   // Specific dates viewer
   const [specificDatesDialogOpen, setSpecificDatesDialogOpen] = useState(false);
@@ -281,6 +288,9 @@ const ScheduleLibrary: React.FC<ScheduleLibraryProps> = ({
     setCommandHour(0);
     setCommandMinute(0);
     setCommandType('charge');
+    setCommandDurationHours(null);
+    setCommandDurationMinutes(null);
+    setCommandTargetSoc(null);
     setIsCommandInlineEdit(isInlineEdit);
     setCommandDialogOpen(true);
   };
@@ -295,6 +305,17 @@ const ScheduleLibrary: React.FC<ScheduleLibraryProps> = ({
     setCommandHour(hours);
     setCommandMinute(minutes);
     setCommandType(command.command_type);
+    // Set duration fields
+    if (command.duration_seconds !== null && command.duration_seconds !== undefined) {
+      const duration = secondsToDuration(command.duration_seconds);
+      setCommandDurationHours(duration.hours);
+      setCommandDurationMinutes(duration.minutes);
+    } else {
+      setCommandDurationHours(null);
+      setCommandDurationMinutes(null);
+    }
+    // Set target SOC
+    setCommandTargetSoc(command.target_soc_percent ?? null);
     setCommandDialogOpen(true);
   };
 
@@ -311,7 +332,7 @@ const ScheduleLibrary: React.FC<ScheduleLibraryProps> = ({
     const specificDateRules = rules.filter(r => r.rule_type === 'specific_date');
     const allDates = specificDateRules.flatMap(rule => rule.specific_dates || []);
     // Sort dates chronologically
-    allDates.sort();
+    allDates.sort((a, b) => a.localeCompare(b));
     setViewingSpecificDates(allDates);
     setSpecificDatesDialogOpen(true);
   };
@@ -332,10 +353,25 @@ const ScheduleLibrary: React.FC<ScheduleLibraryProps> = ({
       return;
     }
 
+    // Calculate duration in seconds if hours or minutes are set
+    let durationSeconds: number | null = null;
+    if (commandDurationHours !== null || commandDurationMinutes !== null) {
+      durationSeconds = durationToSeconds(
+        commandDurationHours ?? 0,
+        commandDurationMinutes ?? 0
+      );
+      // Don't allow 0 duration
+      if (durationSeconds === 0) {
+        durationSeconds = null;
+      }
+    }
+
     const newCommand: ScheduleCommandDto = {
       id: editingCommandIndex !== null ? commands[editingCommandIndex].id : Date.now(),
       execution_offset_seconds: offsetSeconds,
-      command_type: commandType
+      command_type: commandType,
+      duration_seconds: durationSeconds,
+      target_soc_percent: commandTargetSoc
     };
 
     if (editingCommandIndex !== null) {
@@ -568,6 +604,8 @@ const ScheduleLibrary: React.FC<ScheduleLibraryProps> = ({
                               <TableRow>
                                 <TableCell>Time</TableCell>
                                 <TableCell>Type</TableCell>
+                                <TableCell>Duration</TableCell>
+                                <TableCell>Target SOC</TableCell>
                                 {isEditing && <TableCell align="right">Actions</TableCell>}
                               </TableRow>
                             </TableHead>
@@ -582,6 +620,8 @@ const ScheduleLibrary: React.FC<ScheduleLibraryProps> = ({
                                       size="small"
                                     />
                                   </TableCell>
+                                  <TableCell>{formatDuration(command.duration_seconds)}</TableCell>
+                                  <TableCell>{formatSoC(command.target_soc_percent)}</TableCell>
                                   {isEditing && (
                                     <TableCell align="right">
                                       <IconButton size="small" onClick={() => handleEditCommand(index, true)}>
@@ -665,6 +705,8 @@ const ScheduleLibrary: React.FC<ScheduleLibraryProps> = ({
                     <TableRow>
                       <TableCell>Time</TableCell>
                       <TableCell>Type</TableCell>
+                      <TableCell>Duration</TableCell>
+                      <TableCell>Target SOC</TableCell>
                       <TableCell align="right">Actions</TableCell>
                     </TableRow>
                   </TableHead>
@@ -679,6 +721,8 @@ const ScheduleLibrary: React.FC<ScheduleLibraryProps> = ({
                             size="small"
                           />
                         </TableCell>
+                        <TableCell>{formatDuration(command.duration_seconds)}</TableCell>
+                        <TableCell>{formatSoC(command.target_soc_percent)}</TableCell>
                         <TableCell align="right">
                           <IconButton size="small" onClick={() => handleEditCommand(index)}>
                             <EditIcon fontSize="small" />
@@ -725,7 +769,9 @@ const ScheduleLibrary: React.FC<ScheduleLibraryProps> = ({
         </DialogTitle>
         <DialogContent>
           <Box sx={{ pt: 2 }}>
-            <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+            {/* Execution Time */}
+            <Typography variant="subtitle2" sx={{ mb: 1 }}>Execution Time</Typography>
+            <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
               <FormControl fullWidth>
                 <InputLabel>Hour</InputLabel>
                 <Select
@@ -756,18 +802,78 @@ const ScheduleLibrary: React.FC<ScheduleLibraryProps> = ({
               </FormControl>
             </Box>
 
-            <FormControl fullWidth>
+            {/* Command Type */}
+            <FormControl fullWidth sx={{ mb: 3 }}>
               <InputLabel>Command Type</InputLabel>
               <Select
                 value={commandType}
                 label="Command Type"
-                onChange={e => setCommandType(e.target.value as any)}
+                onChange={e => setCommandType(e.target.value as 'charge' | 'discharge' | 'trickle_charge')}
               >
                 <MenuItem value="charge">Charge</MenuItem>
                 <MenuItem value="discharge">Discharge</MenuItem>
                 <MenuItem value="trickle_charge">Trickle Charge</MenuItem>
               </Select>
             </FormControl>
+
+            {/* Duration (optional) */}
+            <Typography variant="subtitle2" sx={{ mb: 1 }}>Duration (optional)</Typography>
+            <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
+              <FormControl fullWidth>
+                <InputLabel>Hours</InputLabel>
+                <Select
+                  value={commandDurationHours ?? ''}
+                  label="Hours"
+                  onChange={e => setCommandDurationHours(e.target.value === '' as unknown ? null : Number(e.target.value))}
+                >
+                  <MenuItem value="">-</MenuItem>
+                  {Array.from({ length: 24 }, (_, i) => (
+                    <MenuItem key={i} value={i}>
+                      {i}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <FormControl fullWidth>
+                <InputLabel>Minutes</InputLabel>
+                <Select
+                  value={commandDurationMinutes ?? ''}
+                  label="Minutes"
+                  onChange={e => setCommandDurationMinutes(e.target.value === '' as unknown ? null : Number(e.target.value))}
+                >
+                  <MenuItem value="">-</MenuItem>
+                  {[0, 15, 30, 45].map(m => (
+                    <MenuItem key={m} value={m}>
+                      {m}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
+
+            {/* Target SOC (optional) */}
+            <Typography variant="subtitle2" sx={{ mb: 1 }}>Target State of Charge (optional)</Typography>
+            <TextField
+              fullWidth
+              type="number"
+              label="Target SOC %"
+              value={commandTargetSoc ?? ''}
+              onChange={e => {
+                const value = e.target.value;
+                if (value === '') {
+                  setCommandTargetSoc(null);
+                } else {
+                  const num = parseInt(value, 10);
+                  if (!isNaN(num) && num >= 0 && num <= 100) {
+                    setCommandTargetSoc(num);
+                  }
+                }
+              }}
+              InputProps={{
+                inputProps: { min: 0, max: 100 }
+              }}
+              helperText="Enter a value between 0 and 100"
+            />
           </Box>
         </DialogContent>
         <DialogActions>
