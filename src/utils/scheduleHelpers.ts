@@ -139,6 +139,77 @@ export function getCommandTypes(): CommandType[] {
 }
 
 /**
+ * Format duration in seconds to human-readable string
+ *
+ * @param durationSeconds - Duration in seconds, or null
+ * @returns Human-readable duration string (e.g., "2h 30m") or "-" for null
+ *
+ * @example
+ * formatDuration(null)    // "-"
+ * formatDuration(3600)    // "1h"
+ * formatDuration(5400)    // "1h 30m"
+ * formatDuration(1800)    // "30m"
+ */
+export function formatDuration(durationSeconds: number | null): string {
+  if (durationSeconds === null) return '-';
+  const hours = Math.floor(durationSeconds / 3600);
+  const minutes = Math.floor((durationSeconds % 3600) / 60);
+  if (hours > 0) {
+    return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
+  }
+  return `${minutes}m`;
+}
+
+/**
+ * Format state of charge percentage
+ *
+ * @param socPercent - SOC percentage (0-100), or null
+ * @returns Formatted SOC string (e.g., "85%") or "-" for null
+ *
+ * @example
+ * formatSoC(null)   // "-"
+ * formatSoC(0)      // "0%"
+ * formatSoC(85)     // "85%"
+ * formatSoC(100)    // "100%"
+ */
+export function formatSoC(socPercent: number | null): string {
+  if (socPercent === null) return '-';
+  return `${socPercent}%`;
+}
+
+/**
+ * Convert hours and minutes to total seconds
+ *
+ * @param hours - Hours component
+ * @param minutes - Minutes component
+ * @returns Total duration in seconds
+ *
+ * @example
+ * durationToSeconds(1, 30)  // 5400
+ * durationToSeconds(0, 45)  // 2700
+ */
+export function durationToSeconds(hours: number, minutes: number): number {
+  return hours * 3600 + minutes * 60;
+}
+
+/**
+ * Convert duration in seconds to hours and minutes components
+ *
+ * @param seconds - Total duration in seconds
+ * @returns Object with hours and minutes components
+ *
+ * @example
+ * secondsToDuration(5400)  // { hours: 1, minutes: 30 }
+ * secondsToDuration(2700)  // { hours: 0, minutes: 45 }
+ */
+export function secondsToDuration(seconds: number): { hours: number; minutes: number } {
+  return {
+    hours: Math.floor(seconds / 3600),
+    minutes: Math.floor((seconds % 3600) / 60)
+  };
+}
+
+/**
  * Format Date to ISO date string (YYYY-MM-DD)
  *
  * @param date - Date object

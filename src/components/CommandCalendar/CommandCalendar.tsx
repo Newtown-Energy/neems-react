@@ -52,7 +52,9 @@ import {
   isPastDate,
   secondsToTime,
   getCommandTypeLabel,
-  getCommandTypeColor
+  getCommandTypeColor,
+  formatDuration,
+  formatSoC
 } from '../../utils/scheduleHelpers';
 import { debugLog } from '../../utils/debug';
 
@@ -563,6 +565,8 @@ const CommandCalendar: React.FC<CommandCalendarProps> = ({
                         <TableRow>
                           <TableCell>Time</TableCell>
                           <TableCell>Type</TableCell>
+                          <TableCell>Duration</TableCell>
+                          <TableCell>Target SOC</TableCell>
                         </TableRow>
                       </TableHead>
                       <TableBody>
@@ -576,6 +580,8 @@ const CommandCalendar: React.FC<CommandCalendarProps> = ({
                                 size="small"
                               />
                             </TableCell>
+                            <TableCell>{formatDuration(command.duration_seconds)}</TableCell>
+                            <TableCell>{formatSoC(command.target_soc_percent)}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
