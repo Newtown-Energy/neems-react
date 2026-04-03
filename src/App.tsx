@@ -9,6 +9,7 @@ import Battery3Page from './pages/Battery3Page';
 import ConEdisonPage from './pages/ConEdisonPage';
 import FDNYPage from './pages/FDNYPage';
 import AdminPage from './pages/AdminPage';
+import AlarmsPage from './pages/AlarmsPage';
 import SchedulerPage from './pages/SchedulerPage';
 import LibraryPage from './pages/LibraryPage';
 import './styles/App.scss';
@@ -48,6 +49,7 @@ const AppContent: React.FC = () => {
           <Routes>
             <Route path="/" element={<OverviewPage />} />
             <Route path="/overview" element={<Navigate to="/" replace />} />
+            <Route path="/alarms" element={<AlarmsPage />} />
             <Route path="/battery1" element={<Battery1Page />} />
             <Route path="/battery2" element={<Battery2Page />} />
             <Route path="/battery3" element={<Battery3Page />} />

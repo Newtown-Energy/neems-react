@@ -1,4 +1,5 @@
 import { pageConfig as overviewConfig } from '../pages/OverviewPage';
+import { pageConfig as alarmsConfig } from '../pages/AlarmsPage';
 import { pageConfig as battery1Config } from '../pages/Battery1Page';
 import { pageConfig as battery2Config } from '../pages/Battery2Page';
 import { pageConfig as battery3Config } from '../pages/Battery3Page';
@@ -15,6 +16,7 @@ export interface PageConfig {
 
 export const pageRegistry: Record<string, PageConfig> = {
   [overviewConfig.id]: overviewConfig,
+  [alarmsConfig.id]: alarmsConfig,
   [battery1Config.id]: battery1Config,
   [battery2Config.id]: battery2Config,
   [battery3Config.id]: battery3Config,
