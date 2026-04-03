@@ -15,7 +15,7 @@
         "react-router-dom": "^7.7.0",
       },
       "devDependencies": {
-        "@newtown-energy/types": "^0.1.5",
+        "@newtown-energy/types": "0.3.0",
         "@types/jest": "^29.5.14",
         "@types/node": "^24.0.10",
         "@types/react": "^19.1.8",
@@ -311,7 +311,7 @@
 
     "@mui/x-internals": ["@mui/x-internals@8.26.0", "", { "dependencies": { "@babel/runtime": "^7.28.4", "@mui/utils": "^7.3.5", "reselect": "^5.1.1", "use-sync-external-store": "^1.6.0" }, "peerDependencies": { "react": "^17.0.0 || ^18.0.0 || ^19.0.0" } }, "sha512-B9OZau5IQUvIxwpJZhoFJKqRpmWf5r0yMmSXjQuqb5WuqM755EuzWJOenY48denGoENzMLT8hQpA0hRTeU2IPA=="],
 
-    "@newtown-energy/types": ["@newtown-energy/types@0.1.5", "https://npm.pkg.github.com/download/@newtown-energy/types/0.1.5/ccfa99632030f467b2a8ee36d2e04e93b0cdff80", {}, "sha512-WxcZM8/EOYMDoLagURjISWnuHuBW71nrhDCoEpC+3o/LggDz9woCA5o+p8xZz3RofJi5/du/lv3UxWDmsW+FRg=="],
+    "@newtown-energy/types": ["@newtown-energy/types@0.3.0", "https://npm.pkg.github.com/download/@newtown-energy/types/0.3.0/e38fb0b8b547c5e7c5fbbf49300e40178a15fca0", {}, "sha512-cT39U1U7kNYWVIeuBRATPBa13C5fRkBkXdDzhbTEORJHkbfgod28gipeC4Jh5qYi1Kek1ljA0rmOXW7+/jDTDw=="],
 
     "@parcel/watcher": ["@parcel/watcher@2.5.6", "", { "dependencies": { "detect-libc": "^2.0.3", "is-glob": "^4.0.3", "node-addon-api": "^7.0.0", "picomatch": "^4.0.3" }, "optionalDependencies": { "@parcel/watcher-android-arm64": "2.5.6", "@parcel/watcher-darwin-arm64": "2.5.6", "@parcel/watcher-darwin-x64": "2.5.6", "@parcel/watcher-freebsd-x64": "2.5.6", "@parcel/watcher-linux-arm-glibc": "2.5.6", "@parcel/watcher-linux-arm-musl": "2.5.6", "@parcel/watcher-linux-arm64-glibc": "2.5.6", "@parcel/watcher-linux-arm64-musl": "2.5.6", "@parcel/watcher-linux-x64-glibc": "2.5.6", "@parcel/watcher-linux-x64-musl": "2.5.6", "@parcel/watcher-win32-arm64": "2.5.6", "@parcel/watcher-win32-ia32": "2.5.6", "@parcel/watcher-win32-x64": "2.5.6" } }, "sha512-tmmZ3lQxAe/k/+rNnXQRawJ4NjxO2hqiOLTHvWchtGZULp4RyFeh6aU4XdOYBFe2KE1oShQTv4AblOs2iOrNnQ=="],
 
