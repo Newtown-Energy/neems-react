@@ -417,7 +417,8 @@ const AdminPage: React.FC = () => {
         address: siteLocation,
         latitude: 0, // Default values - would need proper geocoding
         longitude: 0,
-        company_id: siteCompany || selectedCompanyId
+        company_id: siteCompany || selectedCompanyId,
+        ramp_duration_seconds: 0
       };
       await apiRequestWithMapping(url, {
         method,
