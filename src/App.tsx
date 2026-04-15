@@ -12,6 +12,7 @@ import AdminPage from './pages/AdminPage';
 import AlarmsPage from './pages/AlarmsPage';
 import SchedulerPage from './pages/SchedulerPage';
 import LibraryPage from './pages/LibraryPage';
+import SldPage from './pages/SldPage';
 import './styles/App.scss';
 import { useAuth } from './pages/LoginPage/useAuth';
 import LoginPage from './pages/LoginPage/LoginPage';
@@ -57,6 +58,7 @@ const AppContent: React.FC = () => {
             <Route path="/fdny" element={<FDNYPage />} />
             <Route path="/scheduler" element={<SchedulerPage />} />
             <Route path="/library" element={<LibraryPage />} />
+            <Route path="/sld" element={<SldPage />} />
             <Route path="/admin" element={<AdminPage />} />
           </Routes>
         </Box>

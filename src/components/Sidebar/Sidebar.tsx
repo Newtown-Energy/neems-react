@@ -25,6 +25,7 @@ const Sidebar: React.FC<SidebarProps> = () => { // Removed unused className
     if (path === '/battery1') return 'battery1';
     if (path === '/conedison') return 'conedison';
     if (path === '/fdny') return 'fdny';
+    if (path === '/sld') return 'sld';
     if (path === '/scheduler' || path === '/library') return 'scheduler';
     if (path === '/admin') return 'admin';
     return 'overview';
@@ -34,7 +35,7 @@ const Sidebar: React.FC<SidebarProps> = () => { // Removed unused className
   const isAdmin = userRoles.includes('admin') || userRoles.includes('newtown-admin') || userRoles.includes('newtown-staff');
 
   // Get navigation items from page configs
-  const enabledPageIds = ['overview', 'alarms', 'battery1', 'conedison', 'fdny', 'scheduler'];
+  const enabledPageIds = ['overview', 'alarms', 'sld', 'battery1', 'conedison', 'fdny', 'scheduler'];
   
   const navItems = enabledPageIds.map(pageId => {
     const config = getPageConfig(pageId);
