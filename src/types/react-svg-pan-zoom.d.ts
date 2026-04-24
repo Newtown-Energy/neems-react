@@ -2,7 +2,7 @@
 // not ship TypeScript types and @types/react-svg-pan-zoom is not installed.
 // Covers only the surface the SLD uses. Expand as needed.
 declare module 'react-svg-pan-zoom' {
-  import type { ComponentType, ReactNode, CSSProperties } from 'react';
+  import type { ComponentType, ReactNode, CSSProperties, Ref } from 'react';
 
   export type Tool = 'auto' | 'none' | 'pan' | 'zoom-in' | 'zoom-out';
 
@@ -44,7 +44,23 @@ declare module 'react-svg-pan-zoom' {
     children?: ReactNode;
   }
 
-  export const ReactSVGPanZoom: ComponentType<ReactSVGPanZoomProps>;
+  export interface ReactSVGPanZoomInstance {
+    fitToViewer: (SVGAlignX?: string, SVGAlignY?: string) => void;
+    fitSelection: (
+      selectionSVGPointX: number,
+      selectionSVGPointY: number,
+      selectionWidth: number,
+      selectionHeight: number,
+    ) => void;
+    zoomOnViewerCenter: (scaleFactor: number) => void;
+    reset: () => void;
+    pan: (SVGDeltaX: number, SVGDeltaY: number) => void;
+    setPointOnViewerCenter: (SVGPointX: number, SVGPointY: number, zoomLevel: number) => void;
+  }
+
+  export const ReactSVGPanZoom: ComponentType<
+    ReactSVGPanZoomProps & { ref?: Ref<ReactSVGPanZoomInstance> }
+  >;
 
   export const TOOL_AUTO: Tool;
   export const TOOL_NONE: Tool;

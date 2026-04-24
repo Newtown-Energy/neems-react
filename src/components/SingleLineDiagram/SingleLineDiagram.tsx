@@ -14,7 +14,7 @@ import {
   INITIAL_VALUE,
   POSITION_RIGHT,
 } from 'react-svg-pan-zoom';
-import type { Tool, Value } from 'react-svg-pan-zoom';
+import type { Tool, Value, ReactSVGPanZoomInstance } from 'react-svg-pan-zoom';
 import {
   sldReducer,
   createInitialState,
@@ -119,13 +119,15 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({
   const [tool, setTool] = useState<Tool>(TOOL_AUTO);
   const [viewerValue, setViewerValue] = useState<Value | Record<string, never>>(INITIAL_VALUE);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const viewerRef = useRef<ReactSVGPanZoomInstance | null>(null);
   const [viewerSize, setViewerSize] = useState({
     width: DIAGRAM_WIDTH,
     height: DIAGRAM_HEIGHT,
   });
 
-  // Size the viewer to its container. Preserves the 3:2 aspect ratio of the
-  // underlying diagram so pan/zoom defaults render the full site.
+  // Size the viewer to its container and fit the full diagram to whatever
+  // size the viewer ends up at — so the whole site is visible on first paint
+  // and after any resize, regardless of window width.
   useLayoutEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -140,6 +142,15 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
+
+  // Whenever the viewer's pixel dimensions change, re-fit the diagram to it.
+  useEffect(() => {
+    // Defer so ReactSVGPanZoom has applied the new width/height internally.
+    const id = requestAnimationFrame(() => {
+      viewerRef.current?.fitToViewer();
+    });
+    return () => cancelAnimationFrame(id);
+  }, [viewerSize.width, viewerSize.height]);
 
   useSldAlarms(dispatch, !demoMode);
 
@@ -174,6 +185,7 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({
       }}
     >
       <ReactSVGPanZoom
+        ref={viewerRef}
         width={viewerSize.width}
         height={viewerSize.height}
         tool={tool}
