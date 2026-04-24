@@ -5,34 +5,61 @@ import { useStatusColors } from './useStatusColors';
 import AlarmIndicator from './AlarmIndicator';
 
 /**
- * IEC utility/grid connection symbol: three angled lines representing
- * an infinite bus / power source.
+ * Utility line-in connection: a downward-pointing triangle meeting the power
+ * line, with a labeled box (the line/circuit number, e.g. "ConEd 6Q81") to
+ * the right.
  */
-const UtilityConnection: React.FC<SldElementProps> = ({ x, y, state, label = 'UTILITY' }) => {
+const UtilityConnection: React.FC<SldElementProps> = ({
+  x,
+  y,
+  state,
+  label = 'UTILITY',
+}) => {
   const theme = useTheme();
   const { stroke } = useStatusColors(state);
   const lineColor = state.status === 'normal' ? theme.palette.text.primary : stroke;
 
+  const w = 18;
+  const h = 20;
+  const boxW = 100;
+  const boxH = 32;
+
   return (
     <g transform={`translate(${x}, ${y})`}>
-      {/* Three angled lines (grid symbol) */}
-      <line x1={-12} y1={-18} x2={0} y2={0} stroke={lineColor} strokeWidth={2} />
-      <line x1={0} y1={-18} x2={0} y2={0} stroke={lineColor} strokeWidth={2} />
-      <line x1={12} y1={-18} x2={0} y2={0} stroke={lineColor} strokeWidth={2} />
-      {/* Connection point */}
-      <circle cx={0} cy={0} r={3} fill={lineColor} />
-      {/* Label */}
+      {/* Downward-pointing triangle */}
+      <polygon
+        points={`${-w / 2},${-h} ${w / 2},${-h} 0,0`}
+        fill={lineColor}
+        stroke={lineColor}
+        strokeWidth={1}
+      />
+      {/* Connection point where triangle meets the line */}
+      <circle cx={0} cy={0} r={2} fill={lineColor} />
+
+      {/* Line-number label box to the right */}
+      <rect
+        x={w}
+        y={-h - 6}
+        width={boxW}
+        height={boxH}
+        fill={theme.palette.background.paper}
+        stroke={theme.palette.text.primary}
+        strokeWidth={1}
+        rx={2}
+      />
       <text
-        x={0}
-        y={-24}
+        x={w + boxW / 2}
+        y={-h + 14}
         textAnchor="middle"
-        fontSize={11}
+        fontSize={13}
         fontFamily="monospace"
+        fontWeight="bold"
         fill={theme.palette.text.primary}
       >
         {label}
       </text>
-      <AlarmIndicator state={state} offsetX={16} offsetY={-16} />
+
+      <AlarmIndicator state={state} offsetX={w / 2 + 4} offsetY={-h - 10} />
     </g>
   );
 };

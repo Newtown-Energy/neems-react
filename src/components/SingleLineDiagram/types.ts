@@ -12,6 +12,16 @@ export type ComponentStatus = 'normal' | 'alarm' | 'warning' | 'offline';
 /** Switch/breaker position */
 export type SwitchPosition = 'open' | 'closed';
 
+/**
+ * Derived visual state for knife-switch-style elements.
+ * `locked-out` forces the switch to render grey + open regardless of `switchPosition`
+ * (used for E-stop, fire alarm, lockout relay).
+ */
+export type SwitchVisualState = 'closed' | 'open' | 'locked-out';
+
+/** Site-level operational mode driven by E-stop */
+export type OperationalMode = 'normal' | 'e-stop-active';
+
 /** Direction of active power flow on a wire */
 export type PowerFlowDirection = 'forward' | 'reverse' | 'none';
 
@@ -24,6 +34,12 @@ export interface SldComponentState {
   activeAlarmCount: number;
   activeAlarms: ActiveAlarmSummary[];
   switchPosition?: SwitchPosition;
+  /**
+   * Optional live analog/digital values keyed by a caller-defined name
+   * (e.g. 'kW', 'kVar', 'voltage', 'amps', 'soc', 'stackTemp').
+   * `null` means "slot exists but no data yet" — rendered as `--`.
+   */
+  analogs?: Record<string, number | null>;
 }
 
 /** State for a wire/connection */
@@ -42,6 +58,7 @@ export interface SldDiagramState {
   lastAlarmUpdate: string | null;
   dataAgeSeconds: number | null;
   dataStale: boolean;
+  operationalMode: OperationalMode;
 }
 
 /** Common props for all SVG element components */
