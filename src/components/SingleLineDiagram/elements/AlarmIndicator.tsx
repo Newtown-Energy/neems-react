@@ -1,7 +1,10 @@
 import React, { useRef, useState } from 'react';
 import { Chip, Popover, Stack, Typography, useTheme } from '@mui/material';
 import { formatAlarmName, getSeverityColor, ZONE_DISPLAY_NAMES } from '../../../utils/alarmHelpers';
+import type { AlarmSeverityDto } from '@newtown-energy/types';
 import type { SldComponentState } from '../types';
+import { SLD_FONT } from '../sldTypography';
+import { severityColor } from './useStatusColors';
 
 interface AlarmIndicatorProps {
   state: SldComponentState;
@@ -9,27 +12,73 @@ interface AlarmIndicatorProps {
   offsetY: number;
 }
 
+/** Hexagon polygon points centered at (0,0) with the given circumradius. */
+function hexagonPoints(r: number): string {
+  const pts: string[] = [];
+  for (let i = 0; i < 6; i += 1) {
+    const angle = (Math.PI / 3) * i - Math.PI / 2;
+    pts.push(`${(r * Math.cos(angle)).toFixed(2)},${(r * Math.sin(angle)).toFixed(2)}`);
+  }
+  return pts.join(' ');
+}
+
+/** Equilateral triangle pointing up, centered at (0,0) with the given circumradius. */
+function trianglePoints(r: number): string {
+  const pts: string[] = [];
+  for (let i = 0; i < 3; i += 1) {
+    const angle = ((2 * Math.PI) / 3) * i - Math.PI / 2;
+    pts.push(`${(r * Math.cos(angle)).toFixed(2)},${(r * Math.sin(angle)).toFixed(2)}`);
+  }
+  return pts.join(' ');
+}
+
 /**
- * A small colored badge overlay that appears on alarmed components.
- * Shows a severity-colored dot with the alarm count.
- * Pulses for Emergency/Critical alarms.
- * Clicking opens a popover with alarm details.
+ * Severity badge shape — a bold filled shape whose geometry encodes severity:
+ *   Emergency → hexagon
+ *   Critical  → square
+ *   Warning   → triangle
+ *   Info      → circle
+ * All shapes are sized to a similar visual area so the alarm count stays
+ * legible inside.
+ */
+const SeverityShape: React.FC<{
+  severity: AlarmSeverityDto;
+  color: string;
+  strokeColor: string;
+}> = ({ severity, color, strokeColor }) => {
+  const common = {
+    fill: color,
+    stroke: strokeColor,
+    strokeWidth: 2,
+    strokeLinejoin: 'round' as const,
+  };
+  switch (severity) {
+    case 'Emergency':
+      return <polygon points={hexagonPoints(10)} {...common} />;
+    case 'Critical':
+      return <rect x={-8} y={-8} width={16} height={16} rx={1} {...common} />;
+    case 'Warning':
+      return <polygon points={trianglePoints(11)} {...common} />;
+    case 'Info':
+      return <circle cx={0} cy={0} r={8} {...common} />;
+  }
+};
+
+/**
+ * Colored badge overlay that appears on alarmed components. The badge's
+ * shape encodes severity (hexagon/square/triangle/circle) and the center
+ * shows the active alarm count. Emergency/Critical badges pulse via a halo
+ * ring animation. Clicking opens a popover listing the active alarms.
  */
 const AlarmIndicator: React.FC<AlarmIndicatorProps> = ({ state, offsetX, offsetY }) => {
   const theme = useTheme();
-  const badgeRef = useRef<SVGCircleElement>(null);
+  const badgeRef = useRef<SVGGElement>(null);
   const [popoverOpen, setPopoverOpen] = useState(false);
 
   if (state.activeAlarmCount === 0 || !state.highestSeverity) return null;
 
-  const colorMap: Record<string, string> = {
-    Emergency: theme.palette.error.main,
-    Critical: theme.palette.error.light,
-    Warning: theme.palette.warning.main,
-    Info: theme.palette.info.main,
-  };
-
-  const badgeColor = colorMap[state.highestSeverity] ?? theme.palette.error.main;
+  const color = severityColor(state.highestSeverity, theme);
+  const strokeColor = theme.palette.getContrastText(color);
   const shouldPulse =
     state.highestSeverity === 'Emergency' || state.highestSeverity === 'Critical';
 
@@ -41,40 +90,42 @@ const AlarmIndicator: React.FC<AlarmIndicatorProps> = ({ state, offsetX, offsetY
   return (
     <g transform={`translate(${offsetX}, ${offsetY})`}>
       {shouldPulse && (
-        <circle cx={0} cy={0} r={10} fill={badgeColor} opacity={0.3}>
+        <circle cx={0} cy={0} r={12} fill={color} opacity={0.3}>
           <animate
             attributeName="r"
-            values="8;12;8"
+            values="10;16;10"
             dur="1.5s"
             repeatCount="indefinite"
           />
           <animate
             attributeName="opacity"
-            values="0.3;0.1;0.3"
+            values="0.3;0.05;0.3"
             dur="1.5s"
             repeatCount="indefinite"
           />
         </circle>
       )}
-      {/* Clickable badge circle */}
-      <circle
+      {/* Clickable severity-shaped badge */}
+      <g
         ref={badgeRef}
-        cx={0}
-        cy={0}
-        r={8}
-        fill={badgeColor}
         style={{ cursor: 'pointer' }}
         onClick={handleClick}
-      />
+      >
+        <SeverityShape
+          severity={state.highestSeverity}
+          color={color}
+          strokeColor={strokeColor}
+        />
+      </g>
       {/* Alarm count */}
       <text
         x={0}
         y={4}
         textAnchor="middle"
-        fontSize={10}
+        fontSize={SLD_FONT.badge}
         fontFamily="monospace"
         fontWeight="bold"
-        fill="#fff"
+        fill={strokeColor}
         style={{ pointerEvents: 'none' }}
       >
         {state.activeAlarmCount}

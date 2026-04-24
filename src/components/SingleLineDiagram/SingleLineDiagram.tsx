@@ -1,5 +1,13 @@
-import React, { useReducer, useCallback } from 'react';
-import { Box } from '@mui/material';
+import React, { useCallback, useReducer, useState } from 'react';
+import {
+  Box,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
+} from '@mui/material';
 import {
   sldReducer,
   createInitialState,
@@ -16,7 +24,12 @@ import NewtownLayout from './layouts/NewtownLayout';
 const INITIAL_COMPONENTS = [
   defComponent('site', 'Site'),
   defComponent('meter-main', 'Meter'),
-  defComponent('breaker-main', 'BreakerRelay', 'closed'),
+  // SEL-451 protective relay. Kept under the BreakerRelay zone (it's the
+  // relay that alarms publish against), but rendered as an off-line control
+  // box with dashed supervision lines to the two 89L switches.
+  defComponent('breaker-main', 'BreakerRelay'),
+  defComponent('switch-89l-1', 'BreakerRelay', 'closed'),
+  defComponent('switch-89l-2', 'BreakerRelay', 'closed'),
   defComponent('transformer-1', 'Transformer1'),
   defComponent('transformer-2', 'Transformer2'),
   defComponent('rtac', 'Rtac'),
@@ -28,34 +41,43 @@ const INITIAL_COMPONENTS = [
   defComponent('megapack-2a', 'Mp2a'),
   defComponent('megapack-2b', 'Mp2b'),
   defComponent('megapack-2c', 'Mp2c'),
-  // Feeder breakers (use TeslaSiteController zone as a group for now)
   defComponent('feeder-1a', 'TeslaSiteController', 'closed'),
   defComponent('feeder-1b', 'TeslaSiteController', 'closed'),
   defComponent('feeder-1c', 'TeslaSiteController', 'closed'),
   defComponent('feeder-2a', 'TeslaSiteController', 'closed'),
   defComponent('feeder-2b', 'TeslaSiteController', 'closed'),
   defComponent('feeder-2c', 'TeslaSiteController', 'closed'),
+  // Lockout relay — physical breaker-control handle driven by the SEL-451.
+  // Shares the BreakerRelay zone for alarm mapping. 'closed' = CLOSE (normal),
+  // 'open' = TRIP (breaker tripped / locked out).
+  defComponent('lockout-relay', 'BreakerRelay', 'closed'),
 ];
 
 const INITIAL_WIRES = [
-  defWire('wire-util-meter', 'site', 'meter-main'),
-  defWire('wire-meter-brk', 'meter-main', 'breaker-main'),
-  defWire('wire-brk-t1', 'breaker-main', 'transformer-1'),
-  defWire('wire-brk-t2', 'breaker-main', 'transformer-2'),
-  defWire('wire-t1-bus', 'transformer-1', 'bus'),
-  defWire('wire-t2-bus', 'transformer-2', 'bus'),
-  defWire('wire-bus-feeder-0', 'bus', 'feeder-1a'),
-  defWire('wire-bus-feeder-1', 'bus', 'feeder-1b'),
-  defWire('wire-bus-feeder-2', 'bus', 'feeder-1c'),
-  defWire('wire-bus-feeder-3', 'bus', 'feeder-2a'),
-  defWire('wire-bus-feeder-4', 'bus', 'feeder-2b'),
-  defWire('wire-bus-feeder-5', 'bus', 'feeder-2c'),
+  defWire('wire-util-bus', 'site', 'bus-26kv'),
+  defWire('wire-bus26-sw1', 'bus-26kv', 'switch-89l-1'),
+  defWire('wire-bus26-sw2', 'bus-26kv', 'switch-89l-2'),
+  defWire('wire-sw1-t1', 'switch-89l-1', 'transformer-1'),
+  defWire('wire-sw2-t2', 'switch-89l-2', 'transformer-2'),
+  defWire('wire-t1-bus480-1', 'transformer-1', 'bus-480-1'),
+  defWire('wire-t2-bus480-2', 'transformer-2', 'bus-480-2'),
+  defWire('wire-bus480-feeder-0', 'bus-480-1', 'feeder-1a'),
+  defWire('wire-bus480-feeder-1', 'bus-480-1', 'feeder-1b'),
+  defWire('wire-bus480-feeder-2', 'bus-480-1', 'feeder-1c'),
+  defWire('wire-bus480-feeder-3', 'bus-480-2', 'feeder-2a'),
+  defWire('wire-bus480-feeder-4', 'bus-480-2', 'feeder-2b'),
+  defWire('wire-bus480-feeder-5', 'bus-480-2', 'feeder-2c'),
   defWire('wire-feeder-mega-0', 'feeder-1a', 'megapack-1a'),
   defWire('wire-feeder-mega-1', 'feeder-1b', 'megapack-1b'),
   defWire('wire-feeder-mega-2', 'feeder-1c', 'megapack-1c'),
   defWire('wire-feeder-mega-3', 'feeder-2a', 'megapack-2a'),
   defWire('wire-feeder-mega-4', 'feeder-2b', 'megapack-2b'),
   defWire('wire-feeder-mega-5', 'feeder-2c', 'megapack-2c'),
+  // Control (dashed) wires — supervision/command paths, not power
+  defWire('wire-sel-sw1', 'breaker-main', 'switch-89l-1'),
+  defWire('wire-sel-sw2', 'breaker-main', 'switch-89l-2'),
+  defWire('wire-sel-lockout', 'breaker-main', 'lockout-relay'),
+  defWire('wire-facp', 'fire-alarm-panel', 'transformer-2'),
 ];
 
 const INITIAL_STATE = createInitialState(INITIAL_COMPONENTS, INITIAL_WIRES);
@@ -79,16 +101,14 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({
   onStateChange,
 }) => {
   const [state, dispatch] = useReducer(sldReducer, INITIAL_STATE);
+  const [eStopDialogOpen, setEStopDialogOpen] = useState(false);
 
-  // Poll alarms and map to diagram state (paused in demo mode)
   useSldAlarms(dispatch, !demoMode);
 
-  // Expose dispatch to parent
   React.useEffect(() => {
     onDispatchReady?.(dispatch);
   }, [dispatch, onDispatchReady]);
 
-  // Notify parent of state changes
   const stableOnStateChange = useCallback(
     (s: SldDiagramState) => onStateChange?.(s),
     [onStateChange],
@@ -96,6 +116,13 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({
   React.useEffect(() => {
     stableOnStateChange(state);
   }, [state, stableOnStateChange]);
+
+  const eStopActive = state.operationalMode === 'e-stop-active';
+
+  const handleEStopConfirm = () => {
+    dispatch({ type: 'SET_ESTOP_ACTIVE', active: !eStopActive });
+    setEStopDialogOpen(false);
+  };
 
   return (
     <Box
@@ -112,10 +139,37 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({
         height="100%"
         style={{ display: 'block' }}
       >
-        {/* Background */}
         <rect width="1200" height="800" fill="none" />
-        <NewtownLayout state={state} dispatch={dispatch} />
+        <NewtownLayout
+          state={state}
+          dispatch={dispatch}
+          onEStopClicked={() => setEStopDialogOpen(true)}
+        />
       </svg>
+
+      <Dialog open={eStopDialogOpen} onClose={() => setEStopDialogOpen(false)}>
+        <DialogTitle>
+          {eStopActive ? 'Remove E-Stop?' : 'Confirm E-Stop?'}
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            {eStopActive
+              ? 'Removing E-Stop returns the site to normal operating mode. Line switches 89L-1 and 89L-2 will resume showing their commanded position. Confirm only after verifying it is safe to re-energize.'
+              : 'Activating E-Stop will lock out line switches 89L-1 and 89L-2 and signal a site-wide emergency stop. This action should be used only in a genuine emergency.'}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEStopDialogOpen(false)}>Cancel</Button>
+          <Button
+            onClick={handleEStopConfirm}
+            color={eStopActive ? 'primary' : 'error'}
+            variant="contained"
+            autoFocus
+          >
+            {eStopActive ? 'Remove E-Stop' : 'Confirm E-Stop'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

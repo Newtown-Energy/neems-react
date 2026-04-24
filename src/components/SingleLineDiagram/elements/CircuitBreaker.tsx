@@ -1,21 +1,28 @@
 import React from 'react';
 import { useTheme } from '@mui/material';
 import type { SldElementProps } from '../types';
-import { useStatusColors } from './useStatusColors';
 import AlarmIndicator from './AlarmIndicator';
+import { SLD_FONT } from '../sldTypography';
 
 /**
- * IEC circuit breaker symbol.
- * Closed: a small square with a vertical line through it.
- * Open: a small square with a diagonal line (contact swung open).
+ * Feeder circuit breaker (Megapack breaker). Rendered as a filled square:
+ *   closed → red
+ *   open → green
+ * Designation (e.g. "52-MP1A") sits centered on the square.
  */
-const CircuitBreaker: React.FC<SldElementProps> = ({ x, y, state, label, onClick }) => {
+const CircuitBreaker: React.FC<SldElementProps> = ({
+  x,
+  y,
+  state,
+  label,
+  onClick,
+}) => {
   const theme = useTheme();
-  const { stroke, strokeWidth } = useStatusColors(state);
-  const lineColor = state.status === 'normal' ? theme.palette.text.primary : stroke;
   const isOpen = state.switchPosition === 'open';
+  const color = isOpen ? theme.palette.success.main : theme.palette.error.main;
+  const stubColor = theme.palette.text.primary;
 
-  const size = 10; // half-size of the breaker square
+  const size = 14; // half-size
 
   return (
     <g
@@ -23,54 +30,61 @@ const CircuitBreaker: React.FC<SldElementProps> = ({ x, y, state, label, onClick
       onClick={onClick}
       style={{ cursor: onClick ? 'pointer' : 'default' }}
     >
-      {/* Connection point top */}
-      <circle cx={0} cy={-size} r={2} fill={lineColor} />
-      {/* Breaker body (square) */}
+      {/* Stubs in/out */}
+      <line
+        x1={0}
+        y1={-size - 6}
+        x2={0}
+        y2={-size}
+        stroke={stubColor}
+        strokeWidth={2}
+      />
+      <circle cx={0} cy={-size - 6} r={2} fill={stubColor} />
+      <line
+        x1={0}
+        y1={size}
+        x2={0}
+        y2={size + 6}
+        stroke={stubColor}
+        strokeWidth={2}
+      />
+      <circle cx={0} cy={size + 6} r={2} fill={stubColor} />
+      {/* Filled breaker square */}
       <rect
         x={-size}
         y={-size}
         width={size * 2}
         height={size * 2}
-        fill="none"
-        stroke={lineColor}
-        strokeWidth={strokeWidth}
+        fill={color}
+        stroke={color}
+        strokeWidth={2}
+        rx={2}
       />
-      {/* Contact line: vertical when closed, diagonal when open */}
-      {isOpen ? (
-        <line
-          x1={0}
-          y1={-size}
-          x2={size * 0.8}
-          y2={size * 0.6}
-          stroke={lineColor}
-          strokeWidth={strokeWidth}
-        />
-      ) : (
-        <line
-          x1={0}
-          y1={-size}
-          x2={0}
-          y2={size}
-          stroke={lineColor}
-          strokeWidth={strokeWidth}
-        />
-      )}
-      {/* Connection point bottom */}
-      <circle cx={0} cy={size} r={2} fill={lineColor} />
-      {/* "X" mark for breaker (standard notation) */}
-      <line x1={-size} y1={-size} x2={size} y2={size} stroke={lineColor} strokeWidth={1} opacity={0.3} />
-      <line x1={size} y1={-size} x2={-size} y2={size} stroke={lineColor} strokeWidth={1} opacity={0.3} />
-      {/* Label */}
+      {/* Label below the square (moved outside so longer designations like "52-MP-1A" don't clip).
+          A background rect under the text keeps it readable where it crosses the wire to the megapack. */}
       {label && (
-        <text
-          x={size + 6}
-          y={4}
-          fontSize={9}
-          fontFamily="monospace"
-          fill={theme.palette.text.primary}
-        >
-          {label}
-        </text>
+        <>
+          <rect
+            x={-label.length * 4.45}
+            y={size + 13}
+            width={label.length * 8.9}
+            height={17}
+            fill={theme.palette.background.paper}
+            rx={2}
+          />
+          <text
+            x={0}
+            y={size + 26}
+            textAnchor="middle"
+            fontSize={SLD_FONT.label}
+            fontFamily="monospace"
+            fontWeight="bold"
+            fill={theme.palette.text.primary}
+            style={{ pointerEvents: 'none' }}
+          >
+            {label}
+          </text>
+        </>
       )}
       <AlarmIndicator state={state} offsetX={size + 4} offsetY={-size - 4} />
     </g>
