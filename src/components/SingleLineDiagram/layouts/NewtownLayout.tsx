@@ -14,7 +14,7 @@ import Sel451Relay from '../elements/Sel451Relay';
 import LockoutRelay from '../elements/LockoutRelay';
 import EStopButton from '../elements/EStopButton';
 import Wire from '../elements/Wire';
-import { SITE_CONFIG } from '../../../config/siteConfig';
+import { useSiteConfig } from '../../../config/siteConfig';
 
 /**
  * Zone-to-component ID mapping for the Newtown site. Several SLD components
@@ -135,6 +135,7 @@ const NewtownLayout: React.FC<NewtownLayoutProps> = ({
 }) => {
   const comp = (id: string) => state.components[id];
   const wire = (id: string) => state.wires[id];
+  const siteConfig = useSiteConfig();
 
   const sw1Visual = computeSwitchVisualState(state, 'switch-89l-1');
   const sw2Visual = computeSwitchVisualState(state, 'switch-89l-2');
@@ -253,7 +254,7 @@ const NewtownLayout: React.FC<NewtownLayoutProps> = ({
       />
 
       {/* SEL-451 → lockout relay (dashed control) */}
-      {SITE_CONFIG.sld.showLockoutRelay && (
+      {siteConfig.sld.showLockoutRelay && (
         <Wire
           x1={SEL451_X + 55}
           y1={SEL451_Y}
@@ -408,13 +409,13 @@ const NewtownLayout: React.FC<NewtownLayoutProps> = ({
       <Sel451Relay x={SEL451_X} y={SEL451_Y} state={comp('breaker-main')} />
 
       {/* Lockout relay — driven by the SEL-451 via a dashed control line */}
-      {SITE_CONFIG.sld.showLockoutRelay && (
+      {siteConfig.sld.showLockoutRelay && (
         <LockoutRelay
           x={LOCKOUT_X}
           y={LOCKOUT_Y}
           state={comp('lockout-relay')}
           onClick={
-            SITE_CONFIG.lockout.remoteTriggerEnabled
+            siteConfig.lockout.remoteTriggerEnabled
               ? () => {
                   const cur = comp('lockout-relay').switchPosition;
                   dispatch({

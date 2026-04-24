@@ -46,3 +46,14 @@ export function resolveAlarmSeverity(
 ): AlarmSeverityDto {
   return SITE_CONFIG.alarmLevelOverrides[alarmNum] ?? severity;
 }
+
+/**
+ * Read the active per-site configuration. Returns the hardcoded SITE_CONFIG
+ * constants today; a later effort will swap the body for an API call (e.g.
+ * fetching per-site settings from the backend) without forcing any call site
+ * to change — so consumers that render with configurable behavior should
+ * always use this hook rather than importing SITE_CONFIG directly.
+ */
+export function useSiteConfig(): SiteConfig {
+  return SITE_CONFIG;
+}

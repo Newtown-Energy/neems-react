@@ -1,4 +1,4 @@
-import React, { useCallback, useReducer, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState } from 'react';
 import {
   Box,
   Button,
@@ -9,6 +9,13 @@ import {
   DialogTitle,
 } from '@mui/material';
 import {
+  ReactSVGPanZoom,
+  TOOL_AUTO,
+  INITIAL_VALUE,
+  POSITION_RIGHT,
+} from 'react-svg-pan-zoom';
+import type { Tool, Value } from 'react-svg-pan-zoom';
+import {
   sldReducer,
   createInitialState,
   defComponent,
@@ -18,6 +25,9 @@ import type { SldAction } from './sldState';
 import type { SldDiagramState } from './types';
 import { useSldAlarms } from './useSldAlarms';
 import NewtownLayout from './layouts/NewtownLayout';
+
+const DIAGRAM_WIDTH = 1200;
+const DIAGRAM_HEIGHT = 800;
 
 // --- Initial component definitions for Newtown site ---
 
@@ -103,9 +113,37 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({
   const [state, dispatch] = useReducer(sldReducer, INITIAL_STATE);
   const [eStopDialogOpen, setEStopDialogOpen] = useState(false);
 
+  // Pan/zoom viewer state. TOOL_AUTO gives click-through for buttons/switches
+  // plus drag-to-pan and wheel/pinch zoom — the right default for a mixed
+  // interactive diagram on desktop and tablet.
+  const [tool, setTool] = useState<Tool>(TOOL_AUTO);
+  const [viewerValue, setViewerValue] = useState<Value | Record<string, never>>(INITIAL_VALUE);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [viewerSize, setViewerSize] = useState({
+    width: DIAGRAM_WIDTH,
+    height: DIAGRAM_HEIGHT,
+  });
+
+  // Size the viewer to its container. Preserves the 3:2 aspect ratio of the
+  // underlying diagram so pan/zoom defaults render the full site.
+  useLayoutEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const update = () => {
+      const w = el.clientWidth;
+      if (w > 0) {
+        setViewerSize({ width: w, height: w * (DIAGRAM_HEIGHT / DIAGRAM_WIDTH) });
+      }
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   useSldAlarms(dispatch, !demoMode);
 
-  React.useEffect(() => {
+  useEffect(() => {
     onDispatchReady?.(dispatch);
   }, [dispatch, onDispatchReady]);
 
@@ -113,7 +151,7 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({
     (s: SldDiagramState) => onStateChange?.(s),
     [onStateChange],
   );
-  React.useEffect(() => {
+  useEffect(() => {
     stableOnStateChange(state);
   }, [state, stableOnStateChange]);
 
@@ -126,26 +164,38 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({
 
   return (
     <Box
+      ref={containerRef}
       sx={{
         width: '100%',
-        maxWidth: 1200,
-        aspectRatio: '3 / 2',
+        maxWidth: DIAGRAM_WIDTH,
+        aspectRatio: `${DIAGRAM_WIDTH} / ${DIAGRAM_HEIGHT}`,
         mx: 'auto',
+        position: 'relative',
       }}
     >
-      <svg
-        viewBox="0 0 1200 800"
-        width="100%"
-        height="100%"
-        style={{ display: 'block' }}
+      <ReactSVGPanZoom
+        width={viewerSize.width}
+        height={viewerSize.height}
+        tool={tool}
+        onChangeTool={setTool}
+        value={viewerValue}
+        onChangeValue={setViewerValue}
+        detectAutoPan={false}
+        detectPinchGesture
+        background="transparent"
+        SVGBackground="transparent"
+        scaleFactorMin={0.5}
+        scaleFactorMax={6}
+        toolbarProps={{ position: POSITION_RIGHT }}
       >
-        <rect width="1200" height="800" fill="none" />
-        <NewtownLayout
-          state={state}
-          dispatch={dispatch}
-          onEStopClicked={() => setEStopDialogOpen(true)}
-        />
-      </svg>
+        <svg width={DIAGRAM_WIDTH} height={DIAGRAM_HEIGHT}>
+          <NewtownLayout
+            state={state}
+            dispatch={dispatch}
+            onEStopClicked={() => setEStopDialogOpen(true)}
+          />
+        </svg>
+      </ReactSVGPanZoom>
 
       <Dialog open={eStopDialogOpen} onClose={() => setEStopDialogOpen(false)}>
         <DialogTitle>
