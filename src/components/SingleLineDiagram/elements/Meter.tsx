@@ -3,6 +3,7 @@ import { useTheme } from '@mui/material';
 import type { SldElementProps } from '../types';
 import { useStatusColors } from './useStatusColors';
 import AlarmIndicator from './AlarmIndicator';
+import AlarmGlow from './AlarmGlow';
 import { SLD_FONT } from '../sldTypography';
 
 interface MeterProps extends SldElementProps {
@@ -47,6 +48,8 @@ const Meter: React.FC<MeterProps> = ({
 
   return (
     <g transform={`translate(${x}, ${y})`}>
+      {/* Pulsing severity glow — behind the meter circle for Emergency/Critical */}
+      <AlarmGlow state={state} shape="circle" radius={r} />
       {/* CT tap line back to the main power line */}
       {tapToX != null && (
         <line

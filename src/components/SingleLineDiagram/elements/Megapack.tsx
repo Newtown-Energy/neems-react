@@ -3,6 +3,7 @@ import { useTheme } from '@mui/material';
 import type { SldElementProps } from '../types';
 import { useStatusColors } from './useStatusColors';
 import AlarmIndicator from './AlarmIndicator';
+import AlarmGlow from './AlarmGlow';
 import { SLD_FONT } from '../sldTypography';
 
 const FIRE_RELATED_KEYWORDS = ['high temp', 'hi temp', 'sparker', 'fire'];
@@ -57,6 +58,8 @@ const Megapack: React.FC<SldElementProps> = ({ x, y, state, label }) => {
 
   return (
     <g transform={`translate(${x}, ${y})`}>
+      {/* Pulsing severity glow — rendered behind the body for Emergency/Critical */}
+      <AlarmGlow state={state} halfW={w / 2} halfH={h / 2} />
       {/* Top connection stub */}
       <circle cx={0} cy={-h / 2} r={2} fill={baseColor} />
       {/* Body */}

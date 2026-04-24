@@ -3,6 +3,7 @@ import { useTheme } from '@mui/material';
 import type { SldElementProps } from '../types';
 import { useStatusColors } from './useStatusColors';
 import AlarmIndicator from './AlarmIndicator';
+import AlarmGlow from './AlarmGlow';
 import { SLD_FONT } from '../sldTypography';
 
 /**
@@ -39,6 +40,8 @@ const LockoutRelay: React.FC<SldElementProps> = ({
       onClick={onClick}
       style={{ cursor: onClick ? 'pointer' : 'default' }}
     >
+      {/* Pulsing severity glow — behind the face plate for Emergency/Critical */}
+      <AlarmGlow state={state} halfW={w / 2} halfH={h / 2} />
       {/* Face plate */}
       <rect
         x={-w / 2}

@@ -2,6 +2,7 @@ import React from 'react';
 import { useTheme } from '@mui/material';
 import type { SldComponentState, SwitchVisualState } from '../types';
 import AlarmIndicator from './AlarmIndicator';
+import AlarmGlow from './AlarmGlow';
 import { SLD_FONT } from '../sldTypography';
 
 interface SwitchProps {
@@ -54,6 +55,8 @@ const Switch: React.FC<SwitchProps> = ({
       onClick={onClick}
       style={{ cursor: onClick ? 'pointer' : 'default' }}
     >
+      {/* Pulsing severity glow — behind the switch body for Emergency/Critical */}
+      <AlarmGlow state={state} halfW={halfW} halfH={halfH} />
       {/* Top connection point (bus side) */}
       <circle cx={0} cy={-halfH} r={2} fill={theme.palette.text.primary} />
       {/* Stub down to hinge */}

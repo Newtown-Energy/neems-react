@@ -3,6 +3,7 @@ import { useTheme } from '@mui/material';
 import type { SldElementProps } from '../types';
 import { useStatusColors } from './useStatusColors';
 import AlarmIndicator from './AlarmIndicator';
+import AlarmGlow from './AlarmGlow';
 import { SLD_FONT } from '../sldTypography';
 
 /**
@@ -26,6 +27,8 @@ const Sel451Relay: React.FC<SldElementProps> = ({
 
   return (
     <g transform={`translate(${x}, ${y})`}>
+      {/* Pulsing severity glow — behind the relay box for Emergency/Critical */}
+      <AlarmGlow state={state} halfW={w / 2} halfH={h / 2} />
       {/* Box */}
       <rect
         x={-w / 2}

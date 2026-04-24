@@ -2,6 +2,7 @@ import React from 'react';
 import { useTheme } from '@mui/material';
 import type { SldElementProps } from '../types';
 import AlarmIndicator from './AlarmIndicator';
+import AlarmGlow from './AlarmGlow';
 import { SLD_FONT } from '../sldTypography';
 
 /**
@@ -30,6 +31,8 @@ const CircuitBreaker: React.FC<SldElementProps> = ({
       onClick={onClick}
       style={{ cursor: onClick ? 'pointer' : 'default' }}
     >
+      {/* Pulsing severity glow — behind the breaker square for Emergency/Critical */}
+      <AlarmGlow state={state} halfW={size} halfH={size} />
       {/* Stubs in/out */}
       <line
         x1={0}

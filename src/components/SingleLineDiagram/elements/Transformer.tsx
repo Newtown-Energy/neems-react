@@ -3,6 +3,7 @@ import { useTheme } from '@mui/material';
 import type { SldElementProps } from '../types';
 import { useStatusColors } from './useStatusColors';
 import AlarmIndicator from './AlarmIndicator';
+import AlarmGlow from './AlarmGlow';
 import WyeGroundSymbol from './WyeGroundSymbol';
 import { SLD_FONT } from '../sldTypography';
 
@@ -46,6 +47,8 @@ const Transformer: React.FC<SldElementProps> = ({ x, y, state, label }) => {
 
   return (
     <g transform={`translate(${x}, ${y})`}>
+      {/* Pulsing severity glow — bounding rect around both windings for Emergency/Critical */}
+      <AlarmGlow state={state} halfW={14} halfH={coilHeight + gap / 2 + 2} />
       {/* Top stub */}
       <line x1={0} y1={-24} x2={0} y2={primaryTop} stroke={lineColor} strokeWidth={2} />
       <circle cx={0} cy={-24} r={2} fill={lineColor} />
