@@ -48,8 +48,8 @@ const AppContent: React.FC = () => {
       <Sidebar />
       <Box component="main" sx={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
           <Routes>
-            <Route path="/" element={<OverviewPage />} />
-            <Route path="/overview" element={<Navigate to="/" replace />} />
+            <Route path="/" element={<Navigate to="/sld" replace />} />
+            <Route path="/overview" element={<OverviewPage />} />
             <Route path="/alarms" element={<AlarmsPage />} />
             <Route path="/battery1" element={<Battery1Page />} />
             <Route path="/battery2" element={<Battery2Page />} />

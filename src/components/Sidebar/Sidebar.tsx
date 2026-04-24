@@ -20,22 +20,20 @@ const Sidebar: React.FC<SidebarProps> = () => { // Removed unused className
   
   const getSelectedItem = () => {
     const path = location.pathname;
-    if (path === '/' || path === '/overview') return 'overview';
+    if (path === '/' || path === '/sld') return 'sld';
     if (path === '/alarms') return 'alarms';
-    if (path === '/battery1') return 'battery1';
-    if (path === '/conedison') return 'conedison';
     if (path === '/fdny') return 'fdny';
-    if (path === '/sld') return 'sld';
     if (path === '/scheduler' || path === '/library') return 'scheduler';
     if (path === '/admin') return 'admin';
-    return 'overview';
+    return 'sld';
   };
 
   const userRoles = userInfo?.roles || [];
   const isAdmin = userRoles.includes('admin') || userRoles.includes('newtown-admin') || userRoles.includes('newtown-staff');
 
-  // Get navigation items from page configs
-  const enabledPageIds = ['overview', 'alarms', 'sld', 'battery1', 'conedison', 'fdny', 'scheduler'];
+  // Stripped dev-target menu (SLD feedback round). Deep-link routes for Overview,
+  // Battery*, ConEdison still exist in App.tsx but are no longer in the sidebar.
+  const enabledPageIds = ['sld', 'scheduler', 'alarms', 'fdny'];
   
   const navItems = enabledPageIds.map(pageId => {
     const config = getPageConfig(pageId);
@@ -60,7 +58,7 @@ const Sidebar: React.FC<SidebarProps> = () => { // Removed unused className
   }, []);
 
   const handleItemClick = (id: string) => {
-    const path = `/${id === 'overview' ? '' : id}`;
+    const path = `/${id}`;
     debugLog('Sidebar: Navigation click', { pageId: id, path });
     navigate(path);
   };
