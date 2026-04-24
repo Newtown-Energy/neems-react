@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
+  Collapse,
   Typography,
   Card,
   CardContent,
@@ -19,9 +20,16 @@ import {
   FormControl,
   InputLabel,
 } from '@mui/material';
-import { NotificationsActive, Refresh } from '@mui/icons-material';
-import type { ActiveAlarmsResponse, AlarmDefinitionsResponse, AlarmDefinitionDto, AlarmSeverityDto, AlarmZoneDto } from '@newtown-energy/types';
-import { fetchActiveAlarms, fetchAlarmDefinitions } from '../utils/alarmApi';
+import { NotificationsActive, Refresh, KeyboardArrowDown, KeyboardArrowUp } from '@mui/icons-material';
+import type {
+  ActiveAlarmsResponse,
+  AlarmDefinitionsResponse,
+  AlarmDefinitionDto,
+  AlarmHistoryEntry,
+  AlarmSeverityDto,
+  AlarmZoneDto,
+} from '@newtown-energy/types';
+import { fetchActiveAlarms, fetchAlarmDefinitions, fetchAlarmHistory } from '../utils/alarmApi';
 import {
   ZONE_DISPLAY_NAMES,
   formatAlarmName,
@@ -51,6 +59,13 @@ interface AlarmRow {
   active: boolean;
 }
 
+type HistoryState =
+  | { kind: 'loading' }
+  | { kind: 'loaded'; entries: AlarmHistoryEntry[] }
+  | { kind: 'error'; message: string };
+
+const HISTORY_WINDOW_DAYS = 30;
+
 const AlarmsPage: React.FC = () => {
   const [data, setData] = useState<ActiveAlarmsResponse | null>(null);
   const [definitions, setDefinitions] = useState<AlarmDefinitionsResponse | null>(null);
@@ -59,6 +74,42 @@ const AlarmsPage: React.FC = () => {
   const [severityFilter, setSeverityFilter] = useState<AlarmSeverityDto[]>([]);
   const [zoneFilter, setZoneFilter] = useState<string>('');
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
+  const [expanded, setExpanded] = useState<Set<number>>(new Set());
+  const [history, setHistory] = useState<Record<number, HistoryState>>({});
+
+  const loadHistoryFor = useCallback((alarmNum: number) => {
+    setHistory((h) => ({ ...h, [alarmNum]: { kind: 'loading' } }));
+    const to = new Date();
+    const from = new Date(to);
+    from.setDate(from.getDate() - HISTORY_WINDOW_DAYS);
+    fetchAlarmHistory(from, to, [alarmNum])
+      .then((res) =>
+        setHistory((h) => ({ ...h, [alarmNum]: { kind: 'loaded', entries: res.entries } })),
+      )
+      .catch((err) => {
+        console.error('Alarm history fetch failed:', err);
+        setHistory((h) => ({
+          ...h,
+          [alarmNum]: { kind: 'error', message: 'Failed to load history' },
+        }));
+      });
+  }, []);
+
+  const toggleExpanded = useCallback(
+    (alarmNum: number) => {
+      const willExpand = !expanded.has(alarmNum);
+      if (willExpand && !history[alarmNum]) {
+        loadHistoryFor(alarmNum);
+      }
+      setExpanded((prev) => {
+        const next = new Set(prev);
+        if (next.has(alarmNum)) next.delete(alarmNum);
+        else next.add(alarmNum);
+        return next;
+      });
+    },
+    [expanded, history, loadHistoryFor],
+  );
 
   const loadAlarms = useCallback(async (showLoading = false) => {
     if (showLoading) setLoading(true);
@@ -258,6 +309,7 @@ const AlarmsPage: React.FC = () => {
               <Table>
                 <TableHead>
                   <TableRow>
+                    <TableCell sx={{ width: 40 }} />
                     <TableCell>Status</TableCell>
                     <TableCell>Alarm #</TableCell>
                     <TableCell>Name</TableCell>
@@ -266,32 +318,107 @@ const AlarmsPage: React.FC = () => {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {filteredRows.map((alarm) => (
-                    <TableRow
-                      key={alarm.alarm_num}
-                      sx={alarm.active ? {} : { opacity: 0.45 }}
-                    >
-                      <TableCell>
-                        <Chip
-                          label={alarm.active ? 'Active' : 'OK'}
-                          color={alarm.active ? getSeverityColor(alarm.severity) : 'default'}
-                          variant={alarm.active ? 'filled' : 'outlined'}
-                          size="small"
-                        />
-                      </TableCell>
-                      <TableCell>{alarm.alarm_num}</TableCell>
-                      <TableCell>{formatAlarmName(alarm.name)}</TableCell>
-                      <TableCell>{ZONE_DISPLAY_NAMES[alarm.zone]}</TableCell>
-                      <TableCell>
-                        <Chip
-                          label={alarm.severity}
-                          color={alarm.active ? getSeverityColor(alarm.severity) : 'default'}
-                          variant={alarm.active ? 'filled' : 'outlined'}
-                          size="small"
-                        />
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {filteredRows.map((alarm) => {
+                    const isExpanded = expanded.has(alarm.alarm_num);
+                    const rowHistory = history[alarm.alarm_num];
+                    return (
+                      <React.Fragment key={alarm.alarm_num}>
+                        <TableRow
+                          sx={{
+                            ...(alarm.active ? {} : { opacity: 0.45 }),
+                            '& > *': { borderBottom: 'unset' },
+                          }}
+                        >
+                          <TableCell>
+                            <IconButton
+                              size="small"
+                              onClick={() => toggleExpanded(alarm.alarm_num)}
+                              aria-label={isExpanded ? 'collapse history' : 'expand history'}
+                            >
+                              {isExpanded ? <KeyboardArrowUp /> : <KeyboardArrowDown />}
+                            </IconButton>
+                          </TableCell>
+                          <TableCell>
+                            <Chip
+                              label={alarm.active ? 'Active' : 'OK'}
+                              color={alarm.active ? getSeverityColor(alarm.severity) : 'default'}
+                              variant={alarm.active ? 'filled' : 'outlined'}
+                              size="small"
+                            />
+                          </TableCell>
+                          <TableCell>{alarm.alarm_num}</TableCell>
+                          <TableCell>{formatAlarmName(alarm.name)}</TableCell>
+                          <TableCell>{ZONE_DISPLAY_NAMES[alarm.zone]}</TableCell>
+                          <TableCell>
+                            <Chip
+                              label={alarm.severity}
+                              color={alarm.active ? getSeverityColor(alarm.severity) : 'default'}
+                              variant={alarm.active ? 'filled' : 'outlined'}
+                              size="small"
+                            />
+                          </TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell colSpan={6} sx={{ py: 0, border: 0 }}>
+                            <Collapse in={isExpanded} timeout="auto" unmountOnExit>
+                              <Box sx={{ py: 2, pl: 2 }}>
+                                <Typography variant="subtitle2" gutterBottom>
+                                  Last {HISTORY_WINDOW_DAYS} days of transitions
+                                </Typography>
+                                {rowHistory?.kind === 'loading' && (
+                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    <CircularProgress size={16} />
+                                    <Typography variant="body2" color="text.secondary">
+                                      Loading history…
+                                    </Typography>
+                                  </Box>
+                                )}
+                                {rowHistory?.kind === 'error' && (
+                                  <Alert severity="error">{rowHistory.message}</Alert>
+                                )}
+                                {rowHistory?.kind === 'loaded' &&
+                                  (rowHistory.entries.length === 0 ? (
+                                    <Typography variant="body2" color="text.secondary">
+                                      No transitions in the last {HISTORY_WINDOW_DAYS} days.
+                                    </Typography>
+                                  ) : (
+                                    <Table size="small">
+                                      <TableHead>
+                                        <TableRow>
+                                          <TableCell>Time</TableCell>
+                                          <TableCell>Transition</TableCell>
+                                        </TableRow>
+                                      </TableHead>
+                                      <TableBody>
+                                        {[...rowHistory.entries]
+                                          .sort((a, b) => b.timestamp.localeCompare(a.timestamp))
+                                          .map((entry) => (
+                                            <TableRow
+                                              key={`${entry.alarm_num}-${entry.timestamp}-${entry.active}`}
+                                            >
+                                              <TableCell>
+                                                {new Date(entry.timestamp).toLocaleString()}
+                                              </TableCell>
+                                              <TableCell>
+                                                <Chip
+                                                  label={entry.active ? 'Activated' : 'Cleared'}
+                                                  color={entry.active ? 'error' : 'default'}
+                                                  variant={entry.active ? 'filled' : 'outlined'}
+                                                  size="small"
+                                                />
+                                              </TableCell>
+                                            </TableRow>
+                                          ))}
+                                      </TableBody>
+                                    </Table>
+                                  ))}
+                              </Box>
+                            </Collapse>
+                          </TableCell>
+                        </TableRow>
+                      </React.Fragment>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </TableContainer>
