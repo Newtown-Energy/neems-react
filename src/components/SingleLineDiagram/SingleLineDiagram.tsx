@@ -196,6 +196,7 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({
           onChangeValue={setViewerValue}
           detectAutoPan={false}
           detectPinchGesture
+          disableDoubleClickZoomWithToolAuto
           background="transparent"
           SVGBackground="transparent"
           scaleFactorMin={0.5}

@@ -40,20 +40,16 @@ const AlarmGlow: React.FC<AlarmGlowProps> = ({
 
   const color = severityColor(state.highestSeverity, theme);
 
+  // No stroke on the glow — the parent entity already renders a severity-tinted
+  // stroke via useStatusColors, so an outlined halo here would read as a
+  // double border. Fill-only with a pulse keeps the background wash clearly
+  // readable without competing with the entity outline.
   if (shape === 'circle' && radius != null) {
     return (
-      <circle
-        cx={0}
-        cy={0}
-        r={radius + padding}
-        fill={`${color}15`}
-        stroke={color}
-        strokeWidth={3}
-        opacity={0.85}
-      >
+      <circle cx={0} cy={0} r={radius + padding} fill={color} opacity={0.25}>
         <animate
           attributeName="opacity"
-          values="0.85;0.3;0.85"
+          values="0.3;0.08;0.3"
           dur="1.5s"
           repeatCount="indefinite"
         />
@@ -67,15 +63,13 @@ const AlarmGlow: React.FC<AlarmGlowProps> = ({
       y={-halfH - padding}
       width={halfW * 2 + padding * 2}
       height={halfH * 2 + padding * 2}
-      fill={`${color}15`}
-      stroke={color}
-      strokeWidth={3}
+      fill={color}
       rx={4}
-      opacity={0.85}
+      opacity={0.25}
     >
       <animate
         attributeName="opacity"
-        values="0.85;0.3;0.85"
+        values="0.3;0.08;0.3"
         dur="1.5s"
         repeatCount="indefinite"
       />
