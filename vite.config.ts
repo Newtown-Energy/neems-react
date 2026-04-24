@@ -10,6 +10,14 @@ export default defineConfig({
       'host.docker.internal',  // Allow Docker's hostname
       'localhost'              // Keep local access
     ],
+    // macOS Docker Desktop's bind mounts don't propagate filesystem events
+    // reliably, so Vite's native watcher misses host edits after a while.
+    // Polling trades a little CPU for reliable change detection. Only
+    // enabled when VITE_USE_POLLING=1 (set in the devenv compose file), so
+    // a host-native `bun run dev` keeps its fast native watcher.
+    watch: process.env.VITE_USE_POLLING
+      ? { usePolling: true, interval: 300 }
+      : undefined,
     proxy: {
       '/api/': {
         target: process.env.NEEMS_CORE_SERVER ?? 'http://127.0.0.1:8000',
