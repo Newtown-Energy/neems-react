@@ -1,5 +1,6 @@
 import type { ActiveAlarmsResponse, AlarmZoneDto } from '@newtown-energy/types';
 import { getSeverityOrder } from '../../utils/alarmHelpers';
+import { resolveAlarmSeverity } from '../../config/siteConfig';
 import type {
   ActiveAlarmSummary,
   SldComponentState,
@@ -13,6 +14,8 @@ import type {
 export type SldAction =
   | { type: 'UPDATE_ALARMS'; alarms: ActiveAlarmsResponse }
   | { type: 'TOGGLE_BREAKER'; componentId: string }
+  | { type: 'SET_SWITCH_POSITION'; componentId: string; position: 'open' | 'closed' }
+  | { type: 'SET_ESTOP_ACTIVE'; active: boolean }
   | { type: 'SET_POWER_FLOW'; wireId: string; direction: PowerFlowDirection }
   | { type: 'MARK_STALE' };
 
@@ -36,17 +39,20 @@ function applyAlarms(
 
   // Map alarms to components by zone
   for (const alarm of alarms.alarms) {
+    // Apply any per-site alarm-level override before computing severity-driven state.
+    const severity = resolveAlarmSeverity(alarm.alarm_num, alarm.severity);
+
     // Find component(s) matching this alarm's zone
     for (const [id, comp] of Object.entries(updatedComponents)) {
       if (comp.zone === alarm.zone) {
         const currentOrder = comp.highestSeverity
           ? getSeverityOrder(comp.highestSeverity)
           : Infinity;
-        const newOrder = getSeverityOrder(alarm.severity);
+        const newOrder = getSeverityOrder(severity);
 
         const alarmSummary: ActiveAlarmSummary = {
           name: alarm.name,
-          severity: alarm.severity,
+          severity,
         };
 
         updatedComponents[id] = {
@@ -54,11 +60,11 @@ function applyAlarms(
           activeAlarmCount: comp.activeAlarmCount + 1,
           activeAlarms: [...comp.activeAlarms, alarmSummary],
           highestSeverity:
-            newOrder < currentOrder ? alarm.severity : comp.highestSeverity,
+            newOrder < currentOrder ? severity : comp.highestSeverity,
           status:
-            alarm.severity === 'Emergency' || alarm.severity === 'Critical'
+            severity === 'Emergency' || severity === 'Critical'
               ? 'alarm'
-              : alarm.severity === 'Warning'
+              : severity === 'Warning'
                 ? comp.status === 'alarm'
                   ? 'alarm'
                   : 'warning'
@@ -104,6 +110,27 @@ export function sldReducer(
       };
     }
 
+    case 'SET_SWITCH_POSITION': {
+      const comp = state.components[action.componentId];
+      if (!comp || comp.switchPosition === undefined) return state;
+      return {
+        ...state,
+        components: {
+          ...state.components,
+          [action.componentId]: {
+            ...comp,
+            switchPosition: action.position,
+          },
+        },
+      };
+    }
+
+    case 'SET_ESTOP_ACTIVE':
+      return {
+        ...state,
+        operationalMode: action.active ? 'e-stop-active' : 'normal',
+      };
+
     case 'SET_POWER_FLOW': {
       const wire = state.wires[action.wireId];
       if (!wire) return state;
@@ -144,6 +171,7 @@ export function createInitialState(
     lastAlarmUpdate: null,
     dataAgeSeconds: null,
     dataStale: false,
+    operationalMode: 'normal',
   };
 }
 

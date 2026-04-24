@@ -28,6 +28,7 @@ import {
   getSeverityColor,
   getSeverityOrder,
 } from '../utils/alarmHelpers';
+import { resolveAlarmSeverity } from '../config/siteConfig';
 
 export const pageConfig = {
   id: 'alarms',
@@ -95,7 +96,7 @@ const AlarmsPage: React.FC = () => {
       alarm_num: def.alarm_num,
       zone: def.zone,
       name: def.name,
-      severity: def.severity,
+      severity: resolveAlarmSeverity(def.alarm_num, def.severity),
       active: activeNums.has(def.alarm_num),
     }));
 
@@ -126,7 +127,8 @@ const AlarmsPage: React.FC = () => {
   const severityCounts: Record<string, number> = {};
   if (data) {
     for (const a of data.alarms) {
-      severityCounts[a.severity] = (severityCounts[a.severity] || 0) + 1;
+      const sev = resolveAlarmSeverity(a.alarm_num, a.severity);
+      severityCounts[sev] = (severityCounts[sev] || 0) + 1;
     }
   }
 
