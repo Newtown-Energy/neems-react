@@ -44,9 +44,9 @@ const AppContent: React.FC = () => {
   debugLog('Router: User authenticated, showing main app');
 
   return (
-    <Box id="authed-ui-box" sx={{ display: 'flex', height: '100vh' }}>
+    <Box id="authed-ui-box" sx={{ display: 'flex', height: '100vh', width: '100vw', overflow: 'hidden' }}>
       <Sidebar />
-      <Box component="main" sx={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+      <Box component="main" sx={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, overflow: 'hidden' }}>
           <Routes>
             <Route path="/" element={<Navigate to="/sld" replace />} />
             <Route path="/overview" element={<OverviewPage />} />

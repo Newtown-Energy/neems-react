@@ -66,7 +66,7 @@ const SldPage: React.FC = () => {
   const eStopActive = diagramState?.operationalMode === 'e-stop-active';
 
   return (
-    <Box sx={{ p: 3, overflow: 'auto', flex: 1 }}>
+    <Box sx={{ p: 3, overflow: 'auto', flex: 1, minWidth: 0 }}>
       <Stack
         direction={{ xs: 'column', md: 'row' }}
         spacing={2}

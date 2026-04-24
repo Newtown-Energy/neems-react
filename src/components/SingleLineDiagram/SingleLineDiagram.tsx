@@ -120,14 +120,12 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({
   const [viewerValue, setViewerValue] = useState<Value | Record<string, never>>(INITIAL_VALUE);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const viewerRef = useRef<ReactSVGPanZoomInstance | null>(null);
-  const [viewerSize, setViewerSize] = useState({
-    width: DIAGRAM_WIDTH,
-    height: DIAGRAM_HEIGHT,
-  });
+  // null until the container has been measured, so we never render the viewer
+  // at a hardcoded initial size that might exceed the window.
+  const [viewerSize, setViewerSize] = useState<{ width: number; height: number } | null>(null);
 
-  // Size the viewer to its container and fit the full diagram to whatever
-  // size the viewer ends up at — so the whole site is visible on first paint
-  // and after any resize, regardless of window width.
+  // Size the viewer to its container and re-fit the diagram whenever the
+  // container resizes — covers shrinking as well as expanding.
   useLayoutEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -145,12 +143,13 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({
 
   // Whenever the viewer's pixel dimensions change, re-fit the diagram to it.
   useEffect(() => {
+    if (!viewerSize) return;
     // Defer so ReactSVGPanZoom has applied the new width/height internally.
     const id = requestAnimationFrame(() => {
       viewerRef.current?.fitToViewer();
     });
     return () => cancelAnimationFrame(id);
-  }, [viewerSize.width, viewerSize.height]);
+  }, [viewerSize]);
 
   useSldAlarms(dispatch, !demoMode);
 
@@ -178,36 +177,40 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({
       ref={containerRef}
       sx={{
         width: '100%',
-        maxWidth: DIAGRAM_WIDTH,
+        maxWidth: '100%',
         aspectRatio: `${DIAGRAM_WIDTH} / ${DIAGRAM_HEIGHT}`,
         mx: 'auto',
         position: 'relative',
+        overflow: 'hidden',
+        minWidth: 0,
       }}
     >
-      <ReactSVGPanZoom
-        ref={viewerRef}
-        width={viewerSize.width}
-        height={viewerSize.height}
-        tool={tool}
-        onChangeTool={setTool}
-        value={viewerValue}
-        onChangeValue={setViewerValue}
-        detectAutoPan={false}
-        detectPinchGesture
-        background="transparent"
-        SVGBackground="transparent"
-        scaleFactorMin={0.5}
-        scaleFactorMax={6}
-        toolbarProps={{ position: POSITION_RIGHT }}
-      >
-        <svg width={DIAGRAM_WIDTH} height={DIAGRAM_HEIGHT}>
-          <NewtownLayout
-            state={state}
-            dispatch={dispatch}
-            onEStopClicked={() => setEStopDialogOpen(true)}
-          />
-        </svg>
-      </ReactSVGPanZoom>
+      {viewerSize && (
+        <ReactSVGPanZoom
+          ref={viewerRef}
+          width={viewerSize.width}
+          height={viewerSize.height}
+          tool={tool}
+          onChangeTool={setTool}
+          value={viewerValue}
+          onChangeValue={setViewerValue}
+          detectAutoPan={false}
+          detectPinchGesture
+          background="transparent"
+          SVGBackground="transparent"
+          scaleFactorMin={0.5}
+          scaleFactorMax={6}
+          toolbarProps={{ position: POSITION_RIGHT }}
+        >
+          <svg width={DIAGRAM_WIDTH} height={DIAGRAM_HEIGHT}>
+            <NewtownLayout
+              state={state}
+              dispatch={dispatch}
+              onEStopClicked={() => setEStopDialogOpen(true)}
+            />
+          </svg>
+        </ReactSVGPanZoom>
+      )}
 
       <Dialog open={eStopDialogOpen} onClose={() => setEStopDialogOpen(false)}>
         <DialogTitle>
