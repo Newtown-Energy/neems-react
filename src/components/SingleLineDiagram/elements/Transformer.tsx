@@ -43,7 +43,6 @@ const Transformer: React.FC<SldElementProps> = ({ x, y, state, label }) => {
 
   // Short stub connectors into/out of the coils
   const stubTopY = primaryTop - 6;
-  const stubBottomY = secondaryBottom + 6;
 
   return (
     <g transform={`translate(${x}, ${y})`}>

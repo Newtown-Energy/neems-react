@@ -1,4 +1,4 @@
-import { useTheme } from '@mui/material';
+import { useTheme, type Theme } from '@mui/material';
 import type { AlarmSeverityDto } from '@newtown-energy/types';
 import type { SldComponentState } from '../types';
 
@@ -22,7 +22,7 @@ interface StatusColors {
  */
 export function severityColor(
   severity: AlarmSeverityDto,
-  theme: ReturnType<typeof useTheme>,
+  theme: Theme,
 ): string {
   switch (severity) {
     case 'Emergency':
