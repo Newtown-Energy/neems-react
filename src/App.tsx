@@ -12,6 +12,7 @@ import AdminPage from './pages/AdminPage';
 import AlarmsPage from './pages/AlarmsPage';
 import SchedulerPage from './pages/SchedulerPage';
 import LibraryPage from './pages/LibraryPage';
+import SldPage from './pages/SldPage';
 import './styles/App.scss';
 import { useAuth } from './pages/LoginPage/useAuth';
 import LoginPage from './pages/LoginPage/LoginPage';
@@ -43,12 +44,12 @@ const AppContent: React.FC = () => {
   debugLog('Router: User authenticated, showing main app');
 
   return (
-    <Box id="authed-ui-box" sx={{ display: 'flex', height: '100vh' }}>
+    <Box id="authed-ui-box" sx={{ display: 'flex', height: '100vh', width: '100vw', overflow: 'hidden' }}>
       <Sidebar />
-      <Box component="main" sx={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+      <Box component="main" sx={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, overflow: 'hidden' }}>
           <Routes>
-            <Route path="/" element={<OverviewPage />} />
-            <Route path="/overview" element={<Navigate to="/" replace />} />
+            <Route path="/" element={<Navigate to="/sld" replace />} />
+            <Route path="/overview" element={<OverviewPage />} />
             <Route path="/alarms" element={<AlarmsPage />} />
             <Route path="/battery1" element={<Battery1Page />} />
             <Route path="/battery2" element={<Battery2Page />} />
@@ -57,6 +58,7 @@ const AppContent: React.FC = () => {
             <Route path="/fdny" element={<FDNYPage />} />
             <Route path="/scheduler" element={<SchedulerPage />} />
             <Route path="/library" element={<LibraryPage />} />
+            <Route path="/sld" element={<SldPage />} />
             <Route path="/admin" element={<AdminPage />} />
           </Routes>
         </Box>
