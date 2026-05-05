@@ -15,13 +15,11 @@
     "noEmit": true,
     "jsx": "react-jsx",
 
-    /* Local types resolution (falls back to published package) */
+    /* Redirect to local-types during Docker dev; falls through to the
+       published package in node_modules when local-types is absent. */
     "baseUrl": ".",
     "paths": {
-      "@newtown-energy/types": [
-        "../local-types",
-        "./node_modules/@newtown-energy/types/dist"
-      ]
+      "@newtown-energy/types": ["../local-types"]
     },
 
     /* Linting */
