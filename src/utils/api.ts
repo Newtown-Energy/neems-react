@@ -51,6 +51,13 @@ function buildODataQuery(options: ODataQueryOptions): string {
   return queryString ? `?${queryString}` : '';
 }
 
+/**
+ * Low-level API request helper. Most callers should prefer `apiRequestWithMapping`,
+ * which adds endpoint mapping and OData-collection unwrapping on top of this.
+ *
+ * Use this directly only when you need the raw fetch behavior without any
+ * URL rewriting or collection-envelope handling.
+ */
 export async function apiRequest<T = unknown>(
   url: string,
   options: RequestInit = {}
@@ -133,7 +140,12 @@ export async function apiRequest<T = unknown>(
   }
 }
 
-// OData-aware API request for collections (automatically unwraps OData envelope)
+/**
+ * OData-aware request for collection endpoints; returns the unwrapped `value`
+ * array plus the optional `@odata.count`. Most callers should prefer
+ * `apiRequestWithMapping`, which delegates here automatically for collection
+ * endpoints. Use this directly only when you need the count alongside the data.
+ */
 export async function apiRequestOData<T = unknown>(
   url: string,
   options: RequestInit = {},
@@ -237,7 +249,12 @@ function mapNavigationEndpoint(url: string): string {
   return url;
 }
 
-// Enhanced API request that automatically maps old endpoints to new OData endpoints
+/**
+ * Standard API helper: maps legacy lowercase endpoints (e.g. `/api/1/users`)
+ * to their OData equivalents (`/api/1/Users`) and unwraps OData collection
+ * envelopes for GET requests automatically. Prefer this over the lower-level
+ * `apiRequest` / `apiRequestOData` for new code.
+ */
 export async function apiRequestWithMapping<T = unknown>(
   url: string,
   options: RequestInit = {},
@@ -261,26 +278,6 @@ export async function apiRequestWithMapping<T = unknown>(
   const queryString = queryOptions ? buildODataQuery(queryOptions) : '';
   const fullUrl = `${mappedUrl}${queryString}`;
   return await apiRequest<T>(fullUrl, options);
-}
-
-// Convenience function for getting OData collections with count information
-export async function apiRequestODataWithCount<T = unknown>(
-  url: string,
-  options: RequestInit = {},
-  queryOptions?: ODataQueryOptions
-): Promise<{ data: T[]; count?: number; hasMore?: boolean }> {
-  const result = await apiRequestOData<T>(url, options, queryOptions);
-  
-  // Calculate if there are more records (useful for pagination)
-  const hasMore = queryOptions?.$top && result.count 
-    ? (queryOptions.$skip || 0) + queryOptions.$top < result.count
-    : undefined;
-    
-  return {
-    data: result.data,
-    count: result.count,
-    hasMore
-  };
 }
 
 export { ApiError };

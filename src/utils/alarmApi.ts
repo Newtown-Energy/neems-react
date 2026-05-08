@@ -3,14 +3,14 @@ import type {
   AlarmDefinitionsResponse,
   AlarmHistoryResponse,
 } from '@newtown-energy/types';
-import { apiRequest } from './api';
+import { apiRequestWithMapping } from './api';
 
 export async function fetchActiveAlarms(): Promise<ActiveAlarmsResponse> {
-  return await apiRequest<ActiveAlarmsResponse>('/api/1/Alarms/Active');
+  return await apiRequestWithMapping<ActiveAlarmsResponse>('/api/1/Alarms/Active');
 }
 
 export async function fetchAlarmDefinitions(): Promise<AlarmDefinitionsResponse> {
-  return await apiRequest<AlarmDefinitionsResponse>('/api/1/Alarms/Definitions');
+  return await apiRequestWithMapping<AlarmDefinitionsResponse>('/api/1/Alarms/Definitions');
 }
 
 /**
@@ -29,5 +29,5 @@ export async function fetchAlarmHistory(
   if (alarmNums && alarmNums.length > 0) {
     params.set('alarm_nums', alarmNums.join(','));
   }
-  return await apiRequest<AlarmHistoryResponse>(`/api/1/Alarms/History?${params.toString()}`);
+  return await apiRequestWithMapping<AlarmHistoryResponse>(`/api/1/Alarms/History?${params.toString()}`);
 }

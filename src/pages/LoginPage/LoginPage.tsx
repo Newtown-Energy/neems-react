@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Box, Button, TextField, Typography, Paper } from "@mui/material";
 import type { LoginSuccessResponse } from "../../types/auth";
-import { apiRequest, ApiError } from "../../utils/api";
+import { apiRequestWithMapping, ApiError } from "../../utils/api";
 import { debugLog } from "../../utils/debug";
 
 type Props = { onLoginSuccess: (userInfo: LoginSuccessResponse) => void };
@@ -21,7 +21,7 @@ const LoginPage: React.FC<Props> = ({ onLoginSuccess }) => {
     debugLog('LoginPage: Login attempt', { email });
 
     try {
-      const userInfo = await apiRequest<LoginSuccessResponse>("/api/1/login", {
+      const userInfo = await apiRequestWithMapping<LoginSuccessResponse>("/api/1/login", {
         method: "POST",
         body: JSON.stringify(requestBody),
       });
