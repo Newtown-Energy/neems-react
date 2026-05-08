@@ -35,7 +35,7 @@ import { useSearchParams } from 'react-router-dom';
 import type { User, Site, CompanyWithTimestamps, UserWithRolesAndTimestamps, CreateUserWithRolesRequest, UpdateUserRequest, CreateSiteRequest } from '@newtown-energy/types';
 import { apiRequestWithMapping, ApiError } from '../utils/api';
 import type { ODataQueryOptions } from '../utils/api';
-import { debugLog } from '../utils/debug';
+import { debugLog, errorLog } from '../utils/debug';
 
 
 
@@ -156,7 +156,7 @@ const AdminPage: React.FC = () => {
       }
     } catch (err) {
       setError('Error loading data');
-      console.error('Error fetching data:', err);
+      errorLog('Error fetching data:', err);
     } finally {
       setLoading(false);
     }
@@ -197,7 +197,7 @@ const AdminPage: React.FC = () => {
       });
       setUsers(usersWithCompanyNames);
     } catch (err) {
-      console.error('Error fetching users:', err);
+      errorLog('Error fetching users:', err);
       debugLog('AdminPage: Error fetching users', { companyId: selectedCompanyId, error: err });
       if (err instanceof ApiError) {
         setError(`Failed to load users: ${err.message}`);
@@ -235,7 +235,7 @@ const AdminPage: React.FC = () => {
       });
       setSites(transformedSites);
     } catch (err) {
-      console.error('Error fetching sites:', err);
+      errorLog('Error fetching sites:', err);
       debugLog('AdminPage: Error fetching sites', { companyId: selectedCompanyId, error: err });
       if (err instanceof ApiError) {
         setError(`Failed to load sites: ${err.message}`);
@@ -264,7 +264,7 @@ const AdminPage: React.FC = () => {
       });
       setCompanies(data);
     } catch (err) {
-      console.error('Error fetching companies:', err);
+      errorLog('Error fetching companies:', err);
       debugLog('AdminPage: Error fetching companies', err);
       if (err instanceof ApiError) {
         setError(`Failed to load companies: ${err.message}`);
@@ -345,7 +345,7 @@ const AdminPage: React.FC = () => {
         errorMessage = `Error ${editingUser ? 'updating' : 'creating'} user`;
       }
       setUserModalError(errorMessage);
-      console.error('Error saving user:', err);
+      errorLog('Error saving user:', err);
     } finally {
       setLoading(false);
     }
@@ -372,7 +372,7 @@ const AdminPage: React.FC = () => {
         errorMessage = 'Error deleting user';
       }
       setUserModalError(errorMessage);
-      console.error('Error deleting user:', err);
+      errorLog('Error deleting user:', err);
     } finally {
       setLoading(false);
     }
@@ -380,7 +380,7 @@ const AdminPage: React.FC = () => {
 
   const handlePasswordReset = async (userId: number) => {
     // Placeholder - doesn't do anything yet
-    console.log('Password reset requested for user:', userId);
+    debugLog('Password reset requested for user:', userId);
     setUserModalError('Password reset functionality coming soon');
   };
 
@@ -436,7 +436,7 @@ const AdminPage: React.FC = () => {
         errorMessage = `Error ${editingSite ? 'updating' : 'creating'} site`;
       }
       setSiteModalError(errorMessage);
-      console.error('Error saving site:', err);
+      errorLog('Error saving site:', err);
     } finally {
       setLoading(false);
     }
@@ -463,7 +463,7 @@ const AdminPage: React.FC = () => {
         errorMessage = 'Error deleting site';
       }
       setSiteModalError(errorMessage);
-      console.error('Error deleting site:', err);
+      errorLog('Error deleting site:', err);
     } finally {
       setLoading(false);
     }
@@ -509,7 +509,7 @@ const AdminPage: React.FC = () => {
         errorMessage = `Error ${editingCompany ? 'updating' : 'creating'} company`;
       }
       setCompanyModalError(errorMessage);
-      console.error('Error saving company:', err);
+      errorLog('Error saving company:', err);
     } finally {
       setLoading(false);
     }
@@ -536,7 +536,7 @@ const AdminPage: React.FC = () => {
         errorMessage = 'Error deleting company';
       }
       setCompanyModalError(errorMessage);
-      console.error('Error deleting company:', err);
+      errorLog('Error deleting company:', err);
     } finally {
       setLoading(false);
     }

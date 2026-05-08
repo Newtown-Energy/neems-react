@@ -10,7 +10,7 @@ import {
 } from '@mui/material';
 import { apiRequestWithMapping, ApiError } from '../../utils/api';
 import type { Site } from '@newtown-energy/types';
-import { debugLog } from '../../utils/debug';
+import { debugLog, errorLog } from '../../utils/debug';
 
 interface SiteSelectorProps {
   selectedSiteId: number | null;
@@ -58,7 +58,7 @@ const SiteSelector: React.FC<SiteSelectorProps> = ({
         onSiteChange(data[0].id);
       }
     } catch (err) {
-      console.error('Error fetching sites:', err);
+      errorLog('Error fetching sites:', err);
       debugLog('SiteSelector: Error fetching sites', err);
       if (err instanceof ApiError) {
         setError(`Failed to load sites: ${err.message}`);

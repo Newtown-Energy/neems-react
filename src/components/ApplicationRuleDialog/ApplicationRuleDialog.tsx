@@ -42,6 +42,7 @@ import {
   createApplicationRule,
   deleteApplicationRule
 } from '../../utils/scheduleApi';
+import { errorLog } from '../../utils/debug';
 
 interface ApplicationRuleDialogProps {
   open: boolean;
@@ -105,7 +106,7 @@ const ApplicationRuleDialog: React.FC<ApplicationRuleDialogProps> = ({
       setSpecificDateRules(specificRules);
     } catch (err) {
       setError('Failed to load rules');
-      console.error('Error loading rules:', err);
+      errorLog('Error loading rules:', err);
     } finally {
       setLoading(false);
     }
@@ -145,7 +146,7 @@ const ApplicationRuleDialog: React.FC<ApplicationRuleDialogProps> = ({
       onRulesChanged?.();
     } catch (err) {
       setError('Failed to update recurring rules');
-      console.error('Error updating recurring rules:', err);
+      errorLog('Error updating recurring rules:', err);
       // Reload to restore previous state
       await loadRules();
     } finally {
@@ -162,7 +163,7 @@ const ApplicationRuleDialog: React.FC<ApplicationRuleDialogProps> = ({
       onRulesChanged?.();
     } catch (err) {
       setError('Failed to delete date override');
-      console.error('Error deleting date override:', err);
+      errorLog('Error deleting date override:', err);
     } finally {
       setLoading(false);
     }

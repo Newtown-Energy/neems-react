@@ -67,7 +67,6 @@ const AppContent: React.FC = () => {
 };
 
 const App: React.FC = () => {
-  console.log(`React app running on ${window.location.protocol}//${window.location.host}`);
   debugLog('Router: App initializing', {
     host: window.location.host,
     protocol: window.location.protocol,

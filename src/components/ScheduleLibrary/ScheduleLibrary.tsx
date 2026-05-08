@@ -66,7 +66,7 @@ import {
   durationToSeconds,
   secondsToDuration
 } from '../../utils/scheduleHelpers';
-import { debugLog } from '../../utils/debug';
+import { debugLog, errorLog } from '../../utils/debug';
 
 interface ScheduleLibraryProps {
   siteId: number;
@@ -136,7 +136,7 @@ const ScheduleLibrary: React.FC<ScheduleLibraryProps> = ({
       setLibraryItems(items);
     } catch (err) {
       setError('Failed to load library items');
-      console.error('Error loading library items:', err);
+      errorLog('Error loading library items:', err);
       debugLog('ScheduleLibrary: Error loading library items', err);
     } finally {
       setLoading(false);
@@ -158,7 +158,7 @@ const ScheduleLibrary: React.FC<ScheduleLibraryProps> = ({
       });
       setAllRules(rules);
     } catch (err) {
-      console.error('Error loading rules:', err);
+      errorLog('Error loading rules:', err);
       debugLog('ScheduleLibrary: Error loading rules', err);
     }
   };
@@ -228,7 +228,7 @@ const ScheduleLibrary: React.FC<ScheduleLibraryProps> = ({
       await loadAllRules();
     } catch (err) {
       setError('Failed to update library item');
-      console.error('Error updating library item:', err);
+      errorLog('Error updating library item:', err);
     } finally {
       setLoading(false);
     }
@@ -258,7 +258,7 @@ const ScheduleLibrary: React.FC<ScheduleLibraryProps> = ({
       await loadLibraryItems();
     } catch (err) {
       setError('Failed to create library item');
-      console.error('Error creating library item:', err);
+      errorLog('Error creating library item:', err);
     } finally {
       setLoading(false);
     }
@@ -277,7 +277,7 @@ const ScheduleLibrary: React.FC<ScheduleLibraryProps> = ({
       await loadAllRules(); // Reload rules since they're deleted with the item
     } catch (err) {
       setError('Failed to delete library item');
-      console.error('Error deleting library item:', err);
+      errorLog('Error deleting library item:', err);
     } finally {
       setLoading(false);
     }

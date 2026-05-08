@@ -56,7 +56,7 @@ import {
   formatDuration,
   formatSoC
 } from '../../utils/scheduleHelpers';
-import { debugLog } from '../../utils/debug';
+import { debugLog, errorLog } from '../../utils/debug';
 
 interface CommandCalendarProps {
   siteId: number;
@@ -130,7 +130,7 @@ const CommandCalendar: React.FC<CommandCalendarProps> = ({
       setCalendarData(dataMap);
     } catch (err) {
       setError('Failed to load calendar data');
-      console.error('Error loading calendar:', err);
+      errorLog('Error loading calendar:', err);
       debugLog('CommandCalendar: Error loading calendar', err);
     } finally {
       setLoading(false);
@@ -172,7 +172,7 @@ const CommandCalendar: React.FC<CommandCalendarProps> = ({
         onDateSelect?.(selectedDate, null);
       }
     } catch (err) {
-      console.error('Error loading selected date:', err);
+      errorLog('Error loading selected date:', err);
       debugLog('CommandCalendar: Error loading selected date', err);
     }
   };
@@ -413,7 +413,7 @@ const CommandCalendar: React.FC<CommandCalendarProps> = ({
       // Then reload the calendar month to update the grid
       await loadCalendarMonth();
     } catch (err) {
-      console.error('Error switching to schedule:', err);
+      errorLog('Error switching to schedule:', err);
       setError('Failed to switch schedule');
     }
   };

@@ -33,6 +33,7 @@ import {
   cloneLibraryItem,
   createApplicationRule
 } from '../utils/scheduleApi';
+import { errorLog } from '../utils/debug';
 import { toISODateString } from '../utils/scheduleHelpers';
 
 export const pageConfig = {
@@ -77,7 +78,7 @@ const SchedulerPage: React.FC = () => {
       const items = await getLibraryItems(HARDCODED_SITE_ID);
       setLibraryItems(items);
     } catch (err) {
-      console.error('Error loading library items:', err);
+      errorLog('Error loading library items:', err);
     }
   };
 
@@ -106,7 +107,7 @@ const SchedulerPage: React.FC = () => {
       // Refresh calendar
       setCalendarRefreshKey(prev => prev + 1);
     } catch (err) {
-      console.error('Error creating copy:', err);
+      errorLog('Error creating copy:', err);
     }
   };
 
@@ -140,7 +141,7 @@ const SchedulerPage: React.FC = () => {
       setApplyDifferentDialogOpen(false);
       setApplyOverrideReason('');
     } catch (err) {
-      console.error('Error applying schedule:', err);
+      errorLog('Error applying schedule:', err);
     }
   };
 
