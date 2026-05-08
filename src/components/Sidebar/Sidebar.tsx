@@ -6,6 +6,7 @@ import { SidebarItem } from './SidebarItem';
 import { getPageConfig } from '../../config/pageRegistry';
 import { CompanySelector } from '../CompanySelector/CompanySelector';
 import { useAuth } from '../../pages/LoginPage/useAuth';
+import { isAdmin } from '../../utils/auth';
 import { debugLog, errorLog } from '../../utils/debug';
 
 interface SidebarProps {
@@ -28,8 +29,7 @@ const Sidebar: React.FC<SidebarProps> = () => { // Removed unused className
     return 'sld';
   };
 
-  const userRoles = userInfo?.roles || [];
-  const isAdmin = userRoles.includes('admin') || userRoles.includes('newtown-admin') || userRoles.includes('newtown-staff');
+  const showAdminPanel = isAdmin(userInfo?.roles);
 
   // Stripped dev-target menu (SLD feedback round). The Overview deep-link route
   // still exists in App.tsx but is no longer in the sidebar.
@@ -48,7 +48,7 @@ const Sidebar: React.FC<SidebarProps> = () => { // Removed unused className
   }).filter((item): item is NonNullable<typeof item> => item !== null);
 
   const bottomItems = [
-    ...(isAdmin ? [{ id: 'admin', icon: AdminPanelSettings, text: 'Admin Panel' }] : []),
+    ...(showAdminPanel ? [{ id: 'admin', icon: AdminPanelSettings, text: 'Admin Panel' }] : []),
     { id: 'help', icon: Help, text: 'Ask for help' },
     { id: 'logout', icon: Logout, text: 'Logout' }
   ];

@@ -3,6 +3,7 @@ import { Box, Typography, Avatar, Menu, MenuItem, Divider, ListItemIcon } from '
 import { AdminPanelSettings, Logout } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import type { UserInfo } from '../../types/auth';
+import { isAdmin } from '../../utils/auth';
 
 interface UserProfileProps {
   email: string;
@@ -40,9 +41,7 @@ const UserProfile: React.FC<UserProfileProps> = ({
     return email.charAt(0).toUpperCase();
   };
 
-  // Extract roles from userInfo, with fallback to empty array
-  const userRoles = userInfo?.roles || [];
-  const isAdmin = userRoles.includes('admin') || userRoles.includes('newtown-admin') || userRoles.includes('newtown-staff');
+  const showAdminPanel = isAdmin(userInfo?.roles);
 
   return (
     <>
@@ -87,7 +86,7 @@ const UserProfile: React.FC<UserProfileProps> = ({
           </>
         )}
         
-        {isAdmin && (
+        {showAdminPanel && (
           <MenuItem onClick={handleAdminPanel}>
             <ListItemIcon>
               <AdminPanelSettings fontSize="small" />
@@ -95,8 +94,8 @@ const UserProfile: React.FC<UserProfileProps> = ({
             Admin Panel
           </MenuItem>
         )}
-        
-        {isAdmin && <Divider />}
+
+        {showAdminPanel && <Divider />}
         
         <MenuItem onClick={handleLogout}>
           <ListItemIcon>
