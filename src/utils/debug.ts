@@ -29,16 +29,16 @@ export const isDebugEnabled = (): boolean => {
   }
 };
 
-export const debugLog = (...args: any[]): void => {
+export const debugLog = (...args: unknown[]): void => {
   if (isDebugEnabled()) {
     console.log('[DEBUG]', ...args);
   }
 };
 
-export const warnLog = (...args: any[]): void => {
+export const warnLog = (...args: unknown[]): void => {
   console.warn(...args);
 };
 
-export const errorLog = (...args: any[]): void => {
+export const errorLog = (...args: unknown[]): void => {
   console.error(...args);
 };

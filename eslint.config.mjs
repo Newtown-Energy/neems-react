@@ -35,7 +35,6 @@ export default defineConfig([
       '@typescript-eslint/no-unused-vars': 'off',
       '@typescript-eslint/no-unnecessary-type-assertion': 'off',
       '@typescript-eslint/prefer-regexp-exec': 'off',
-      '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/prefer-optional-chain': 'off',
       '@typescript-eslint/no-unsafe-return': 'off',
       '@typescript-eslint/no-unsafe-member-access': 'off',
