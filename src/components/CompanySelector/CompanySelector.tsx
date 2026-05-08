@@ -11,6 +11,7 @@ import { Business } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { apiRequestWithMapping } from '../../utils/api';
 import type { Company } from '@newtown-energy/types';
+import { isSuperAdmin } from '../../utils/auth';
 import { debugLog, errorLog } from '../../utils/debug';
 
 interface CompanySelectorProps {
@@ -30,13 +31,13 @@ export const CompanySelector: React.FC<CompanySelectorProps> = ({
   const navigate = useNavigate();
   const location = useLocation();
 
-  const isSuperAdmin = userRoles.includes('newtown-admin') || userRoles.includes('newtown-staff');
+  const userIsSuperAdmin = isSuperAdmin(userRoles);
 
   useEffect(() => {
-    if (isSuperAdmin) {
+    if (userIsSuperAdmin) {
       fetchCompanies();
     }
-  }, [isSuperAdmin]);
+  }, [userIsSuperAdmin]);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -115,7 +116,7 @@ export const CompanySelector: React.FC<CompanySelectorProps> = ({
     }
   };
 
-  if (!isSuperAdmin) {
+  if (!userIsSuperAdmin) {
     return null;
   }
 

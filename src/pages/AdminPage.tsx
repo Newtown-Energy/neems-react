@@ -35,6 +35,7 @@ import { useSearchParams } from 'react-router-dom';
 import type { Company, Site, CompanyWithTimestamps, UserWithRolesAndTimestamps, CreateUserWithRolesRequest, UpdateUserRequest, CreateSiteRequest } from '@newtown-energy/types';
 import { apiRequestWithMapping, ApiError } from '../utils/api';
 import type { ODataQueryOptions } from '../utils/api';
+import { isAdmin, isSuperAdmin } from '../utils/auth';
 import { debugLog, errorLog } from '../utils/debug';
 
 type UserWithExpandedCompany = UserWithRolesAndTimestamps & { Company?: Company };
@@ -92,10 +93,8 @@ const AdminPage: React.FC = () => {
   const [companyToDelete, setCompanyToDelete] = useState<CompanyWithTimestamps | null>(null);
   const [companyModalError, setCompanyModalError] = useState<string | null>(null);
 
-  // Role checks
-  const currentUserRoles = userInfo?.roles || [];
-  const isAdmin = currentUserRoles.includes('admin') || currentUserRoles.includes('newtown-admin');
-  const isSuperAdmin = currentUserRoles.includes('newtown-admin') || currentUserRoles.includes('newtown-staff');
+  const userIsAdmin = isAdmin(userInfo?.roles);
+  const userIsSuperAdmin = isSuperAdmin(userInfo?.roles);
 
   // Available roles based on company
   const getAvailableRoles = (companyId: number): string[] => {
@@ -109,10 +108,10 @@ const AdminPage: React.FC = () => {
   };
 
   useEffect(() => {
-    if (isAdmin) {
+    if (userIsAdmin) {
       fetchCompanies();
     }
-  }, [isAdmin]);
+  }, [userIsAdmin]);
 
   useEffect(() => {
     // Load users and sites when selectedCompanyId changes
@@ -541,7 +540,7 @@ const AdminPage: React.FC = () => {
     }
   };
 
-  if (!isAdmin) {
+  if (!userIsAdmin) {
     return (
       <Box sx={{ p: 3 }}>
         <Typography variant="h2" gutterBottom>
@@ -587,7 +586,7 @@ const AdminPage: React.FC = () => {
             <Tabs value={tabValue} onChange={(_, newValue) => setTabValue(newValue)}>
               <Tab icon={<Person />} label="Users" />
               <Tab icon={<LocationOn />} label="Sites" />
-              {isSuperAdmin && (
+              {userIsSuperAdmin && (
                 <Tab icon={<Business />} label="COMPANIES" />
               )}
             </Tabs>
@@ -795,7 +794,7 @@ const AdminPage: React.FC = () => {
       )}
 
       {/* Companies Tab - Only for Super Admins */}
-      {tabValue === 2 && isSuperAdmin && (
+      {tabValue === 2 && userIsSuperAdmin && (
         <Card>
           <CardContent>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
