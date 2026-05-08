@@ -51,7 +51,7 @@ function buildODataQuery(options: ODataQueryOptions): string {
   return queryString ? `?${queryString}` : '';
 }
 
-export async function apiRequest<T = any>(
+export async function apiRequest<T = unknown>(
   url: string,
   options: RequestInit = {}
 ): Promise<T> {
@@ -100,7 +100,7 @@ export async function apiRequest<T = any>(
     }
   }
 
-  let data: any;
+  let data: unknown;
   try {
     data = JSON.parse(responseText);
   } catch (parseError) {
@@ -134,7 +134,7 @@ export async function apiRequest<T = any>(
 }
 
 // OData-aware API request for collections (automatically unwraps OData envelope)
-export async function apiRequestOData<T = any>(
+export async function apiRequestOData<T = unknown>(
   url: string,
   options: RequestInit = {},
   queryOptions?: ODataQueryOptions
@@ -238,7 +238,7 @@ function mapNavigationEndpoint(url: string): string {
 }
 
 // Enhanced API request that automatically maps old endpoints to new OData endpoints
-export async function apiRequestWithMapping<T = any>(
+export async function apiRequestWithMapping<T = unknown>(
   url: string,
   options: RequestInit = {},
   queryOptions?: ODataQueryOptions
@@ -264,7 +264,7 @@ export async function apiRequestWithMapping<T = any>(
 }
 
 // Convenience function for getting OData collections with count information
-export async function apiRequestODataWithCount<T = any>(
+export async function apiRequestODataWithCount<T = unknown>(
   url: string,
   options: RequestInit = {},
   queryOptions?: ODataQueryOptions
