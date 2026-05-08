@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { LoginSuccessResponse } from "../../types/auth";
-import { apiRequest, ApiError } from "../../utils/api";
+import { apiRequestWithMapping, ApiError } from "../../utils/api";
 import { debugLog, errorLog } from "../../utils/debug";
 
 export function useAuth() {
@@ -51,7 +51,7 @@ export function useAuth() {
     }
 
     debugLog('useAuth: Calling /api/1/hello to verify authentication');
-    apiRequest<LoginSuccessResponse>('/api/1/hello')
+    apiRequestWithMapping<LoginSuccessResponse>('/api/1/hello')
       .then((data) => {
         debugLog('useAuth: Authentication verified', { email: data.email, roles: data.roles });
         setIsAuthenticated(true);
@@ -77,7 +77,7 @@ export function useAuth() {
   const logout = async () => {
     debugLog('useAuth: Logout initiated');
     try {
-      await apiRequest('/api/1/logout', {
+      await apiRequestWithMapping('/api/1/logout', {
         method: 'POST'
       });
       debugLog('useAuth: Logout API call successful');

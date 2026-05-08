@@ -164,11 +164,11 @@ neems-react/
 
 ### API Client (`src/utils/api.ts`)
 
-The project uses a centralized API client with these key functions:
+The project uses a centralized API client. **Use `apiRequestWithMapping` for all API calls** — it is the standard helper and handles every endpoint pattern in the codebase.
 
-1. **`apiRequest<T>(url, options)`** - Basic API request with JSON parsing and error handling
-2. **`apiRequestOData<T>(url, options, queryOptions)`** - OData-aware requests that unwrap collections
-3. **`apiRequestWithMapping<T>(url, options, queryOptions)`** - Maps legacy endpoints to new OData endpoints
+- **`apiRequestWithMapping<T>(url, options, queryOptions)`** — Standard helper. Maps legacy lowercase endpoints (e.g. `/api/1/users`) to OData equivalents (`/api/1/Users`) and unwraps OData collection envelopes for GET requests automatically. Falls through to the basic request behavior for non-collection endpoints (auth, alarms, etc.), so it is safe for everything.
+- **`apiRequest<T>(url, options)`** — Lower-level: raw fetch with JSON parsing and error handling. Use only if you specifically need to bypass URL mapping and OData unwrapping.
+- **`apiRequestOData<T>(url, options, queryOptions)`** — Lower-level: returns `{ data, count }` for collection endpoints. Use only when you need the OData `@odata.count` alongside the data.
 
 ### OData Support
 
