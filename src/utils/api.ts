@@ -100,7 +100,7 @@ export async function apiRequest<T = any>(
     }
   }
 
-  let data: any;
+  let data: unknown;
   try {
     data = JSON.parse(responseText);
   } catch (parseError) {

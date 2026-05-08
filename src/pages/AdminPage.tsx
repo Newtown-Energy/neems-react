@@ -32,13 +32,12 @@ import {
 import { Add, Edit, Delete, Refresh, Person, LocationOn, Business, AdminPanelSettings } from '@mui/icons-material';
 import { useAuth } from './LoginPage/useAuth';
 import { useSearchParams } from 'react-router-dom';
-import type { User, Site, CompanyWithTimestamps, UserWithRolesAndTimestamps, CreateUserWithRolesRequest, UpdateUserRequest, CreateSiteRequest } from '@newtown-energy/types';
+import type { Company, Site, CompanyWithTimestamps, UserWithRolesAndTimestamps, CreateUserWithRolesRequest, UpdateUserRequest, CreateSiteRequest } from '@newtown-energy/types';
 import { apiRequestWithMapping, ApiError } from '../utils/api';
 import type { ODataQueryOptions } from '../utils/api';
 import { debugLog, errorLog } from '../utils/debug';
 
-
-
+type UserWithExpandedCompany = UserWithRolesAndTimestamps & { Company?: Company };
 
 
 const formatDateTime = (dateString: string): string => {
@@ -184,11 +183,11 @@ const AdminPage: React.FC = () => {
         // $skip: 0, // Skip 0 users (for pagination)
         // $count: true // Include total count in response
       };
-      const data = await apiRequestWithMapping<User[]>(`/api/1/Companies/${selectedCompanyId}/Users`, {}, queryOptions);
+      const data = await apiRequestWithMapping<UserWithExpandedCompany[]>(`/api/1/Companies/${selectedCompanyId}/Users`, {}, queryOptions);
       // Transform API response - roles are now embedded, company may be expanded
-      const usersWithCompanyNames = data.map((user: any) => ({
+      const usersWithCompanyNames = data.map((user) => ({
         ...user,
-        company_name: (user.Company?.name) || companies.find(c => c.id === user.company_id)?.name || 'Unknown'
+        company_name: user.Company?.name || companies.find(c => c.id === user.company_id)?.name || 'Unknown'
       }));
       debugLog('AdminPage: Users loaded', {
         companyId: selectedCompanyId,
@@ -222,7 +221,7 @@ const AdminPage: React.FC = () => {
     try {
       const data = await apiRequestWithMapping<Site[]>(`/api/1/Companies/${selectedCompanyId}/Sites`);
       // Transform API response to match our interface
-      const transformedSites = data.map((site: any) => ({
+      const transformedSites = data.map((site) => ({
         ...site,
         location: site.address || `${site.latitude}, ${site.longitude}`,
         company_name: companies.find(c => c.id === site.company_id)?.name || 'Unknown',
