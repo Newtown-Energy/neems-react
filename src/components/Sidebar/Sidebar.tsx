@@ -31,8 +31,8 @@ const Sidebar: React.FC<SidebarProps> = () => { // Removed unused className
   const userRoles = userInfo?.roles || [];
   const isAdmin = userRoles.includes('admin') || userRoles.includes('newtown-admin') || userRoles.includes('newtown-staff');
 
-  // Stripped dev-target menu (SLD feedback round). Deep-link routes for Overview,
-  // Battery*, ConEdison still exist in App.tsx but are no longer in the sidebar.
+  // Stripped dev-target menu (SLD feedback round). The Overview deep-link route
+  // still exists in App.tsx but is no longer in the sidebar.
   const enabledPageIds = ['sld', 'scheduler', 'alarms', 'fdny'];
   
   const navItems = enabledPageIds.map(pageId => {
