@@ -18,7 +18,6 @@ const LoginPage: React.FC<Props> = ({ onLoginSuccess }) => {
     setLoading(true);
 
     const requestBody = { email, password };
-    console.log("Sending login request with body:", requestBody);
     debugLog('LoginPage: Login attempt', { email });
 
     try {

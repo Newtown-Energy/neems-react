@@ -37,6 +37,7 @@ import {
   getSeverityOrder,
 } from '../utils/alarmHelpers';
 import { resolveAlarmSeverity } from '../config/siteConfig';
+import { errorLog } from '../utils/debug';
 
 export const pageConfig = {
   id: 'alarms',
@@ -87,7 +88,7 @@ const AlarmsPage: React.FC = () => {
         setHistory((h) => ({ ...h, [alarmNum]: { kind: 'loaded', entries: res.entries } })),
       )
       .catch((err) => {
-        console.error('Alarm history fetch failed:', err);
+        errorLog('Alarm history fetch failed:', err);
         setHistory((h) => ({
           ...h,
           [alarmNum]: { kind: 'error', message: 'Failed to load history' },
@@ -120,7 +121,7 @@ const AlarmsPage: React.FC = () => {
       setLastRefresh(new Date());
     } catch (err) {
       setError('Failed to load alarm data');
-      console.error('Error loading alarms:', err);
+      errorLog('Error loading alarms:', err);
     } finally {
       setLoading(false);
     }
@@ -130,7 +131,7 @@ const AlarmsPage: React.FC = () => {
     // Definitions are static — load once
     fetchAlarmDefinitions()
       .then(setDefinitions)
-      .catch((err) => console.error('Error loading alarm definitions:', err));
+      .catch((err) => errorLog('Error loading alarm definitions:', err));
 
     loadAlarms(true);
     const interval = setInterval(() => loadAlarms(), POLL_INTERVAL_MS);

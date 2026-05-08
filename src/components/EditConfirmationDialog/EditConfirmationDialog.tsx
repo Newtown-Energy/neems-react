@@ -24,6 +24,7 @@ import {
 import type { ScheduleLibraryItem } from '@newtown-energy/types';
 import { getLibraryItems } from '../../utils/scheduleApi';
 import { formatScheduleDate } from '../../utils/scheduleHelpers';
+import { errorLog } from '../../utils/debug';
 
 /**
  * Generates a unique copy name with incrementing version numbers.
@@ -98,7 +99,7 @@ const EditConfirmationDialog: React.FC<EditConfirmationDialogProps> = ({
           setCopyName(nextName);
           setNameError('');
         } catch (err) {
-          console.error('Error generating copy name:', err);
+          errorLog('Error generating copy name:', err);
           // Fallback to simple copy name
           setCopyName(`${libraryItem.name} (2)`);
           setNameError('');

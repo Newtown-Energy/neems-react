@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { LoginSuccessResponse } from "../../types/auth";
 import { apiRequest, ApiError } from "../../utils/api";
-import { debugLog } from "../../utils/debug";
+import { debugLog, errorLog } from "../../utils/debug";
 
 export function useAuth() {
   const [loading, setLoading] = useState(true);
@@ -82,7 +82,7 @@ export function useAuth() {
       });
       debugLog('useAuth: Logout API call successful');
     } catch (error) {
-      console.error('Logout request failed:', error);
+      errorLog('Logout request failed:', error);
       debugLog('useAuth: Logout API call failed', error);
     } finally {
       // Always clear user data and set as not authenticated, even if request fails

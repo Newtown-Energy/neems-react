@@ -1,38 +1,44 @@
 /**
- * Debug utility for conditional logging throughout the application.
+ * Logging utilities for the application.
  *
- * Debug mode can be enabled in two ways:
- * 1. Query string: ?debug=true
- * 2. localStorage: localStorage.setItem('debugSchedule', 'true')
+ * - debugLog: gated by debug mode (query string ?debug=true or
+ *   localStorage.debugSchedule === 'true'). Use for verbose tracing.
+ * - warnLog / errorLog: always log. Use for warnings and errors that should
+ *   be visible regardless of debug mode.
+ *
+ * Routing all console output through this module gives us a single place to
+ * change logging behavior (e.g. forward to a remote sink) later.
  *
  * Usage:
- *   import { debugLog } from '@/utils/debug';
+ *   import { debugLog, warnLog, errorLog } from '@/utils/debug';
  *   debugLog('Loading calendar for month:', currentMonth);
+ *   warnLog('Empty response from', url);
+ *   errorLog('Error fetching users:', err);
  */
 
-/**
- * Check if debug mode is enabled via query string or localStorage
- */
 export const isDebugEnabled = (): boolean => {
-  // Check query string
   const params = new URLSearchParams(window.location.search);
   if (params.get('debug') === 'true') {
     return true;
   }
 
-  // Check localStorage
   try {
     return localStorage.getItem('debugSchedule') === 'true';
-  } catch (e) {
+  } catch {
     return false;
   }
 };
 
-/**
- * Log a debug message if debug mode is enabled
- */
 export const debugLog = (...args: any[]): void => {
   if (isDebugEnabled()) {
     console.log('[DEBUG]', ...args);
   }
+};
+
+export const warnLog = (...args: any[]): void => {
+  console.warn(...args);
+};
+
+export const errorLog = (...args: any[]): void => {
+  console.error(...args);
 };

@@ -6,7 +6,7 @@ import { SidebarItem } from './SidebarItem';
 import { getPageConfig } from '../../config/pageRegistry';
 import { CompanySelector } from '../CompanySelector/CompanySelector';
 import { useAuth } from '../../pages/LoginPage/useAuth';
-import { debugLog } from '../../utils/debug';
+import { debugLog, errorLog } from '../../utils/debug';
 
 interface SidebarProps {
   className?: string;
@@ -80,11 +80,11 @@ const Sidebar: React.FC<SidebarProps> = () => { // Removed unused className
         debugLog('Sidebar: Logout successful, reloading page');
         window.location.reload();
       } else {
-        console.error('Logout failed:', response.statusText);
+        errorLog('Logout failed:', response.statusText);
         debugLog('Sidebar: Logout failed', { status: response.status, statusText: response.statusText });
       }
     } catch (error) {
-      console.error('Logout error:', error);
+      errorLog('Logout error:', error);
       debugLog('Sidebar: Logout error', error);
     }
   };

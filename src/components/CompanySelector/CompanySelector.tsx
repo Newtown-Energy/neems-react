@@ -11,7 +11,7 @@ import { Business } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { apiRequestWithMapping } from '../../utils/api';
 import type { Company } from '@newtown-energy/types';
-import { debugLog } from '../../utils/debug';
+import { debugLog, errorLog } from '../../utils/debug';
 
 interface CompanySelectorProps {
   collapsed: boolean;
@@ -86,7 +86,7 @@ export const CompanySelector: React.FC<CompanySelectorProps> = ({
       });
       setCompanies(data);
     } catch (err) {
-      console.error('Error fetching companies:', err);
+      errorLog('Error fetching companies:', err);
       debugLog('CompanySelector: Error fetching companies', err);
       setCompanies([]);
     } finally {

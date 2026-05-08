@@ -34,6 +34,7 @@ import {
   getSeverityColor,
 } from '../utils/alarmHelpers';
 import { resolveAlarmSeverity } from '../config/siteConfig';
+import { errorLog } from '../utils/debug';
 
 export const pageConfig = {
   id: 'fdny',
@@ -77,7 +78,7 @@ const FDNYPage: React.FC = () => {
   useEffect(() => {
     fetchAlarmDefinitions()
       .then((d) => setDefinitions(d.definitions))
-      .catch((err) => console.error('Error loading alarm definitions:', err));
+      .catch((err) => errorLog('Error loading alarm definitions:', err));
   }, []);
 
   const load = useCallback(async () => {
@@ -93,7 +94,7 @@ const FDNYPage: React.FC = () => {
       setLastRefresh(new Date());
     } catch (err) {
       setError('Failed to load alarm history');
-      console.error('Error loading alarm history:', err);
+      errorLog('Error loading alarm history:', err);
     } finally {
       setLoading(false);
     }

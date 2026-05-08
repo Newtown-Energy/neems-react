@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import type { ActiveAlarmsResponse } from '@newtown-energy/types';
 import { fetchActiveAlarms } from '../utils/alarmApi';
 import { formatAlarmName, getSeverityColor, getSeverityOrder, ZONE_DISPLAY_NAMES } from '../utils/alarmHelpers';
+import { errorLog } from '../utils/debug';
 
 export const pageConfig = {
   id: 'overview',
@@ -25,7 +26,7 @@ const OverviewPage: React.FC = () => {
       setAlarmError(null);
     } catch (err) {
       setAlarmError('Failed to load alarm data');
-      console.error('Error loading alarms:', err);
+      errorLog('Error loading alarms:', err);
     } finally {
       setAlarmLoading(false);
     }

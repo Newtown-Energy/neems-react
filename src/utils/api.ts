@@ -1,5 +1,5 @@
 import type { ErrorResponse } from '@newtown-energy/types';
-import { debugLog } from './debug';
+import { debugLog, warnLog, errorLog } from './debug';
 
 class ApiError extends Error {
   status: number;
@@ -92,7 +92,7 @@ export async function apiRequest<T = any>(
   
   // Log non-JSON responses for debugging
   if (!responseText.trim()) {
-    console.warn(`API returned empty response: ${response.status} ${response.statusText} for ${url}`);
+    warnLog(`API returned empty response: ${response.status} ${response.statusText} for ${url}`);
     if (response.ok) {
       return {} as T;
     } else {
@@ -105,7 +105,7 @@ export async function apiRequest<T = any>(
     data = JSON.parse(responseText);
   } catch (parseError) {
     // This should never happen with the updated backend, so log it
-    console.error('Non-JSON response received:', {
+    errorLog('Non-JSON response received:', {
       url,
       status: response.status,
       statusText: response.statusText,

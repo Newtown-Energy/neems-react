@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { fetchActiveAlarms } from '../../utils/alarmApi';
+import { errorLog } from '../../utils/debug';
 import type { SldAction } from './sldState';
 
 const POLL_INTERVAL_MS = 10_000;
@@ -26,7 +27,7 @@ export function useSldAlarms(
           dispatch({ type: 'UPDATE_ALARMS', alarms: response });
         }
       } catch (err) {
-        console.error('SLD alarm poll failed:', err);
+        errorLog('SLD alarm poll failed:', err);
         if (mounted) {
           dispatch({ type: 'MARK_STALE' });
         }
