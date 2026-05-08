@@ -59,10 +59,12 @@ docker compose exec neems-react bash
 cd ../devenv
 docker compose exec neems-react npm install
 docker compose exec neems-react npm run dev
-docker compose exec neems-react npm test
 docker compose exec neems-react npm run build
-docker compose exec neems-react npm run typecheck
+docker compose exec neems-react npm run lint:tsc
 docker compose exec neems-react npm run lint
+
+# E2E tests run on the host (Puppeteer needs a local Chrome), not inside the
+# container. With the dev server running, use `bin/dosh test` from neems-react/.
 
 # Check container status
 cd ../devenv
@@ -96,8 +98,8 @@ bun install
 # Start dev server
 bun run dev
 
-# Run tests
-cd test/jest && bun run test
+# Run E2E tests (against the dev server started above)
+bin/dosh test
 
 # Type checking
 bun run lint:tsc
@@ -607,14 +609,15 @@ The dev server runs on port 5173 (or `NEEMS_REACT_PORT` env var) and proxies `/a
 ### Testing
 
 ```bash
-# Run E2E tests (Docker)
-docker compose exec neems-react npm test
-
-# Run E2E tests (without Docker)
-cd test/jest && bun run test
+# Run E2E tests against a running dev server on localhost:5173
+bin/dosh test
+# (Puppeteer needs a local Chrome, so tests run on the host even when the dev
+# server is in Docker. From ../devenv/ start the dev server with
+# `docker compose exec neems-react npm run dev`, then run `bin/dosh test` from
+# this directory.)
 
 # Type checking
-docker compose exec neems-react npm run typecheck  # Docker
+docker compose exec neems-react npm run lint:tsc  # Docker
 bun run lint:tsc  # Without Docker
 
 # Linting
@@ -738,7 +741,7 @@ docker compose exec neems-react rm -rf node_modules
 docker compose exec neems-react npm install
 
 # Type check
-docker compose exec neems-react npm run typecheck
+docker compose exec neems-react npm run lint:tsc
 
 # Clear Vite cache
 docker compose exec neems-react rm -rf node_modules/.vite
@@ -760,8 +763,7 @@ docker compose exec neems-react rm -rf node_modules/.vite
 | Task | Command |
 |------|---------|
 | Start dev server | `docker compose exec neems-react npm run dev` |
-| Run tests | `docker compose exec neems-react npm test` |
-| Type check | `docker compose exec neems-react npm run typecheck` |
+| Type check | `docker compose exec neems-react npm run lint:tsc` |
 | Lint code | `docker compose exec neems-react npm run lint` |
 | Build production | `docker compose exec neems-react npm run build` |
 | Install packages | `docker compose exec neems-react npm install` |
@@ -769,12 +771,14 @@ docker compose exec neems-react rm -rf node_modules/.vite
 | View logs | `docker compose logs -f neems-react` |
 | Access container | `docker compose exec neems-react bash` |
 
+E2E tests run on the host via `bin/dosh test` (from `neems-react/`) against the dev server above — Puppeteer needs a local Chrome.
+
 ### Without Docker (from this directory)
 
 | Task | Command |
 |------|---------|
 | Start dev server | `bun run dev` |
-| Run tests | `cd test/jest && bun run test` |
+| Run tests | `bin/dosh test` |
 | Type check | `bun run lint:tsc` |
 | Lint code | `bun run lint:eslint` |
 | Build production | `bun run build` |
