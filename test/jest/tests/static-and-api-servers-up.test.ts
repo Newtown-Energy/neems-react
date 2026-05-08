@@ -1,5 +1,5 @@
 import { navigateToApp } from './test-utils';
-import type { HealthStatus } from '../../../src/types/generated/HealthStatus';
+import type { HealthStatus } from '@newtown-energy/types';
 
 describe('NEEMS React App Tests', () => {
 
