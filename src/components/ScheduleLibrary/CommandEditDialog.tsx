@@ -156,7 +156,10 @@ const CommandEditDialog: React.FC<CommandEditDialogProps> = ({
               <Select
                 value={durationHours ?? ''}
                 label="Hours"
-                onChange={e => setDurationHours(e.target.value === '' ? null : Number(e.target.value))}
+                onChange={e => {
+                  const raw = e.target.value as number | '';
+                  setDurationHours(raw === '' ? null : Number(raw));
+                }}
               >
                 <MenuItem value="">-</MenuItem>
                 {Array.from({ length: 24 }, (_, i) => (
@@ -169,7 +172,10 @@ const CommandEditDialog: React.FC<CommandEditDialogProps> = ({
               <Select
                 value={durationMinutes ?? ''}
                 label="Minutes"
-                onChange={e => setDurationMinutes(e.target.value === '' ? null : Number(e.target.value))}
+                onChange={e => {
+                  const raw = e.target.value as number | '';
+                  setDurationMinutes(raw === '' ? null : Number(raw));
+                }}
               >
                 <MenuItem value="">-</MenuItem>
                 {[0, 15, 30, 45].map(m => (
