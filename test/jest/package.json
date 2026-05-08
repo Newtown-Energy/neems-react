@@ -1,11 +1,15 @@
 {
   "type": "module",
   "devDependencies": {
-    "@types/jest": "^29.0.0",
+    "@types/jest": "^30.0.0",
     "@types/jest-environment-puppeteer": "^5.0.0",
     "jest-puppeteer": "^11.0.0",
     "ts-jest": "^29.0.0",
     "typescript": "^5.0.0",
     "tslib": "^2.6.0"
+  },
+  "overrides": {
+    "babel-plugin-istanbul": "^8.0.0",
+    "jest-environment-node": "^30.0.0"
   }
 }
