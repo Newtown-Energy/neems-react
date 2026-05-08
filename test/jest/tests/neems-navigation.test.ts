@@ -1,108 +1,97 @@
+/**
+ * Sidebar navigation tests.
+ *
+ * Verifies the NEEMS logo link, the Admin Panel sidebar item, and the
+ * primary nav items route to their expected paths. The legacy
+ * UserProfile dropdown was consolidated into the sidebar (commit 934d7c9).
+ */
 import {
-  clearBrowserState,
   navigateToApp,
-  navigateToAdmin,
-  findButtonByText,
-  loginAsUser,
   loginAsSuperAdmin,
-  createNetworkErrorHandler,
-  verifyEntityExists
 } from './test-utils';
 
+const baseUrl = `http://localhost:${process.env.NEEMS_REACT_PORT || '5173'}`;
 
 describe('NEEMS Navigation Tests', () => {
   beforeEach(async () => {
-    // Clear cookies to ensure clean state between tests
     const client = await page.target().createCDPSession();
     await client.send('Network.clearBrowserCookies');
     await client.send('Network.clearBrowserCache');
     await client.detach();
-
-    await page.goto(`http://localhost:${process.env.NEEMS_REACT_PORT || '5173'}`);
+    // Sidebar auto-collapses below 900px wide; expanded sidebar exposes labels.
+    await page.setViewport({ width: 1280, height: 800 });
+    await page.goto(baseUrl);
   });
 
-  it('should navigate to main page when NEEMS header is clicked', async () => {
+  it('should expose a NEEMS logo link to the root path', async () => {
     await loginAsSuperAdmin(page);
-   
-    // Navigate to a different page first (Super Admin)
-    await page.click('[data-testid="user-profile"]');
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // Click Admin menu item
-    const menuItems = await page.$$('[role="menu"] [role="menuitem"]');
-    for (const item of menuItems) {
-      const text = await item.evaluate(el => el.textContent);
-      if (text && text.includes('Admin Panel')) {
-        await item.click();
-        break;
-      }
-    }
-    
-    // Wait for navigation to complete
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    // Verify we're on the Super Admin page by checking URL
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    const superAdminUrl = await page.url();
-    expect(superAdminUrl).toContain('/admin');
-    
-    // Make sure sidebar is expanded by clicking the expand button if needed
-    const expandButton = await page.$('button[aria-label*="expand"], button[title*="expand"], .MuiDrawer-paper button');
-    if (expandButton) {
-      // Check if sidebar is collapsed by looking for collapsed class or narrow width
-      const isCollapsed = await page.evaluate(() => {
-        const drawer = document.querySelector('.MuiDrawer-paper');
-        return drawer && drawer.clientWidth < 100; // If width is very small, it's collapsed
-      });
-      
-      if (isCollapsed) {
-        await expandButton.click();
-        await new Promise(resolve => setTimeout(resolve, 500));
-      }
-    }
-    
-    // Find NEEMS header link to go back to main page
-    const neemsLinks = await page.$$('a[href="/"]');
-    let neemsLink = null;
-    
-    for (const link of neemsLinks) {
-      const text = await link.evaluate(el => el.textContent);
-      if (text && text.includes('NEEMS')) {
-        neemsLink = link;
-        break;
-      }
-    }
-    
-    // Only show debug output if the test is failing
-    if (!neemsLink) {
-      console.log('DEBUG: NEEMS link not found');
-      console.log(`Found ${neemsLinks.length} links with href="/"`);
-      
-      const allLinks = await page.$$('a');
-      console.log(`Total links found: ${allLinks.length}`);
-      for (let i = 0; i < Math.min(allLinks.length, 10); i++) {
-        const href = await allLinks[i].evaluate(el => el.getAttribute('href'));
-        const text = await allLinks[i].evaluate(el => el.textContent);
-        console.log(`Link ${i}: href="${href}", text="${text}"`);
-      }
-    }
-    
-    expect(neemsLink).not.toBeNull();
-    
-    // Verify the NEEMS link is functional by checking it has the correct href and is clickable
-    const href = await neemsLink!.evaluate(el => el.getAttribute('href'));
-    expect(href).toBe('/');
-    
-    // Test that the link is clickable (this validates the functionality works)
-    const isClickable = await neemsLink!.evaluate(el => {
-      // Check if the element is visible and has the correct properties
-      const rect = el.getBoundingClientRect();
-      return rect.width > 0 && rect.height > 0 && !el.hasAttribute('disabled');
+    await page.waitForSelector('#authed-ui-box', { timeout: 10000 });
+
+    // The logo link wraps a logo image and the "NEEMS" wordmark.
+    const href = await page.evaluate(() => {
+      const links = Array.from(document.querySelectorAll('a[href="/"]'));
+      const neems = links.find(a => /NEEMS/.test(a.textContent || ''));
+      return neems?.getAttribute('href') || null;
     });
-    expect(isClickable).toBe(true);
-    
-    // Note: Due to session management limitations in the test environment,
-    // we cannot reliably test the full navigation flow, but the NEEMS link
-    // is correctly implemented and functional in the application.
+    expect(href).toBe('/');
+  });
+
+  it('should navigate to /admin via the Admin Panel sidebar item', async () => {
+    // Start somewhere other than admin.
+    await page.goto(`${baseUrl}/scheduler`);
+    await loginAsSuperAdmin(page);
+    await page.waitForFunction(
+      () => document.body.innerText.includes('Schedule Calendar'),
+      { timeout: 10000 }
+    );
+
+    const clicked = await page.evaluate(() => {
+      const labels = Array.from(document.querySelectorAll('.MuiListItemText-primary'));
+      const adminLabel = labels.find(el => el.textContent === 'Admin Panel');
+      const button = adminLabel?.closest('[role="button"]') as HTMLElement | null;
+      if (button) {
+        button.click();
+        return true;
+      }
+      return false;
+    });
+    expect(clicked).toBe(true);
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    expect(await page.url()).toContain('/admin');
+  });
+
+  it('should navigate via the primary sidebar items', async () => {
+    await loginAsSuperAdmin(page);
+    await page.waitForSelector('#authed-ui-box', { timeout: 10000 });
+
+    // Click the "Schedule" sidebar item.
+    const schedulerClicked = await page.evaluate(() => {
+      const labels = Array.from(document.querySelectorAll('.MuiListItemText-primary'));
+      const label = labels.find(el => el.textContent === 'Schedule');
+      const button = label?.closest('[role="button"]') as HTMLElement | null;
+      if (button) {
+        button.click();
+        return true;
+      }
+      return false;
+    });
+    expect(schedulerClicked).toBe(true);
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    expect(await page.url()).toContain('/scheduler');
+
+    // Then click "Single Line".
+    const sldClicked = await page.evaluate(() => {
+      const labels = Array.from(document.querySelectorAll('.MuiListItemText-primary'));
+      const label = labels.find(el => el.textContent === 'Single Line');
+      const button = label?.closest('[role="button"]') as HTMLElement | null;
+      if (button) {
+        button.click();
+        return true;
+      }
+      return false;
+    });
+    expect(sldClicked).toBe(true);
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    expect(await page.url()).toContain('/sld');
   });
 });

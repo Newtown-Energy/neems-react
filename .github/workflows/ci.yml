@@ -39,3 +39,22 @@ jobs:
         env:
           GITHUB_PACKAGES_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: bun run build
+  tsc-tests:
+    # Type-check the Jest E2E test files so they don't bitrot. The tests
+    # themselves are not yet executed in CI (tracked in #69) — this catches
+    # broken imports and signature drift in the test suite.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: bun install
+        env:
+          GITHUB_PACKAGES_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - run: npm install
+        working-directory: test/jest
+      - run: npx tsc --noEmit -p test/jest/tsconfig.json
