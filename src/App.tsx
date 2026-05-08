@@ -3,10 +3,6 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { Box } from '@mui/material';
 import Sidebar from './components/Sidebar/Sidebar';
 import OverviewPage from './pages/OverviewPage';
-import Battery1Page from './pages/Battery1Page';
-import Battery2Page from './pages/Battery2Page';
-import Battery3Page from './pages/Battery3Page';
-import ConEdisonPage from './pages/ConEdisonPage';
 import FDNYPage from './pages/FDNYPage';
 import AdminPage from './pages/AdminPage';
 import AlarmsPage from './pages/AlarmsPage';
@@ -51,10 +47,6 @@ const AppContent: React.FC = () => {
             <Route path="/" element={<Navigate to="/sld" replace />} />
             <Route path="/overview" element={<OverviewPage />} />
             <Route path="/alarms" element={<AlarmsPage />} />
-            <Route path="/battery1" element={<Battery1Page />} />
-            <Route path="/battery2" element={<Battery2Page />} />
-            <Route path="/battery3" element={<Battery3Page />} />
-            <Route path="/conedison" element={<ConEdisonPage />} />
             <Route path="/fdny" element={<FDNYPage />} />
             <Route path="/scheduler" element={<SchedulerPage />} />
             <Route path="/library" element={<LibraryPage />} />
