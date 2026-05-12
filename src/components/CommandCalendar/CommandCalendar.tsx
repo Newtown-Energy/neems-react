@@ -5,7 +5,7 @@
  * Includes day detail panel with commands and override actions.
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Box,
@@ -24,10 +24,12 @@ import {
   createApplicationRule,
   getAllApplicableLibraryItems,
   getCalendarSchedules,
-  getEffectiveSchedule
+  getEffectiveSchedule,
+  getLibraryItems
 } from '../../utils/scheduleApi';
 import { toISODateString } from '../../utils/scheduleHelpers';
 import { debugLog, errorLog } from '../../utils/debug';
+import { useSiteContext } from '../../utils/SiteContext';
 import CalendarGrid from './CalendarGrid';
 import DayDetailsDialog from './DayDetailsDialog';
 import type { ApplicableLibraryItem } from './DayDetailsDialog';
@@ -47,6 +49,7 @@ const CommandCalendar: React.FC<CommandCalendarProps> = ({
   onRequestEdit,
   onRequestApplyDifferent
 }) => {
+  const { selectedSite } = useSiteContext();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedLibraryItem, setSelectedLibraryItem] = useState<ScheduleLibraryItem | null>(null);
@@ -54,15 +57,34 @@ const CommandCalendar: React.FC<CommandCalendarProps> = ({
   const [selectedDateOverrideReason, setSelectedDateOverrideReason] = useState<string | null>(null);
   const [applicableLibraryItems, setApplicableLibraryItems] = useState<ApplicableLibraryItem[]>([]);
   const [calendarData, setCalendarData] = useState<Map<string, CalendarDaySchedule>>(new Map());
+  const [libraryItems, setLibraryItems] = useState<ScheduleLibraryItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const libraryItemsById = useMemo(() => {
+    const map = new Map<number, ScheduleLibraryItem>();
+    for (const item of libraryItems) {
+      map.set(item.id, item);
+    }
+    return map;
+  }, [libraryItems]);
 
   const [overrideReasonDialogOpen, setOverrideReasonDialogOpen] = useState(false);
   const [pendingScheduleSwitch, setPendingScheduleSwitch] = useState<ScheduleLibraryItem | null>(null);
 
   useEffect(() => {
     loadCalendarMonth();
+    void loadLibraryItemsForSite();
   }, [siteId, currentMonth]);
+
+  const loadLibraryItemsForSite = async () => {
+    try {
+      const items = await getLibraryItems(siteId);
+      setLibraryItems(items);
+    } catch (err) {
+      errorLog('CommandCalendar: failed to load library items for bar chart', err);
+    }
+  };
 
   useEffect(() => {
     if (selectedDate) {
@@ -210,8 +232,10 @@ const CommandCalendar: React.FC<CommandCalendarProps> = ({
         <CalendarGrid
           currentMonth={currentMonth}
           calendarData={calendarData}
+          libraryItemsById={libraryItemsById}
           selectedDate={selectedDate}
           onDateClick={setSelectedDate}
+          sitePowerKw={selectedSite?.power_kw ?? null}
         />
       </Box>
 

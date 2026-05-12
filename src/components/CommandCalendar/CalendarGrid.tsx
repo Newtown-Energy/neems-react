@@ -5,8 +5,9 @@ import {
   Loop as LoopIcon,
   Star as StarIcon
 } from '@mui/icons-material';
-import type { CalendarDaySchedule } from '@newtown-energy/types';
+import type { CalendarDaySchedule, ScheduleLibraryItem } from '@newtown-energy/types';
 import { isPastDate, isToday, toISODateString } from '../../utils/scheduleHelpers';
+import DayBarChart from './DayBarChart';
 
 const DAYS_OF_WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -19,15 +20,24 @@ const SPECIFICITY_BG: Record<number, string> = {
 interface CalendarGridProps {
   currentMonth: Date;
   calendarData: Map<string, CalendarDaySchedule>;
+  /**
+   * Library items keyed by `library_item_id`. The grid uses these to draw
+   * each day's charge/discharge bars. Passing an empty map is fine —
+   * cells will render without bars.
+   */
+  libraryItemsById: Map<number, ScheduleLibraryItem>;
   selectedDate: Date | null;
   onDateClick: (date: Date) => void;
+  sitePowerKw?: number | null;
 }
 
 const CalendarGrid: React.FC<CalendarGridProps> = ({
   currentMonth,
   calendarData,
+  libraryItemsById,
   selectedDate,
-  onDateClick
+  onDateClick,
+  sitePowerKw
 }) => {
   const firstDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
   const lastDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
@@ -80,12 +90,14 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
                 ? SPECIFICITY_BG[data.specificity] ?? 'transparent'
                 : 'transparent';
 
+              const libraryItem = data ? libraryItemsById.get(data.library_item_id) : undefined;
+
               return (
                 <Box
                   key={dateKey}
                   onClick={() => onDateClick(date)}
                   sx={{
-                    minHeight: 80,
+                    minHeight: 110,
                     minWidth: 0,
                     p: 0.5,
                     borderRight: '1px solid',
@@ -97,7 +109,9 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
                     boxShadow: isSelected ? (theme) => `inset 0 0 0 3px ${theme.palette.primary.main}` : 'none',
                     '&:hover': { bgcolor: 'action.selected' },
                     position: 'relative',
-                    overflow: 'hidden'
+                    overflow: 'hidden',
+                    display: 'flex',
+                    flexDirection: 'column'
                   }}
                 >
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 0.5 }}>
@@ -143,6 +157,16 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
                       >
                         {data.library_item_name}
                       </Typography>
+                    </Box>
+                  )}
+
+                  {libraryItem && libraryItem.commands.length > 0 && (
+                    <Box sx={{ mt: 'auto', pt: 0.5 }}>
+                      <DayBarChart
+                        commands={libraryItem.commands}
+                        sitePowerKw={sitePowerKw}
+                        height={28}
+                      />
                     </Box>
                   )}
                 </Box>
