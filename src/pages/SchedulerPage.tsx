@@ -23,6 +23,7 @@ import {
   Stack
 } from '@mui/material';
 import {
+  AutoFixHigh as WizardIcon,
   CalendarMonth as CalendarIcon,
   LibraryBooks as LibraryIcon,
   Settings as SettingsIcon
@@ -33,6 +34,7 @@ import CommandCalendar from '../components/CommandCalendar';
 import EditConfirmationDialog from '../components/EditConfirmationDialog';
 import SiteSelector from '../components/SiteSelector/SiteSelector';
 import SiteDefaultsPanel from '../components/SiteDefaultsPanel/SiteDefaultsPanel';
+import PeakSeasonWizard from '../components/PeakSeasonWizard/PeakSeasonWizard';
 
 import type { ScheduleLibraryItem } from '@newtown-energy/types';
 import {
@@ -74,6 +76,9 @@ const SchedulerPage: React.FC = () => {
 
   // Site defaults dialog
   const [defaultsDialogOpen, setDefaultsDialogOpen] = useState(false);
+
+  // Peak-season wizard
+  const [wizardOpen, setWizardOpen] = useState(false);
 
   // Load library items for "apply different" dialog
   useEffect(() => {
@@ -170,6 +175,14 @@ const SchedulerPage: React.FC = () => {
         <Stack direction="row" spacing={2} alignItems="center">
           <SiteSelector />
           <Button
+            variant="contained"
+            startIcon={<WizardIcon />}
+            onClick={() => setWizardOpen(true)}
+            disabled={!selectedSite}
+          >
+            Peak-season wizard
+          </Button>
+          <Button
             variant="outlined"
             startIcon={<SettingsIcon />}
             onClick={() => setDefaultsDialogOpen(true)}
@@ -226,6 +239,13 @@ const SchedulerPage: React.FC = () => {
           <Button onClick={() => setDefaultsDialogOpen(false)}>Close</Button>
         </DialogActions>
       </Dialog>
+
+      <PeakSeasonWizard
+        open={wizardOpen}
+        onClose={() => setWizardOpen(false)}
+        onComplete={() => setCalendarRefreshKey(prev => prev + 1)}
+      />
+
 
       {/* Edit Confirmation Dialog */}
       <EditConfirmationDialog
