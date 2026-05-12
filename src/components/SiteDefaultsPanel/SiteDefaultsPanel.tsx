@@ -1,0 +1,351 @@
+/**
+ * Site Defaults Panel.
+ *
+ * Editable form for the demo-driven site configuration: power, capacity,
+ * ramp rate, closed-loop toggle, off-peak window, peak-revenue window,
+ * interconnection cap, rebound-protection floor, site variant. Each save
+ * round-trips through `PUT /api/1/Sites/<id>`; the panel does not assume
+ * sole ownership of the row so unrelated edits (name, address) made
+ * elsewhere stay intact.
+ */
+
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  Alert,
+  Box,
+  Button,
+  Divider,
+  FormControl,
+  FormControlLabel,
+  Grid,
+  InputAdornment,
+  InputLabel,
+  MenuItem,
+  Paper,
+  Select,
+  Stack,
+  Switch,
+  TextField,
+  Typography
+} from '@mui/material';
+import type { Site, SiteVariant } from '@newtown-energy/types';
+
+import { useSiteContext } from '../../utils/SiteContext';
+import { updateSite } from '../../utils/siteApi';
+import { ApiError } from '../../utils/api';
+import { errorLog } from '../../utils/debug';
+
+type DraftSiteDefaults = {
+  power_kw: string;
+  capacity_kwh: string;
+  ramp_duration_seconds: string;
+  off_peak_start: string;
+  off_peak_end: string;
+  peak_revenue_start: string;
+  peak_revenue_end: string;
+  interconnection_max_output_kw: string;
+  rebound_protection_soc_floor_percent: string;
+  closed_loop_enabled: boolean;
+  site_variant: SiteVariant;
+};
+
+function minutesToTimeString(minutes: number | null | undefined): string {
+  if (minutes === null || minutes === undefined) return '';
+  const h = Math.floor(minutes / 60).toString().padStart(2, '0');
+  const m = (minutes % 60).toString().padStart(2, '0');
+  return `${h}:${m}`;
+}
+
+function timeStringToMinutes(value: string): number | null {
+  if (!value) return null;
+  const m = /^(\d{1,2}):(\d{2})$/.exec(value);
+  if (!m) return null;
+  const hours = Number.parseInt(m[1], 10);
+  const mins = Number.parseInt(m[2], 10);
+  if (hours < 0 || hours > 23 || mins < 0 || mins > 59) return null;
+  return hours * 60 + mins;
+}
+
+function numericOrEmpty(value: number | null | undefined): string {
+  return value === null || value === undefined ? '' : String(value);
+}
+
+function siteToDraft(site: Site): DraftSiteDefaults {
+  return {
+    power_kw: numericOrEmpty(site.power_kw),
+    capacity_kwh: numericOrEmpty(site.capacity_kwh),
+    ramp_duration_seconds: numericOrEmpty(site.ramp_duration_seconds),
+    off_peak_start: minutesToTimeString(site.off_peak_start_minutes),
+    off_peak_end: minutesToTimeString(site.off_peak_end_minutes),
+    peak_revenue_start: minutesToTimeString(site.peak_revenue_start_minutes),
+    peak_revenue_end: minutesToTimeString(site.peak_revenue_end_minutes),
+    interconnection_max_output_kw: numericOrEmpty(site.interconnection_max_output_kw),
+    rebound_protection_soc_floor_percent: numericOrEmpty(
+      site.rebound_protection_soc_floor_percent
+    ),
+    closed_loop_enabled: site.closed_loop_enabled,
+    site_variant: (site.site_variant as SiteVariant) ?? 'standard'
+  };
+}
+
+const SiteDefaultsPanel: React.FC = () => {
+  const { selectedSite, refresh } = useSiteContext();
+  const [draft, setDraft] = useState<DraftSiteDefaults | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [savedAt, setSavedAt] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (selectedSite) setDraft(siteToDraft(selectedSite));
+  }, [selectedSite]);
+
+  // Auto-derived ramp rate: floor(power_kw / 120s) — only used as a hint;
+  // the user can override the duration directly.
+  const autoRampDurationSeconds = useMemo(() => {
+    const power = Number.parseFloat(draft?.power_kw ?? '');
+    return Number.isFinite(power) && power > 0 ? 120 : null;
+  }, [draft?.power_kw]);
+
+  if (!selectedSite || !draft) {
+    return (
+      <Paper sx={{ p: 3 }}>
+        <Typography variant="body2" color="text.secondary">
+          Select a site to view its defaults.
+        </Typography>
+      </Paper>
+    );
+  }
+
+  const setField = <K extends keyof DraftSiteDefaults>(
+    key: K,
+    value: DraftSiteDefaults[K]
+  ) => {
+    setDraft(prev => (prev ? { ...prev, [key]: value } : prev));
+    setSavedAt(null);
+  };
+
+  const handleSave = async () => {
+    if (!draft || !selectedSite) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const power = draft.power_kw === '' ? null : Number.parseFloat(draft.power_kw);
+      const capacity = draft.capacity_kwh === '' ? null : Number.parseFloat(draft.capacity_kwh);
+      const ramp = draft.ramp_duration_seconds === ''
+        ? null
+        : Number.parseInt(draft.ramp_duration_seconds, 10);
+      const interconnection = draft.interconnection_max_output_kw === ''
+        ? null
+        : Number.parseFloat(draft.interconnection_max_output_kw);
+      const reboundFloor = draft.rebound_protection_soc_floor_percent === ''
+        ? null
+        : Number.parseFloat(draft.rebound_protection_soc_floor_percent);
+
+      await updateSite(selectedSite.id, {
+        // Server treats `null` as "leave alone", so we omit fields the
+        // user wiped rather than sending null. UpdateSiteRequest has every
+        // field nullable, but we want sparse intent on the wire.
+        name: null,
+        address: null,
+        latitude: null,
+        longitude: null,
+        company_id: null,
+        ramp_duration_seconds: ramp ?? null,
+        power_kw: power,
+        capacity_kwh: capacity,
+        closed_loop_enabled: draft.closed_loop_enabled,
+        off_peak_start_minutes: timeStringToMinutes(draft.off_peak_start),
+        off_peak_end_minutes: timeStringToMinutes(draft.off_peak_end),
+        peak_revenue_start_minutes: timeStringToMinutes(draft.peak_revenue_start),
+        peak_revenue_end_minutes: timeStringToMinutes(draft.peak_revenue_end),
+        interconnection_max_output_kw: interconnection,
+        rebound_protection_soc_floor_percent: reboundFloor,
+        site_variant: draft.site_variant
+      });
+      await refresh();
+      setSavedAt(Date.now());
+    } catch (err) {
+      errorLog('SiteDefaultsPanel: save failed', err);
+      setError(err instanceof ApiError ? err.message : 'Failed to save site defaults');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Paper sx={{ p: 3 }}>
+      <Stack spacing={3}>
+        <Box>
+          <Typography variant="h6">Site Defaults — {selectedSite.name}</Typography>
+          <Typography variant="body2" color="text.secondary">
+            These values drive the peak-season wizard, scheduling warnings, and the
+            calendar's bar visualization. Edits persist on save.
+          </Typography>
+        </Box>
+
+        {error && <Alert severity="error">{error}</Alert>}
+        {savedAt && !error && (
+          <Alert severity="success" onClose={() => setSavedAt(null)}>
+            Defaults saved.
+          </Alert>
+        )}
+
+        <Grid container spacing={2}>
+          <Grid size={{ xs: 12, md: 6 }}>
+            <TextField
+              label="Site power"
+              fullWidth
+              value={draft.power_kw}
+              onChange={e => setField('power_kw', e.target.value)}
+              slotProps={{ input: { endAdornment: <InputAdornment position="end">kW</InputAdornment> } }}
+              type="number"
+            />
+          </Grid>
+          <Grid size={{ xs: 12, md: 6 }}>
+            <TextField
+              label="Site capacity"
+              fullWidth
+              value={draft.capacity_kwh}
+              onChange={e => setField('capacity_kwh', e.target.value)}
+              slotProps={{ input: { endAdornment: <InputAdornment position="end">kWh</InputAdornment> } }}
+              type="number"
+              helperText="Used for the available-SoC ÷ kW duration warning."
+            />
+          </Grid>
+          <Grid size={{ xs: 12, md: 6 }}>
+            <TextField
+              label="Max ramp duration"
+              fullWidth
+              value={draft.ramp_duration_seconds}
+              onChange={e => setField('ramp_duration_seconds', e.target.value)}
+              slotProps={{ input: { endAdornment: <InputAdornment position="end">s</InputAdornment> } }}
+              type="number"
+              helperText={
+                autoRampDurationSeconds
+                  ? `Auto-suggested: ${autoRampDurationSeconds}s (matches ConEd 2-min full-power ramp).`
+                  : 'Time to ramp from 0 to full power. Default is 120s.'
+              }
+            />
+          </Grid>
+          <Grid size={{ xs: 12, md: 6 }}>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={draft.closed_loop_enabled}
+                  onChange={e => setField('closed_loop_enabled', e.target.checked)}
+                />
+              }
+              label="Closed-loop control enabled"
+            />
+            {!draft.closed_loop_enabled && (
+              <Typography variant="caption" color="warning.main" display="block">
+                Schedules will be visualized but not enforced while closed-loop is off.
+              </Typography>
+            )}
+          </Grid>
+        </Grid>
+
+        <Divider />
+
+        <Typography variant="subtitle1">Off-peak charging window</Typography>
+        <Grid container spacing={2}>
+          <Grid size={{ xs: 6 }}>
+            <TextField
+              label="Start"
+              fullWidth
+              value={draft.off_peak_start}
+              onChange={e => setField('off_peak_start', e.target.value)}
+              type="time"
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+          </Grid>
+          <Grid size={{ xs: 6 }}>
+            <TextField
+              label="End"
+              fullWidth
+              value={draft.off_peak_end}
+              onChange={e => setField('off_peak_end', e.target.value)}
+              type="time"
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+          </Grid>
+        </Grid>
+
+        <Typography variant="subtitle1">Peak-revenue discharge window</Typography>
+        <Grid container spacing={2}>
+          <Grid size={{ xs: 6 }}>
+            <TextField
+              label="Start"
+              fullWidth
+              value={draft.peak_revenue_start}
+              onChange={e => setField('peak_revenue_start', e.target.value)}
+              type="time"
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+          </Grid>
+          <Grid size={{ xs: 6 }}>
+            <TextField
+              label="End"
+              fullWidth
+              value={draft.peak_revenue_end}
+              onChange={e => setField('peak_revenue_end', e.target.value)}
+              type="time"
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+          </Grid>
+        </Grid>
+
+        <Divider />
+
+        <Grid container spacing={2}>
+          <Grid size={{ xs: 12, md: 6 }}>
+            <TextField
+              label="Interconnection max output"
+              fullWidth
+              value={draft.interconnection_max_output_kw}
+              onChange={e => setField('interconnection_max_output_kw', e.target.value)}
+              slotProps={{ input: { endAdornment: <InputAdornment position="end">kW</InputAdornment> } }}
+              type="number"
+              helperText="Discharge cap from the interconnection agreement."
+            />
+          </Grid>
+          <Grid size={{ xs: 12, md: 6 }}>
+            <TextField
+              label="Rebound protection SoC floor"
+              fullWidth
+              value={draft.rebound_protection_soc_floor_percent}
+              onChange={e =>
+                setField('rebound_protection_soc_floor_percent', e.target.value)
+              }
+              slotProps={{ input: { endAdornment: <InputAdornment position="end">%</InputAdornment> } }}
+              type="number"
+              helperText="Ramp to 0 kW when SoC drops below this floor."
+            />
+          </Grid>
+          <Grid size={{ xs: 12, md: 6 }}>
+            <FormControl fullWidth>
+              <InputLabel id="site-variant-label">Site variant</InputLabel>
+              <Select
+                labelId="site-variant-label"
+                value={draft.site_variant}
+                label="Site variant"
+                onChange={e => setField('site_variant', e.target.value as SiteVariant)}
+              >
+                <MenuItem value="standard">Standard interconnect</MenuItem>
+                <MenuItem value="no_grid_charge">No grid charge (inverters cannot charge from grid)</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+        </Grid>
+
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <Button variant="contained" disabled={saving} onClick={handleSave}>
+            {saving ? 'Saving…' : 'Save defaults'}
+          </Button>
+        </Box>
+      </Stack>
+    </Paper>
+  );
+};
+
+export default SiteDefaultsPanel;

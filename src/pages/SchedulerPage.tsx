@@ -19,13 +19,20 @@ import {
   ListItemButton,
   ListItemText,
   Alert,
-  TextField
+  TextField,
+  Stack
 } from '@mui/material';
-import { CalendarMonth as CalendarIcon, LibraryBooks as LibraryIcon } from '@mui/icons-material';
+import {
+  CalendarMonth as CalendarIcon,
+  LibraryBooks as LibraryIcon,
+  Settings as SettingsIcon
+} from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 
 import CommandCalendar from '../components/CommandCalendar';
 import EditConfirmationDialog from '../components/EditConfirmationDialog';
+import SiteSelector from '../components/SiteSelector/SiteSelector';
+import SiteDefaultsPanel from '../components/SiteDefaultsPanel/SiteDefaultsPanel';
 
 import type { ScheduleLibraryItem } from '@newtown-energy/types';
 import {
@@ -35,6 +42,7 @@ import {
 } from '../utils/scheduleApi';
 import { errorLog } from '../utils/debug';
 import { toISODateString } from '../utils/scheduleHelpers';
+import { useSiteContext } from '../utils/SiteContext';
 
 export const pageConfig = {
   id: 'scheduler',
@@ -44,9 +52,7 @@ export const pageConfig = {
 
 const SchedulerPage: React.FC = () => {
   const navigate = useNavigate();
-
-  // Hard-coded site ID for MVP
-  const HARDCODED_SITE_ID = 1;
+  const { selectedSiteId, selectedSite } = useSiteContext();
 
   // State
   const [libraryItems, setLibraryItems] = useState<ScheduleLibraryItem[]>([]);
@@ -66,16 +72,19 @@ const SchedulerPage: React.FC = () => {
   // Refresh trigger for calendar
   const [calendarRefreshKey, setCalendarRefreshKey] = useState(0);
 
+  // Site defaults dialog
+  const [defaultsDialogOpen, setDefaultsDialogOpen] = useState(false);
+
   // Load library items for "apply different" dialog
   useEffect(() => {
-    if (applyDifferentDialogOpen || editConfirmationOpen) {
-      loadLibraryItems();
+    if ((applyDifferentDialogOpen || editConfirmationOpen) && selectedSiteId !== null) {
+      void loadLibraryItems(selectedSiteId);
     }
-  }, [applyDifferentDialogOpen, editConfirmationOpen]);
+  }, [applyDifferentDialogOpen, editConfirmationOpen, selectedSiteId]);
 
-  const loadLibraryItems = async () => {
+  const loadLibraryItems = async (siteId: number) => {
     try {
-      const items = await getLibraryItems(HARDCODED_SITE_ID);
+      const items = await getLibraryItems(siteId);
       setLibraryItems(items);
     } catch (err) {
       errorLog('Error loading library items:', err);
@@ -145,9 +154,11 @@ const SchedulerPage: React.FC = () => {
     }
   };
 
+  const closedLoopOff = selectedSite !== null && !selectedSite.closed_loop_enabled;
+
   return (
     <Box sx={{ p: 3, height: 'calc(100vh - 100px)' }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
         <Box>
           <Typography variant="h4" gutterBottom>
             Schedule Calendar
@@ -156,14 +167,31 @@ const SchedulerPage: React.FC = () => {
             View which schedule is applied to each day. Click a day to apply a different schedule or edit.
           </Typography>
         </Box>
-        <Button
-          variant="outlined"
-          startIcon={<LibraryIcon />}
-          onClick={() => navigate('/library')}
-        >
-          Manage Library
-        </Button>
+        <Stack direction="row" spacing={2} alignItems="center">
+          <SiteSelector />
+          <Button
+            variant="outlined"
+            startIcon={<SettingsIcon />}
+            onClick={() => setDefaultsDialogOpen(true)}
+            disabled={!selectedSite}
+          >
+            Site defaults
+          </Button>
+          <Button
+            variant="outlined"
+            startIcon={<LibraryIcon />}
+            onClick={() => navigate('/library')}
+          >
+            Manage Library
+          </Button>
+        </Stack>
       </Box>
+
+      {closedLoopOff && (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          Closed-loop control is disabled for this site — schedules will be visualized but not enforced.
+        </Alert>
+      )}
 
       {error && (
         <Alert severity="info" onClose={() => setError(null)} sx={{ mb: 2 }}>
@@ -171,14 +199,33 @@ const SchedulerPage: React.FC = () => {
         </Alert>
       )}
 
-      <Box sx={{ height: 'calc(100% - 100px)' }}>
-        <CommandCalendar
-          key={calendarRefreshKey}
-          siteId={HARDCODED_SITE_ID}
-          onRequestEdit={handleEditFromCalendar}
-          onRequestApplyDifferent={handleApplyDifferent}
-        />
+      <Box sx={{ height: 'calc(100% - 140px)' }}>
+        {selectedSiteId === null ? (
+          <Alert severity="info">No site available. Ask an admin to add one in the Admin panel.</Alert>
+        ) : (
+          <CommandCalendar
+            key={`${selectedSiteId}-${calendarRefreshKey}`}
+            siteId={selectedSiteId}
+            onRequestEdit={handleEditFromCalendar}
+            onRequestApplyDifferent={handleApplyDifferent}
+          />
+        )}
       </Box>
+
+      <Dialog
+        open={defaultsDialogOpen}
+        onClose={() => setDefaultsDialogOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>Site defaults</DialogTitle>
+        <DialogContent dividers>
+          <SiteDefaultsPanel />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDefaultsDialogOpen(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Edit Confirmation Dialog */}
       <EditConfirmationDialog

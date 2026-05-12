@@ -13,6 +13,7 @@ import './styles/App.scss';
 import { useAuth } from './pages/LoginPage/useAuth';
 import LoginPage from './pages/LoginPage/LoginPage';
 import { debugLog } from './utils/debug';
+import { SiteProvider } from './utils/SiteContext';
 
 const AppContent: React.FC = () => {
   const { loading, isAuthenticated, setIsAuthenticated, saveUserInfo } = useAuth();
@@ -40,9 +41,10 @@ const AppContent: React.FC = () => {
   debugLog('Router: User authenticated, showing main app');
 
   return (
-    <Box id="authed-ui-box" sx={{ display: 'flex', height: '100vh', width: '100vw', overflow: 'hidden' }}>
-      <Sidebar />
-      <Box component="main" sx={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, overflow: 'hidden' }}>
+    <SiteProvider>
+      <Box id="authed-ui-box" sx={{ display: 'flex', height: '100vh', width: '100vw', overflow: 'hidden' }}>
+        <Sidebar />
+        <Box component="main" sx={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, overflow: 'hidden' }}>
           <Routes>
             <Route path="/" element={<Navigate to="/sld" replace />} />
             <Route path="/overview" element={<OverviewPage />} />
@@ -55,6 +57,7 @@ const AppContent: React.FC = () => {
           </Routes>
         </Box>
       </Box>
+    </SiteProvider>
   );
 };
 
