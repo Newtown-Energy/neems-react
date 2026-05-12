@@ -49,6 +49,7 @@ import {
 import { useSiteContext } from '../../utils/SiteContext';
 import { errorLog } from '../../utils/debug';
 import CommandEditDialog from '../ScheduleLibrary/CommandEditDialog';
+import ResultingSchedulePane from './ResultingSchedulePane';
 
 export interface ApplicableLibraryItem {
   item: ScheduleLibraryItem;
@@ -239,6 +240,8 @@ const DayDetailsDialog: React.FC<DayDetailsDialogProps> = ({
                 </Box>
               )}
             </Box>
+
+            <ResultingSchedulePane applicableLibraryItems={applicableLibraryItems} />
 
             {applicableLibraryItems.length > 1 && !isPast && (
               <Box sx={{ mb: 2 }}>

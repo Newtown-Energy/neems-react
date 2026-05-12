@@ -1,5 +1,5 @@
 import { apiRequestWithMapping } from './api';
-import type { ScheduleLibraryItem, ApplicationRule, CreateLibraryItemRequest, UpdateLibraryItemRequest, CloneLibraryItemRequest, CreateApplicationRuleRequest, CreateFromSiteDefaultsRequest, SeasonFillRequest, SeasonFillResponse, EffectiveScheduleResponse, CalendarDaySchedule, CalendarDayScheduleMatches } from '@newtown-energy/types';
+import type { ScheduleLibraryItem, ApplicationRule, CreateLibraryItemRequest, UpdateLibraryItemRequest, CloneLibraryItemRequest, CreateApplicationRuleRequest, CreateFromSiteDefaultsRequest, SeasonFillRequest, SeasonFillResponse, EffectiveScheduleResponse, CalendarDaySchedule, CalendarDayScheduleMatches, EntityActivityWithUser } from '@newtown-energy/types';
 
 // ============================================================================
 // Library Items
@@ -115,6 +115,24 @@ export async function deleteApplicationRule(ruleId: number): Promise<void> {
   await apiRequestWithMapping(
     `/api/1/ApplicationRules/${ruleId}`,
     { method: 'DELETE' }
+  );
+}
+
+/**
+ * Read the audit-log rows for a single entity. The backend resolves
+ * the acting user's email for each row so the UI can render "edited
+ * by alice@example.com at 4:32 pm" without round-tripping per row.
+ */
+export async function getEntityActivity(
+  tableName: string,
+  entityId: number
+): Promise<EntityActivityWithUser[]> {
+  const params = new URLSearchParams({
+    table_name: tableName,
+    entity_id: String(entityId)
+  });
+  return await apiRequestWithMapping<EntityActivityWithUser[]>(
+    `/api/1/EntityActivity?${params.toString()}`
   );
 }
 
