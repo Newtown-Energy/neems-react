@@ -103,19 +103,41 @@ export function getCommandTypeLabel(type: CommandType): string {
 }
 
 /**
- * Get Material-UI color for command type chip
+ * Get Material-UI color for command type chip.
  *
- * @param type - Command type
- * @returns MUI color name
+ * Per Demo Script v2, the calendar reserves orange for charge (drawn
+ * below the zero line) and blue for discharge (drawn above). Green and
+ * red are reserved for breaker states elsewhere in the SLD, so we don't
+ * use them here. Trickle charge is the same family as charge but visually
+ * subdued via the `default` chip color.
  */
-export function getCommandTypeColor(type: CommandType): 'success' | 'warning' | 'info' | 'default' {
-  const colors: Record<CommandType, 'success' | 'warning' | 'info'> = {
-    charge: 'success',      // green
-    discharge: 'warning',   // orange
-    trickle_charge: 'info'  // blue
+export function getCommandTypeColor(
+  type: CommandType
+): 'warning' | 'info' | 'default' {
+  const colors: Record<CommandType, 'warning' | 'info' | 'default'> = {
+    charge: 'warning',         // orange
+    discharge: 'info',         // blue
+    trickle_charge: 'default'  // gray — same direction as charge but lower power
   };
   return colors[type] || 'default';
 }
+
+/**
+ * Hex fill colors for the day-cell bar chart. The MUI chip color tokens
+ * (`getCommandTypeColor`) map to roughly these palettes but the bar
+ * renderer needs explicit hex values to draw SVG fills.
+ *
+ *   charge / trickle_charge → orange (bars below 0 kW)
+ *   discharge              → blue   (bars above 0 kW)
+ *
+ * Kept in sync with the MUI theme defaults (`warning.main`, `info.main`)
+ * so chips and bars read as the same color at a glance.
+ */
+export const COMMAND_BAR_COLORS: Record<CommandType, string> = {
+  charge: '#ed6c02',
+  discharge: '#0288d1',
+  trickle_charge: '#f6a536'
+};
 
 /**
  * Validate hour value (0-23)
