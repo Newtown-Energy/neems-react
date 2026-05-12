@@ -29,6 +29,7 @@ import {
   filterDismissedWarnings
 } from '../../utils/scheduleWarnings';
 import { useSiteContext } from '../../utils/SiteContext';
+import { useDemoOverrides } from '../../utils/demoOverrides';
 
 interface CommandEditDialogProps {
   open: boolean;
@@ -48,6 +49,7 @@ const CommandEditDialog: React.FC<CommandEditDialogProps> = ({
   onError
 }) => {
   const { selectedSite } = useSiteContext();
+  const { overrides } = useDemoOverrides();
   const [hour, setHour] = useState(0);
   const [minute, setMinute] = useState(0);
   const [type, setType] = useState<'charge' | 'discharge' | 'trickle_charge'>('charge');
@@ -103,10 +105,16 @@ const CommandEditDialog: React.FC<CommandEditDialogProps> = ({
 
   const warnings = useMemo(() => {
     if (!selectedSite) return [];
-    const all = evaluateCommandWarnings(draftCommand, selectedSite);
+    const all = evaluateCommandWarnings(draftCommand, selectedSite, {
+      forcedNow: overrides.forcedNow ? new Date(overrides.forcedNow) : null,
+      currentSocPercent: overrides.currentSocPercent,
+      curtailmentCeilingKw: overrides.curtailmentCeilingKw,
+      openBreakers: overrides.openBreakers,
+      offlineMegapacks: overrides.offlineMegapacks
+    });
     const persisted = filterDismissedWarnings(all);
     return persisted.filter(w => !sessionDismissed.has(w.key));
-  }, [draftCommand, selectedSite, sessionDismissed]);
+  }, [draftCommand, selectedSite, overrides, sessionDismissed]);
 
   const handleDismiss = (key: string) => {
     setSessionDismissed(prev => {

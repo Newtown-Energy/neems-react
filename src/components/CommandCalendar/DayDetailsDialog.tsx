@@ -47,6 +47,7 @@ import {
   filterDismissedWarnings
 } from '../../utils/scheduleWarnings';
 import { useSiteContext } from '../../utils/SiteContext';
+import { useDemoOverrides } from '../../utils/demoOverrides';
 import { errorLog } from '../../utils/debug';
 import CommandEditDialog from '../ScheduleLibrary/CommandEditDialog';
 import ResultingSchedulePane from './ResultingSchedulePane';
@@ -101,6 +102,7 @@ const DayDetailsDialog: React.FC<DayDetailsDialogProps> = ({
   onCommandsChanged
 }) => {
   const { selectedSite } = useSiteContext();
+  const { overrides } = useDemoOverrides();
   const [commandEditTarget, setCommandEditTarget] = useState<ScheduleCommandDto | null>(null);
   const [commandEditOpen, setCommandEditOpen] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -110,12 +112,19 @@ const DayDetailsDialog: React.FC<DayDetailsDialogProps> = ({
   // the full picture without having to open each row individually.
   const dayWarnings = useMemo(() => {
     if (!selectedSite || !libraryItem) return [];
+    const ctx = {
+      forcedNow: overrides.forcedNow ? new Date(overrides.forcedNow) : null,
+      currentSocPercent: overrides.currentSocPercent,
+      curtailmentCeilingKw: overrides.curtailmentCeilingKw,
+      openBreakers: overrides.openBreakers,
+      offlineMegapacks: overrides.offlineMegapacks
+    };
     const all = libraryItem.commands.flatMap(cmd =>
-      evaluateCommandWarnings(cmd, selectedSite)
+      evaluateCommandWarnings(cmd, selectedSite, ctx)
     );
     const persisted = filterDismissedWarnings(all);
     return persisted.filter(w => !sessionDismissed.has(w.key));
-  }, [libraryItem, selectedSite, sessionDismissed]);
+  }, [libraryItem, selectedSite, overrides, sessionDismissed]);
 
   const handleDismissDayWarning = (key: string) => {
     setSessionDismissed(prev => {

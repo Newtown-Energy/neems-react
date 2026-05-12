@@ -10,6 +10,11 @@ import {
 import AccountTreeIcon from '@mui/icons-material/AccountTree';
 import SingleLineDiagram from '../components/SingleLineDiagram/SingleLineDiagram';
 import type { SldDiagramState } from '../components/SingleLineDiagram/types';
+import DemoControlsDrawer from '../components/DemoControlsDrawer/DemoControlsDrawer';
+import { useAuth } from './LoginPage/useAuth';
+import { useDemoOverrides } from '../utils/demoOverrides';
+
+const ADMIN_ROLES = ['admin', 'newtown-admin', 'newtown-staff'];
 
 export const pageConfig = {
   id: 'sld',
@@ -54,6 +59,9 @@ const InfoLine: React.FC<{ label: string; value: string }> = ({ label, value }) 
 
 const SldPage: React.FC = () => {
   const [diagramState, setDiagramState] = useState<SldDiagramState | null>(null);
+  const { userInfo } = useAuth();
+  const isAdmin = userInfo?.roles?.some(r => ADMIN_ROLES.includes(r)) ?? false;
+  const { hasAnyOverride } = useDemoOverrides();
 
   const isStale =
     diagramState?.dataStale ||
@@ -84,8 +92,18 @@ const SldPage: React.FC = () => {
             confirmed site-wide lockout.
           </Typography>
         </Box>
-        <ProjectInfoCard />
+        <Stack direction="row" spacing={1} alignItems="flex-start">
+          <ProjectInfoCard />
+          {isAdmin && <DemoControlsDrawer />}
+        </Stack>
       </Stack>
+
+      {hasAnyOverride && (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          Demo overrides are active for this browser tab. Open the demo
+          controls drawer to clear them.
+        </Alert>
+      )}
 
       {eStopActive && (
         <Alert severity="error" sx={{ mb: 2 }}>
@@ -124,7 +142,7 @@ const SldPage: React.FC = () => {
           p: 2,
         }}
       >
-        <SingleLineDiagram onStateChange={setDiagramState} />
+        <SingleLineDiagram onStateChange={setDiagramState} demoMode={hasAnyOverride} />
       </Box>
     </Box>
   );

@@ -35,6 +35,8 @@ import EditConfirmationDialog from '../components/EditConfirmationDialog';
 import SiteSelector from '../components/SiteSelector/SiteSelector';
 import SiteDefaultsPanel from '../components/SiteDefaultsPanel/SiteDefaultsPanel';
 import PeakSeasonWizard from '../components/PeakSeasonWizard/PeakSeasonWizard';
+import DemoControlsDrawer from '../components/DemoControlsDrawer/DemoControlsDrawer';
+import { useAuth } from './LoginPage/useAuth';
 
 import type { ScheduleLibraryItem } from '@newtown-energy/types';
 import {
@@ -52,9 +54,13 @@ export const pageConfig = {
   icon: CalendarIcon
 };
 
+const ADMIN_ROLES = ['admin', 'newtown-admin', 'newtown-staff'];
+
 const SchedulerPage: React.FC = () => {
   const navigate = useNavigate();
   const { selectedSiteId, selectedSite } = useSiteContext();
+  const { userInfo } = useAuth();
+  const isAdmin = userInfo?.roles?.some(r => ADMIN_ROLES.includes(r)) ?? false;
 
   // State
   const [libraryItems, setLibraryItems] = useState<ScheduleLibraryItem[]>([]);
@@ -197,6 +203,7 @@ const SchedulerPage: React.FC = () => {
           >
             Manage Library
           </Button>
+          {isAdmin && <DemoControlsDrawer />}
         </Stack>
       </Box>
 
