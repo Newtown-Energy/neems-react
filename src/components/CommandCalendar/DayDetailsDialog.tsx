@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Alert,
   Box,
@@ -8,6 +8,7 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  IconButton,
   Paper,
   Stack,
   Table,
@@ -16,15 +17,18 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  Tooltip,
   Typography
 } from '@mui/material';
 import {
+  Add as AddIcon,
+  Delete as DeleteIcon,
   Edit as EditIcon,
   Event as EventIcon,
   Loop as LoopIcon,
   Star as StarIcon
 } from '@mui/icons-material';
-import type { ScheduleLibraryItem } from '@newtown-energy/types';
+import type { ScheduleCommandDto, ScheduleLibraryItem } from '@newtown-energy/types';
 import {
   formatDuration,
   formatScheduleDate,
@@ -35,6 +39,9 @@ import {
   isToday,
   secondsToTime
 } from '../../utils/scheduleHelpers';
+import { updateLibraryItem } from '../../utils/scheduleApi';
+import { errorLog } from '../../utils/debug';
+import CommandEditDialog from '../ScheduleLibrary/CommandEditDialog';
 
 export interface ApplicableLibraryItem {
   item: ScheduleLibraryItem;
@@ -53,6 +60,12 @@ interface DayDetailsDialogProps {
   onRequestEdit?: (date: Date, item: ScheduleLibraryItem | null) => void;
   onRequestApplyDifferent?: (date: Date, item: ScheduleLibraryItem | null) => void;
   onSwitchToSchedule: (item: ScheduleLibraryItem) => void;
+  /**
+   * Called after a per-day command edit lands. Parents typically refresh
+   * the calendar and re-fetch the day's effective schedule so the new
+   * command list shows up in the bar chart and table.
+   */
+  onCommandsChanged?: () => void;
 }
 
 const getRuleReason = (date: Date, specificity: number): string => {
@@ -76,12 +89,70 @@ const DayDetailsDialog: React.FC<DayDetailsDialogProps> = ({
   onClose,
   onRequestEdit,
   onRequestApplyDifferent,
-  onSwitchToSchedule
+  onSwitchToSchedule,
+  onCommandsChanged
 }) => {
+  const [commandEditTarget, setCommandEditTarget] = useState<ScheduleCommandDto | null>(null);
+  const [commandEditOpen, setCommandEditOpen] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
   if (!selectedDate) return null;
 
   const isPast = isPastDate(selectedDate);
   const ruleReason = getRuleReason(selectedDate, specificity);
+
+  // Per-day inline editing only makes sense when the rule is specific to
+  // this date — otherwise the edit would silently fan out to every day
+  // the shared library item covers. For shared rules, the user is routed
+  // through the existing "Edit Schedule" → clone-or-overwrite flow.
+  const canEditCommandsInline = specificity === 2 && !isPast && libraryItem !== null;
+
+  const handleEditCommand = (cmd: ScheduleCommandDto) => {
+    setCommandEditTarget(cmd);
+    setCommandEditOpen(true);
+  };
+
+  const handleAddCommand = () => {
+    setCommandEditTarget(null);
+    setCommandEditOpen(true);
+  };
+
+  const commitCommands = async (next: ScheduleCommandDto[]) => {
+    if (!libraryItem) return;
+    setSaveError(null);
+    try {
+      await updateLibraryItem(libraryItem.id, {
+        name: null,
+        description: null,
+        commands: next.map(c => ({
+          execution_offset_seconds: c.execution_offset_seconds,
+          command_type: c.command_type,
+          duration_seconds: c.duration_seconds ?? null,
+          target_soc_percent: c.target_soc_percent ?? null
+        }))
+      });
+      setCommandEditOpen(false);
+      onCommandsChanged?.();
+    } catch (err) {
+      errorLog('DayDetailsDialog: failed to save commands', err);
+      setSaveError('Failed to save command — try again');
+    }
+  };
+
+  const handleSaveCommand = (cmd: ScheduleCommandDto) => {
+    if (!libraryItem) return;
+    const next = commandEditTarget
+      ? libraryItem.commands.map(c => (c.id === commandEditTarget.id ? cmd : c))
+      : [...libraryItem.commands, cmd];
+    next.sort((a, b) => a.execution_offset_seconds - b.execution_offset_seconds);
+    void commitCommands(next);
+  };
+
+  const handleDeleteCommand = (cmd: ScheduleCommandDto) => {
+    if (!libraryItem) return;
+    const next = libraryItem.commands.filter(c => c.id !== cmd.id);
+    void commitCommands(next);
+  };
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
@@ -189,9 +260,30 @@ const DayDetailsDialog: React.FC<DayDetailsDialogProps> = ({
               </Box>
             )}
 
-            {libraryItem.commands.length > 0 && (
+            {(libraryItem.commands.length > 0 || canEditCommandsInline) && (
               <Box sx={{ mb: 2 }}>
-                <Typography variant="subtitle2" gutterBottom>Commands:</Typography>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                  <Typography variant="subtitle2">Commands:</Typography>
+                  {canEditCommandsInline && (
+                    <Button
+                      size="small"
+                      startIcon={<AddIcon />}
+                      onClick={handleAddCommand}
+                    >
+                      Add command
+                    </Button>
+                  )}
+                </Box>
+                {!canEditCommandsInline && libraryItem.commands.length > 0 && specificity !== 2 && !isPast && (
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+                    This day uses a shared schedule. Click <em>Edit Schedule</em> below to make a copy for this date before editing commands.
+                  </Typography>
+                )}
+                {saveError && (
+                  <Alert severity="error" onClose={() => setSaveError(null)} sx={{ mb: 1 }}>
+                    {saveError}
+                  </Alert>
+                )}
                 <TableContainer component={Paper} variant="outlined">
                   <Table size="small">
                     <TableHead>
@@ -200,6 +292,7 @@ const DayDetailsDialog: React.FC<DayDetailsDialogProps> = ({
                         <TableCell>Type</TableCell>
                         <TableCell>Duration</TableCell>
                         <TableCell>Target SOC</TableCell>
+                        {canEditCommandsInline && <TableCell align="right">Actions</TableCell>}
                       </TableRow>
                     </TableHead>
                     <TableBody>
@@ -215,6 +308,20 @@ const DayDetailsDialog: React.FC<DayDetailsDialogProps> = ({
                           </TableCell>
                           <TableCell>{formatDuration(command.duration_seconds)}</TableCell>
                           <TableCell>{formatSoC(command.target_soc_percent)}</TableCell>
+                          {canEditCommandsInline && (
+                            <TableCell align="right">
+                              <Tooltip title="Edit command">
+                                <IconButton size="small" onClick={() => handleEditCommand(command)}>
+                                  <EditIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                              <Tooltip title="Delete command">
+                                <IconButton size="small" onClick={() => handleDeleteCommand(command)}>
+                                  <DeleteIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                            </TableCell>
+                          )}
                         </TableRow>
                       ))}
                     </TableBody>
@@ -274,6 +381,15 @@ const DayDetailsDialog: React.FC<DayDetailsDialogProps> = ({
           </>
         )}
       </DialogActions>
+
+      <CommandEditDialog
+        open={commandEditOpen}
+        initialCommand={commandEditTarget}
+        existingCommands={libraryItem?.commands ?? []}
+        onSave={handleSaveCommand}
+        onClose={() => setCommandEditOpen(false)}
+        onError={(message) => setSaveError(message)}
+      />
     </Dialog>
   );
 };
