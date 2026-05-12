@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
+  Alert,
   Box,
   Button,
   Dialog,
@@ -7,18 +8,27 @@ import {
   DialogContent,
   DialogTitle,
   FormControl,
+  IconButton,
   InputLabel,
   MenuItem,
   Select,
+  Stack,
   TextField,
   Typography
 } from '@mui/material';
+import { Close as CloseIcon } from '@mui/icons-material';
 import type { ScheduleCommandDto } from '@newtown-energy/types';
 import {
   durationToSeconds,
   secondsToDuration,
   timeToSeconds
 } from '../../utils/scheduleHelpers';
+import {
+  dismissWarningPermanently,
+  evaluateCommandWarnings,
+  filterDismissedWarnings
+} from '../../utils/scheduleWarnings';
+import { useSiteContext } from '../../utils/SiteContext';
 
 interface CommandEditDialogProps {
   open: boolean;
@@ -37,12 +47,14 @@ const CommandEditDialog: React.FC<CommandEditDialogProps> = ({
   onClose,
   onError
 }) => {
+  const { selectedSite } = useSiteContext();
   const [hour, setHour] = useState(0);
   const [minute, setMinute] = useState(0);
   const [type, setType] = useState<'charge' | 'discharge' | 'trickle_charge'>('charge');
   const [durationHours, setDurationHours] = useState<number | null>(null);
   const [durationMinutes, setDurationMinutes] = useState<number | null>(null);
   const [targetSoc, setTargetSoc] = useState<number | null>(null);
+  const [sessionDismissed, setSessionDismissed] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!open) return;
@@ -67,7 +79,49 @@ const CommandEditDialog: React.FC<CommandEditDialogProps> = ({
       setDurationMinutes(null);
       setTargetSoc(null);
     }
+    setSessionDismissed(new Set());
   }, [open, initialCommand]);
+
+  // Build a synthetic command from the current draft state so warnings
+  // update live as the user edits. We use the initial id when editing
+  // so the warning [key]s stay stable across edits of the same row.
+  const draftCommand: ScheduleCommandDto = useMemo(() => {
+    const offsetSeconds = timeToSeconds(hour, minute);
+    let durationSeconds: number | null = null;
+    if (durationHours !== null || durationMinutes !== null) {
+      const d = durationToSeconds(durationHours ?? 0, durationMinutes ?? 0);
+      durationSeconds = d === 0 ? null : d;
+    }
+    return {
+      id: initialCommand?.id ?? -1,
+      execution_offset_seconds: offsetSeconds,
+      command_type: type,
+      duration_seconds: durationSeconds,
+      target_soc_percent: targetSoc
+    };
+  }, [hour, minute, type, durationHours, durationMinutes, targetSoc, initialCommand?.id]);
+
+  const warnings = useMemo(() => {
+    if (!selectedSite) return [];
+    const all = evaluateCommandWarnings(draftCommand, selectedSite);
+    const persisted = filterDismissedWarnings(all);
+    return persisted.filter(w => !sessionDismissed.has(w.key));
+  }, [draftCommand, selectedSite, sessionDismissed]);
+
+  const handleDismiss = (key: string) => {
+    setSessionDismissed(prev => {
+      const next = new Set(prev);
+      next.add(key);
+      return next;
+    });
+  };
+
+  const handleDismissForever = (dismissKey: string) => {
+    dismissWarningPermanently(dismissKey);
+    // Force re-render — the localStorage write means future evals will
+    // strip this key, but the current render is memoized.
+    setSessionDismissed(prev => new Set(prev));
+  };
 
   const handleSave = () => {
     const offsetSeconds = timeToSeconds(hour, minute);
@@ -103,6 +157,41 @@ const CommandEditDialog: React.FC<CommandEditDialogProps> = ({
         {initialCommand ? 'Edit Command' : 'Add Command'}
       </DialogTitle>
       <DialogContent>
+        {warnings.length > 0 && (
+          <Stack spacing={1} sx={{ pt: 2 }}>
+            {warnings.map(w => (
+              <Alert
+                key={w.key}
+                severity={w.severity}
+                action={
+                  <Stack direction="row" spacing={0.5} alignItems="center">
+                    {w.dismissible && w.dismissKey && (
+                      <Button
+                        size="small"
+                        color="inherit"
+                        onClick={() => handleDismissForever(w.dismissKey!)}
+                      >
+                        Never show again
+                      </Button>
+                    )}
+                    {w.dismissible && (
+                      <IconButton
+                        size="small"
+                        color="inherit"
+                        onClick={() => handleDismiss(w.key)}
+                        aria-label="Dismiss warning"
+                      >
+                        <CloseIcon fontSize="small" />
+                      </IconButton>
+                    )}
+                  </Stack>
+                }
+              >
+                {w.message}
+              </Alert>
+            ))}
+          </Stack>
+        )}
         <Box sx={{ pt: 2 }}>
           <Typography variant="subtitle2" sx={{ mb: 1 }}>Execution Time</Typography>
           <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>

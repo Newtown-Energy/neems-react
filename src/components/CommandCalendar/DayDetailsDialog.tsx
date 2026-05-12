@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Alert,
   Box,
@@ -22,6 +22,7 @@ import {
 } from '@mui/material';
 import {
   Add as AddIcon,
+  Close as CloseIcon,
   Delete as DeleteIcon,
   Edit as EditIcon,
   Event as EventIcon,
@@ -40,6 +41,12 @@ import {
   secondsToTime
 } from '../../utils/scheduleHelpers';
 import { updateLibraryItem } from '../../utils/scheduleApi';
+import {
+  dismissWarningPermanently,
+  evaluateCommandWarnings,
+  filterDismissedWarnings
+} from '../../utils/scheduleWarnings';
+import { useSiteContext } from '../../utils/SiteContext';
 import { errorLog } from '../../utils/debug';
 import CommandEditDialog from '../ScheduleLibrary/CommandEditDialog';
 
@@ -92,9 +99,35 @@ const DayDetailsDialog: React.FC<DayDetailsDialogProps> = ({
   onSwitchToSchedule,
   onCommandsChanged
 }) => {
+  const { selectedSite } = useSiteContext();
   const [commandEditTarget, setCommandEditTarget] = useState<ScheduleCommandDto | null>(null);
   const [commandEditOpen, setCommandEditOpen] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [sessionDismissed, setSessionDismissed] = useState<Set<string>>(new Set());
+
+  // Collect warnings across every command on the day so the user sees
+  // the full picture without having to open each row individually.
+  const dayWarnings = useMemo(() => {
+    if (!selectedSite || !libraryItem) return [];
+    const all = libraryItem.commands.flatMap(cmd =>
+      evaluateCommandWarnings(cmd, selectedSite)
+    );
+    const persisted = filterDismissedWarnings(all);
+    return persisted.filter(w => !sessionDismissed.has(w.key));
+  }, [libraryItem, selectedSite, sessionDismissed]);
+
+  const handleDismissDayWarning = (key: string) => {
+    setSessionDismissed(prev => {
+      const next = new Set(prev);
+      next.add(key);
+      return next;
+    });
+  };
+
+  const handleDismissDayWarningForever = (dismissKey: string) => {
+    dismissWarningPermanently(dismissKey);
+    setSessionDismissed(prev => new Set(prev));
+  };
 
   if (!selectedDate) return null;
 
@@ -256,6 +289,45 @@ const DayDetailsDialog: React.FC<DayDetailsDialogProps> = ({
                         </Button>
                       </Box>
                     ))}
+                </Stack>
+              </Box>
+            )}
+
+            {dayWarnings.length > 0 && (
+              <Box sx={{ mb: 2 }}>
+                <Typography variant="subtitle2" gutterBottom>Warnings</Typography>
+                <Stack spacing={1}>
+                  {dayWarnings.map(w => (
+                    <Alert
+                      key={w.key}
+                      severity={w.severity}
+                      action={
+                        <Stack direction="row" spacing={0.5} alignItems="center">
+                          {w.dismissible && w.dismissKey && (
+                            <Button
+                              size="small"
+                              color="inherit"
+                              onClick={() => handleDismissDayWarningForever(w.dismissKey!)}
+                            >
+                              Never show again
+                            </Button>
+                          )}
+                          {w.dismissible && (
+                            <IconButton
+                              size="small"
+                              color="inherit"
+                              onClick={() => handleDismissDayWarning(w.key)}
+                              aria-label="Dismiss warning"
+                            >
+                              <CloseIcon fontSize="small" />
+                            </IconButton>
+                          )}
+                        </Stack>
+                      }
+                    >
+                      {w.message}
+                    </Alert>
+                  ))}
                 </Stack>
               </Box>
             )}
