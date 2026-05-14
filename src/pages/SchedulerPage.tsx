@@ -28,7 +28,7 @@ import {
   LibraryBooks as LibraryIcon,
   Settings as SettingsIcon
 } from '@mui/icons-material';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import CommandCalendar from '../components/CommandCalendar';
 import EditConfirmationDialog from '../components/EditConfirmationDialog';
@@ -58,6 +58,7 @@ const ADMIN_ROLES = ['admin', 'newtown-admin', 'newtown-staff'];
 
 const SchedulerPage: React.FC = () => {
   const navigate = useNavigate();
+  const [, setSearchParams] = useSearchParams();
   const { selectedSiteId, selectedSite } = useSiteContext();
   const { userInfo } = useAuth();
   const isAdmin = userInfo?.roles?.some(r => ADMIN_ROLES.includes(r)) ?? false;
@@ -124,6 +125,22 @@ const SchedulerPage: React.FC = () => {
         days_of_week: null,
         specific_dates: [toISODateString(editDate)],
         override_reason: null
+      });
+
+      // Re-open the day details dialog on the newly-cloned schedule.
+      // The "Edit Schedule" path closed the day dialog (stripping `d`
+      // from the URL); we put it back so the calendar remount lands
+      // the user inline-editing the new specific-date copy instead of
+      // making them click the day again.
+      const dateStr = toISODateString(editDate);
+      const monthStr = `${editDate.getFullYear()}-${(editDate.getMonth() + 1)
+        .toString()
+        .padStart(2, '0')}`;
+      setSearchParams(prev => {
+        const params = new URLSearchParams(prev);
+        params.set('d', dateStr);
+        params.set('m', monthStr);
+        return params;
       });
 
       // Refresh calendar
