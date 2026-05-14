@@ -55,6 +55,20 @@ const Switch: React.FC<SwitchProps> = ({
       onClick={onClick}
       style={{ cursor: onClick ? 'pointer' : 'default' }}
     >
+      {/* Transparent hit-target so clicks register over the whole switch
+          icon, not just the stroked/painted parts. SVG defaults to
+          `visiblePainted`, which would otherwise ignore clicks in the
+          interior gaps of the symbol. */}
+      {onClick && (
+        <rect
+          x={-halfW - 2}
+          y={-halfH - 2}
+          width={halfW * 2 + 4}
+          height={halfH * 2 + 4}
+          fill="transparent"
+          pointerEvents="all"
+        />
+      )}
       {/* Pulsing severity glow — behind the switch body for Emergency/Critical */}
       <AlarmGlow state={state} halfW={halfW} halfH={halfH} />
       {/* Top connection point (bus side) */}
