@@ -13,8 +13,10 @@
  */
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { Link as RouterLink } from 'react-router-dom';
 import {
   Box,
+  Button,
   Chip,
   CircularProgress,
   List,
@@ -26,6 +28,7 @@ import {
 } from '@mui/material';
 import {
   Event as EventIcon,
+  History as HistoryIcon,
   Loop as LoopIcon,
   Star as StarIcon
 } from '@mui/icons-material';
@@ -122,23 +125,41 @@ const Provenance: React.FC<ProvenanceProps> = ({ item }) => {
     );
   }
 
-  // Show the most recent two entries — typically create + most recent
-  // edit. The full history can live in a dedicated panel later if the
-  // demo needs it.
-  const recent = activity.slice(-2).reverse();
+  // Show the most recent two entries inline — typically create + most
+  // recent edit. The "Show all" link surfaces the rest on a dedicated
+  // page when the schedule has more history than fits at-a-glance.
+  const PREVIEW_COUNT = 2;
+  const recent = activity.slice(-PREVIEW_COUNT).reverse();
+  const hasMore = activity.length > PREVIEW_COUNT;
+
   return (
-    <List dense disablePadding>
-      {recent.map(row => (
-        <ListItem key={row.id} disableGutters sx={{ py: 0 }}>
-          <ListItemText
-            primary={formatRowSummary(row)}
-            secondary={formatTimestamp(row.timestamp)}
-            primaryTypographyProps={{ variant: 'caption' }}
-            secondaryTypographyProps={{ variant: 'caption' }}
-          />
-        </ListItem>
-      ))}
-    </List>
+    <Stack spacing={0.25}>
+      <List dense disablePadding>
+        {recent.map(row => (
+          <ListItem key={row.id} disableGutters sx={{ py: 0 }}>
+            <ListItemText
+              primary={formatRowSummary(row)}
+              secondary={formatTimestamp(row.timestamp)}
+              primaryTypographyProps={{ variant: 'caption' }}
+              secondaryTypographyProps={{ variant: 'caption' }}
+            />
+          </ListItem>
+        ))}
+      </List>
+      {hasMore && (
+        <Box>
+          <Button
+            component={RouterLink}
+            to={`/library/${item.id}/audit`}
+            size="small"
+            startIcon={<HistoryIcon fontSize="small" />}
+            sx={{ textTransform: 'none', px: 0 }}
+          >
+            Show all {activity.length} audit entries
+          </Button>
+        </Box>
+      )}
+    </Stack>
   );
 };
 
