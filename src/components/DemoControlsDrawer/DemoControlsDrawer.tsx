@@ -1,18 +1,20 @@
 /**
  * Demo Controls Drawer.
  *
- * A right-edge drawer that exposes the live state knobs used during a
- * demo: forced wall-clock, utility curtailment ceiling, current SoC,
- * open breakers, and offline Megapacks. Values flow into the schedule
- * warning engine and the SLD's `demoMode` plumbing via the demo
- * overrides context.
+ * Floating bottom-right launcher that opens a right-edge drawer of
+ * live state knobs used during a demo: forced wall-clock, utility
+ * curtailment ceiling, current SoC, open breakers, and offline
+ * Megapacks. Values flow into the schedule warning engine and the
+ * SLD's `demoMode` plumbing via the demo overrides context.
  *
- * Access is gated to operators with an admin-flavored role so the
- * "force breaker B-1 open" button doesn't surface to view-only users.
+ * Mounted once at the App level. Self-gates to admin-flavored roles
+ * so the "force breaker B-1 open" affordance doesn't surface to
+ * view-only users — non-admins simply see no button.
  */
 
 import React, { useState } from 'react';
 import {
+  Badge,
   Box,
   Button,
   Divider,
@@ -23,6 +25,7 @@ import {
   InputAdornment,
   InputLabel,
   MenuItem,
+  Paper,
   Select,
   Stack,
   Switch,
@@ -36,6 +39,9 @@ import {
 } from '@mui/icons-material';
 
 import { useDemoOverrides } from '../../utils/demoOverrides';
+import { useAuth } from '../../pages/LoginPage/useAuth';
+
+const ADMIN_ROLES = ['admin', 'newtown-admin', 'newtown-staff'];
 
 interface DemoControlsDrawerProps {
   /** Names of breakers the operator can flip during the demo. The
@@ -75,6 +81,9 @@ const DemoControlsDrawer: React.FC<DemoControlsDrawerProps> = ({
   breakerNames = DEFAULT_BREAKERS,
   megapackNames = DEFAULT_MEGAPACKS
 }) => {
+  const { userInfo } = useAuth();
+  const isAdmin = userInfo?.roles?.some(r => ADMIN_ROLES.includes(r)) ?? false;
+
   const {
     overrides,
     setForcedNow,
@@ -88,16 +97,43 @@ const DemoControlsDrawer: React.FC<DemoControlsDrawerProps> = ({
 
   const [open, setOpen] = useState(false);
 
+  if (!isAdmin) return null;
+
   return (
     <>
-      <Tooltip title="Demo controls">
-        <IconButton
-          color={hasAnyOverride ? 'warning' : 'default'}
-          onClick={() => setOpen(true)}
-          aria-label="Open demo controls"
+      {/* Floating bottom-right launcher. Sits above page content with
+          a subtle Paper backdrop so it's discoverable but doesn't
+          compete with primary actions. A small badge dot appears when
+          overrides are active. */}
+      <Tooltip title="Demo controls" placement="left">
+        <Paper
+          elevation={2}
+          sx={{
+            position: 'fixed',
+            bottom: 16,
+            right: 16,
+            borderRadius: '50%',
+            zIndex: theme => theme.zIndex.fab,
+            opacity: 0.85,
+            transition: 'opacity 0.15s',
+            '&:hover': { opacity: 1 }
+          }}
         >
-          <DemoIcon />
-        </IconButton>
+          <Badge
+            color="warning"
+            variant="dot"
+            invisible={!hasAnyOverride}
+            overlap="circular"
+          >
+            <IconButton
+              size="small"
+              onClick={() => setOpen(true)}
+              aria-label="Open demo controls"
+            >
+              <DemoIcon fontSize="small" />
+            </IconButton>
+          </Badge>
+        </Paper>
       </Tooltip>
 
       <Drawer anchor="right" open={open} onClose={() => setOpen(false)}>
