@@ -5,7 +5,8 @@
  * Includes day detail panel with commands and override actions.
  */
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Alert,
   Box,
@@ -43,6 +44,45 @@ interface CommandCalendarProps {
   onRequestCancelOverride?: (date: Date) => void;
 }
 
+/**
+ * Parse a `YYYY-MM` month string into a Date pinned to the 1st. Returns
+ * null on garbage so callers can fall back to a default.
+ */
+function parseMonthParam(value: string | null): Date | null {
+  if (!value) return null;
+  const m = /^(\d{4})-(\d{2})$/.exec(value);
+  if (!m) return null;
+  const year = Number.parseInt(m[1], 10);
+  const monthIdx = Number.parseInt(m[2], 10) - 1;
+  if (monthIdx < 0 || monthIdx > 11) return null;
+  return new Date(year, monthIdx, 1);
+}
+
+/** Parse `YYYY-MM-DD` into a local-midnight Date. Returns null on garbage. */
+function parseDateParam(value: string | null): Date | null {
+  if (!value) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!m) return null;
+  const year = Number.parseInt(m[1], 10);
+  const monthIdx = Number.parseInt(m[2], 10) - 1;
+  const day = Number.parseInt(m[3], 10);
+  const d = new Date(year, monthIdx, day);
+  if (
+    d.getFullYear() !== year ||
+    d.getMonth() !== monthIdx ||
+    d.getDate() !== day
+  ) {
+    return null;
+  }
+  return d;
+}
+
+function formatMonthParam(date: Date): string {
+  const year = date.getFullYear();
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  return `${year}-${month}`;
+}
+
 const CommandCalendar: React.FC<CommandCalendarProps> = ({
   siteId,
   onDateSelect,
@@ -50,8 +90,60 @@ const CommandCalendar: React.FC<CommandCalendarProps> = ({
   onRequestApplyDifferent
 }) => {
   const { selectedSite } = useSiteContext();
-  const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+
+  // Calendar state is driven by URL search params so refresh / browser
+  // back / share-the-link all do the right thing. `m=YYYY-MM` controls
+  // the viewed month; `d=YYYY-MM-DD` is the selected day (optional).
+  // When `d` is set, the viewed month is derived from it; `m` only
+  // matters when no day is selected.
+  //
+  // Parse results are memoized off the raw string so the resulting Date
+  // instances are referentially stable across renders. Without this,
+  // every render returns a fresh Date, the `selectedDate` effect deps
+  // change on every render, the effect re-fetches, and we infinite-loop.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const monthParam = searchParams.get('m');
+  const dateParam = searchParams.get('d');
+  const monthFromUrl = useMemo(() => parseMonthParam(monthParam), [monthParam]);
+  const dateFromUrl = useMemo(() => parseDateParam(dateParam), [dateParam]);
+
+  // When `d` is present it wins for "what month to show"; otherwise we
+  // fall back to `m`, then to today.
+  const currentMonth = useMemo(() => {
+    if (dateFromUrl) {
+      return new Date(dateFromUrl.getFullYear(), dateFromUrl.getMonth(), 1);
+    }
+    if (monthFromUrl) return monthFromUrl;
+    const today = new Date();
+    return new Date(today.getFullYear(), today.getMonth(), 1);
+  }, [dateFromUrl, monthFromUrl]);
+
+  const selectedDate = dateFromUrl;
+
+  const setCurrentMonth = useCallback((next: Date) => {
+    setSearchParams(prev => {
+      const params = new URLSearchParams(prev);
+      params.set('m', formatMonthParam(next));
+      // Drop the selected day when navigating to a different month —
+      // it almost certainly doesn't belong to that month and keeping
+      // it would force the view back.
+      params.delete('d');
+      return params;
+    }, { replace: false });
+  }, [setSearchParams]);
+
+  const setSelectedDate = useCallback((next: Date | null) => {
+    setSearchParams(prev => {
+      const params = new URLSearchParams(prev);
+      if (next) {
+        params.set('d', toISODateString(next));
+        params.set('m', formatMonthParam(next));
+      } else {
+        params.delete('d');
+      }
+      return params;
+    }, { replace: false });
+  }, [setSearchParams]);
   const [selectedLibraryItem, setSelectedLibraryItem] = useState<ScheduleLibraryItem | null>(null);
   const [selectedDateSpecificity, setSelectedDateSpecificity] = useState<number>(-1);
   const [selectedDateOverrideReason, setSelectedDateOverrideReason] = useState<string | null>(null);
