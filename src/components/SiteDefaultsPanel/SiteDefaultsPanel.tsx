@@ -7,13 +7,25 @@
  * round-trips through `PUT /api/1/Sites/<id>`; the panel does not assume
  * sole ownership of the row so unrelated edits (name, address) made
  * elsewhere stay intact.
+ *
+ * Designed to be rendered inside a Dialog: it has no internal title,
+ * no Paper wrapper, and no Save button. The parent owns its dialog
+ * chrome (title, action buttons) and triggers a save via the ref-exposed
+ * `save()` method. The panel reports its busy state via the
+ * `onSavingChange` callback so the parent can disable the Save button
+ * while a write is in flight.
  */
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, {
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useState,
+  type Ref
+} from 'react';
 import {
   Alert,
   Box,
-  Button,
   Divider,
   FormControl,
   FormControlLabel,
@@ -21,7 +33,6 @@ import {
   InputAdornment,
   InputLabel,
   MenuItem,
-  Paper,
   Select,
   Stack,
   Switch,
@@ -88,7 +99,25 @@ function siteToDraft(site: Site): DraftSiteDefaults {
   };
 }
 
-const SiteDefaultsPanel: React.FC = () => {
+export interface SiteDefaultsPanelHandle {
+  /**
+   * Persist the current draft. Resolves to true on success, false on
+   * failure. The panel surfaces its own success/error alert either way.
+   */
+  save: () => Promise<boolean>;
+}
+
+interface SiteDefaultsPanelProps {
+  /**
+   * Called whenever the saving state flips. Lets the parent dialog
+   * disable its Save button without us re-exposing internal state.
+   */
+  onSavingChange?: (saving: boolean) => void;
+  /** React 19 ref-as-prop. Exposes [SiteDefaultsPanelHandle]. */
+  ref?: Ref<SiteDefaultsPanelHandle>;
+}
+
+const SiteDefaultsPanel: React.FC<SiteDefaultsPanelProps> = ({ onSavingChange, ref }) => {
   const { selectedSite, refresh } = useSiteContext();
   const [draft, setDraft] = useState<DraftSiteDefaults | null>(null);
   const [saving, setSaving] = useState(false);
@@ -99,6 +128,10 @@ const SiteDefaultsPanel: React.FC = () => {
     if (selectedSite) setDraft(siteToDraft(selectedSite));
   }, [selectedSite]);
 
+  useEffect(() => {
+    onSavingChange?.(saving);
+  }, [saving, onSavingChange]);
+
   // Auto-derived ramp rate: floor(power_kw / 120s) — only used as a hint;
   // the user can override the duration directly.
   const autoRampDurationSeconds = useMemo(() => {
@@ -106,26 +139,8 @@ const SiteDefaultsPanel: React.FC = () => {
     return Number.isFinite(power) && power > 0 ? 120 : null;
   }, [draft?.power_kw]);
 
-  if (!selectedSite || !draft) {
-    return (
-      <Paper sx={{ p: 3 }}>
-        <Typography variant="body2" color="text.secondary">
-          Select a site to view its defaults.
-        </Typography>
-      </Paper>
-    );
-  }
-
-  const setField = <K extends keyof DraftSiteDefaults>(
-    key: K,
-    value: DraftSiteDefaults[K]
-  ) => {
-    setDraft(prev => (prev ? { ...prev, [key]: value } : prev));
-    setSavedAt(null);
-  };
-
-  const handleSave = async () => {
-    if (!draft || !selectedSite) return;
+  const handleSave = async (): Promise<boolean> => {
+    if (!draft || !selectedSite) return false;
     setSaving(true);
     setError(null);
     try {
@@ -142,9 +157,8 @@ const SiteDefaultsPanel: React.FC = () => {
         : Number.parseFloat(draft.rebound_protection_soc_floor_percent);
 
       await updateSite(selectedSite.id, {
-        // Server treats `null` as "leave alone", so we omit fields the
-        // user wiped rather than sending null. UpdateSiteRequest has every
-        // field nullable, but we want sparse intent on the wire.
+        // Server treats `null` as "leave alone" for some fields, so we
+        // pass null for the ones we never edit (name, address, etc.).
         name: null,
         address: null,
         latitude: null,
@@ -164,26 +178,42 @@ const SiteDefaultsPanel: React.FC = () => {
       });
       await refresh();
       setSavedAt(Date.now());
+      return true;
     } catch (err) {
       errorLog('SiteDefaultsPanel: save failed', err);
       setError(err instanceof ApiError ? err.message : 'Failed to save site defaults');
+      return false;
     } finally {
       setSaving(false);
     }
   };
 
-  return (
-    <Paper sx={{ p: 3 }}>
-      <Stack spacing={3}>
-        <Box>
-          <Typography variant="h6">Site Defaults — {selectedSite.name}</Typography>
-          <Typography variant="body2" color="text.secondary">
-            These values drive the peak-season wizard, scheduling warnings, and the
-            calendar's bar visualization. Edits persist on save.
-          </Typography>
-        </Box>
+  useImperativeHandle(ref, () => ({ save: handleSave }), [handleSave]);
 
-        {error && <Alert severity="error">{error}</Alert>}
+  if (!selectedSite || !draft) {
+    return (
+      <Typography variant="body2" color="text.secondary">
+        Select a site to view its defaults.
+      </Typography>
+    );
+  }
+
+  const setField = <K extends keyof DraftSiteDefaults>(
+    key: K,
+    value: DraftSiteDefaults[K]
+  ) => {
+    setDraft(prev => (prev ? { ...prev, [key]: value } : prev));
+    setSavedAt(null);
+  };
+
+  return (
+    <Stack spacing={3}>
+      <Typography variant="body2" color="text.secondary">
+        These values drive the peak-season wizard, scheduling warnings, and the
+        calendar's bar visualization. Edits persist on save.
+      </Typography>
+
+      {error && <Alert severity="error">{error}</Alert>}
         {savedAt && !error && (
           <Alert severity="success" onClose={() => setSavedAt(null)}>
             Defaults saved.
@@ -338,13 +368,7 @@ const SiteDefaultsPanel: React.FC = () => {
           </Grid>
         </Grid>
 
-        <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-          <Button variant="contained" disabled={saving} onClick={handleSave}>
-            {saving ? 'Saving…' : 'Save defaults'}
-          </Button>
-        </Box>
-      </Stack>
-    </Paper>
+    </Stack>
   );
 };
 

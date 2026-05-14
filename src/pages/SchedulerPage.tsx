@@ -5,7 +5,7 @@
  * Allows applying schedules to specific dates and editing schedules.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -33,7 +33,7 @@ import { useNavigate } from 'react-router-dom';
 import CommandCalendar from '../components/CommandCalendar';
 import EditConfirmationDialog from '../components/EditConfirmationDialog';
 import SiteSelector from '../components/SiteSelector/SiteSelector';
-import SiteDefaultsPanel from '../components/SiteDefaultsPanel/SiteDefaultsPanel';
+import SiteDefaultsPanel, { type SiteDefaultsPanelHandle } from '../components/SiteDefaultsPanel/SiteDefaultsPanel';
 import PeakSeasonWizard from '../components/PeakSeasonWizard/PeakSeasonWizard';
 import DemoControlsDrawer from '../components/DemoControlsDrawer/DemoControlsDrawer';
 import { useAuth } from './LoginPage/useAuth';
@@ -82,6 +82,8 @@ const SchedulerPage: React.FC = () => {
 
   // Site defaults dialog
   const [defaultsDialogOpen, setDefaultsDialogOpen] = useState(false);
+  const [defaultsSaving, setDefaultsSaving] = useState(false);
+  const defaultsPanelRef = useRef<SiteDefaultsPanelHandle>(null);
 
   // Peak-season wizard
   const [wizardOpen, setWizardOpen] = useState(false);
@@ -238,12 +240,26 @@ const SchedulerPage: React.FC = () => {
         maxWidth="md"
         fullWidth
       >
-        <DialogTitle>Site defaults</DialogTitle>
+        <DialogTitle>
+          Site defaults{selectedSite ? ` — ${selectedSite.name}` : ''}
+        </DialogTitle>
         <DialogContent dividers>
-          <SiteDefaultsPanel />
+          <SiteDefaultsPanel ref={defaultsPanelRef} onSavingChange={setDefaultsSaving} />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDefaultsDialogOpen(false)}>Close</Button>
+          <Button onClick={() => setDefaultsDialogOpen(false)} disabled={defaultsSaving}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            disabled={defaultsSaving || !selectedSite}
+            onClick={async () => {
+              const ok = await defaultsPanelRef.current?.save();
+              if (ok) setDefaultsDialogOpen(false);
+            }}
+          >
+            {defaultsSaving ? 'Saving…' : 'Save defaults'}
+          </Button>
         </DialogActions>
       </Dialog>
 
