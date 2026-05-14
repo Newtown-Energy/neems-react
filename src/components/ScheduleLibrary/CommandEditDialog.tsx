@@ -32,7 +32,7 @@ import { useSiteContext } from '../../utils/SiteContext';
 // Note: this dialog used to read demo overrides (breakers, megapacks,
 // curtailment, current SoC) into the warning engine. Those are
 // site-state facts, not properties of a future command, so they moved
-// to the app-wide SiteStateIndicator + SLD panel via evaluateSiteState.
+// to the app-wide SiteStatePanel banner via evaluateSiteState.
 
 interface CommandEditDialogProps {
   open: boolean;

@@ -50,7 +50,7 @@ import { useSiteContext } from '../../utils/SiteContext';
 // Site-state context (breakers, megapacks, curtailment, SoC) used to
 // thread through here and surface inside the day's warning list. Those
 // rows are now site-state issues — see evaluateSiteState — and render
-// in the app-wide SiteStateIndicator + the SLD page.
+// in the app-wide SiteStatePanel banner + the SLD page.
 import { errorLog } from '../../utils/debug';
 import CommandEditDialog from '../ScheduleLibrary/CommandEditDialog';
 import ResultingSchedulePane from './ResultingSchedulePane';

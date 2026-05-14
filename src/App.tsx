@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Box } from '@mui/material';
 import Sidebar from './components/Sidebar/Sidebar';
 import OverviewPage from './pages/OverviewPage';
@@ -10,13 +10,26 @@ import SchedulerPage from './pages/SchedulerPage';
 import LibraryPage from './pages/LibraryPage';
 import ScheduleAuditPage from './pages/ScheduleAuditPage';
 import SldPage from './pages/SldPage';
-import SiteStateIndicator from './components/SiteStateIndicator/SiteStateIndicator';
+import SiteStatePanel from './components/SiteStatePanel/SiteStatePanel';
 import './styles/App.scss';
 import { useAuth } from './pages/LoginPage/useAuth';
 import LoginPage from './pages/LoginPage/LoginPage';
 import { debugLog } from './utils/debug';
 import { SiteProvider } from './utils/SiteContext';
 import { DemoOverridesProvider } from './utils/demoOverrides';
+
+/** App-wide banner host that suppresses the panel on /sld. Lives
+ *  inside the Router so it can read the current location, and inside
+ *  the providers so SiteStatePanel can read the site + overrides. */
+const SiteStateBannerSlot: React.FC = () => {
+  const location = useLocation();
+  if (location.pathname.startsWith('/sld')) return null;
+  return (
+    <Box sx={{ px: 2, pt: 1 }}>
+      <SiteStatePanel />
+    </Box>
+  );
+};
 
 const AppContent: React.FC = () => {
   const { loading, isAuthenticated, setIsAuthenticated, saveUserInfo } = useAuth();
@@ -49,11 +62,11 @@ const AppContent: React.FC = () => {
       <Box id="authed-ui-box" sx={{ display: 'flex', height: '100vh', width: '100vw', overflow: 'hidden' }}>
         <Sidebar />
         <Box component="main" sx={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, overflow: 'hidden' }}>
-          {/* Thin top strip — empty for healthy sites, surfaces a
-              chip linking to /sld whenever site state has issues. */}
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', px: 2, py: 0.5, minHeight: 32 }}>
-            <SiteStateIndicator />
-          </Box>
+          {/* App-wide site-state banner. Renders nothing for a healthy
+              site, and is suppressed on /sld where the page already
+              mounts its own SiteStatePanel — having it twice on the
+              same screen is noise. */}
+          <SiteStateBannerSlot />
           <Routes>
             <Route path="/" element={<Navigate to="/sld" replace />} />
             <Route path="/overview" element={<OverviewPage />} />

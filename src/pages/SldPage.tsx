@@ -99,10 +99,9 @@ const SldPage: React.FC = () => {
         </Stack>
       </Stack>
 
-      {/* Replaced the generic "demo overrides active" banner with the
-          structured SiteStatePanel — it lists the actual issues that
-          flow from the overrides (breakers, megapacks, SoC, curtailment)
-          and is what the top-bar SiteStateIndicator's chip points to. */}
+      {/* SiteStatePanel hosted here on the operational view. The
+          app-wide banner that hosts the same component is suppressed
+          on /sld so it doesn't appear twice on this page. */}
       <SiteStatePanel />
 
       {eStopActive && (
