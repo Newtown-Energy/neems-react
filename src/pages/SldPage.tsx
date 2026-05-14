@@ -10,12 +10,9 @@ import {
 import AccountTreeIcon from '@mui/icons-material/AccountTree';
 import SingleLineDiagram from '../components/SingleLineDiagram/SingleLineDiagram';
 import type { SldDiagramState } from '../components/SingleLineDiagram/types';
-import DemoControlsDrawer from '../components/DemoControlsDrawer/DemoControlsDrawer';
-import SiteStatePanel from '../components/SiteStatePanel/SiteStatePanel';
-import { useAuth } from './LoginPage/useAuth';
 import { useDemoOverrides } from '../utils/demoOverrides';
-
-const ADMIN_ROLES = ['admin', 'newtown-admin', 'newtown-staff'];
+// DemoControlsDrawer is now mounted at the app level (fixed
+// bottom-right) and self-gates to admin roles.
 
 export const pageConfig = {
   id: 'sld',
@@ -60,8 +57,6 @@ const InfoLine: React.FC<{ label: string; value: string }> = ({ label, value }) 
 
 const SldPage: React.FC = () => {
   const [diagramState, setDiagramState] = useState<SldDiagramState | null>(null);
-  const { userInfo } = useAuth();
-  const isAdmin = userInfo?.roles?.some(r => ADMIN_ROLES.includes(r)) ?? false;
   const { hasAnyOverride } = useDemoOverrides();
 
   const isStale =
@@ -93,16 +88,8 @@ const SldPage: React.FC = () => {
             confirmed site-wide lockout.
           </Typography>
         </Box>
-        <Stack direction="row" spacing={1} alignItems="flex-start">
-          <ProjectInfoCard />
-          {isAdmin && <DemoControlsDrawer />}
-        </Stack>
+        <ProjectInfoCard />
       </Stack>
-
-      {/* SiteStatePanel hosted here on the operational view. The
-          app-wide banner that hosts the same component is suppressed
-          on /sld so it doesn't appear twice on this page. */}
-      <SiteStatePanel />
 
       {eStopActive && (
         <Alert severity="error" sx={{ mb: 2 }}>

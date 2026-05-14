@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Box } from '@mui/material';
 import Sidebar from './components/Sidebar/Sidebar';
 import OverviewPage from './pages/OverviewPage';
@@ -11,6 +11,7 @@ import LibraryPage from './pages/LibraryPage';
 import ScheduleAuditPage from './pages/ScheduleAuditPage';
 import SldPage from './pages/SldPage';
 import SiteStatePanel from './components/SiteStatePanel/SiteStatePanel';
+import DemoControlsDrawer from './components/DemoControlsDrawer/DemoControlsDrawer';
 import './styles/App.scss';
 import { useAuth } from './pages/LoginPage/useAuth';
 import LoginPage from './pages/LoginPage/LoginPage';
@@ -18,18 +19,15 @@ import { debugLog } from './utils/debug';
 import { SiteProvider } from './utils/SiteContext';
 import { DemoOverridesProvider } from './utils/demoOverrides';
 
-/** App-wide banner host that suppresses the panel on /sld. Lives
- *  inside the Router so it can read the current location, and inside
- *  the providers so SiteStatePanel can read the site + overrides. */
-const SiteStateBannerSlot: React.FC = () => {
-  const location = useLocation();
-  if (location.pathname.startsWith('/sld')) return null;
-  return (
-    <Box sx={{ px: 2, pt: 1 }}>
-      <SiteStatePanel />
-    </Box>
-  );
-};
+/** App-wide banner host. Mounted once at the top of every page so the
+ *  same content appears in the same spot regardless of route. Lives
+ *  inside the Router/providers so SiteStatePanel can read the site +
+ *  overrides. */
+const SiteStateBannerSlot: React.FC = () => (
+  <Box sx={{ px: 2, pt: 1 }}>
+    <SiteStatePanel />
+  </Box>
+);
 
 const AppContent: React.FC = () => {
   const { loading, isAuthenticated, setIsAuthenticated, saveUserInfo } = useAuth();
@@ -63,9 +61,8 @@ const AppContent: React.FC = () => {
         <Sidebar />
         <Box component="main" sx={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, overflow: 'hidden' }}>
           {/* App-wide site-state banner. Renders nothing for a healthy
-              site, and is suppressed on /sld where the page already
-              mounts its own SiteStatePanel — having it twice on the
-              same screen is noise. */}
+              site; otherwise the same content appears at the top of
+              every page including /sld. */}
           <SiteStateBannerSlot />
           <Routes>
             <Route path="/" element={<Navigate to="/sld" replace />} />
@@ -80,6 +77,9 @@ const AppContent: React.FC = () => {
           </Routes>
         </Box>
       </Box>
+      {/* Floating launcher; self-gates to admin and self-positions
+          fixed bottom-right of the viewport. */}
+      <DemoControlsDrawer />
       </DemoOverridesProvider>
     </SiteProvider>
   );
