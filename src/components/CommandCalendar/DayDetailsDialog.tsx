@@ -47,7 +47,10 @@ import {
   filterDismissedWarnings
 } from '../../utils/scheduleWarnings';
 import { useSiteContext } from '../../utils/SiteContext';
-import { useDemoOverrides } from '../../utils/demoOverrides';
+// Site-state context (breakers, megapacks, curtailment, SoC) used to
+// thread through here and surface inside the day's warning list. Those
+// rows are now site-state issues — see evaluateSiteState — and render
+// in the app-wide SiteStateIndicator + the SLD page.
 import { errorLog } from '../../utils/debug';
 import CommandEditDialog from '../ScheduleLibrary/CommandEditDialog';
 import ResultingSchedulePane from './ResultingSchedulePane';
@@ -102,7 +105,6 @@ const DayDetailsDialog: React.FC<DayDetailsDialogProps> = ({
   onCommandsChanged
 }) => {
   const { selectedSite } = useSiteContext();
-  const { overrides } = useDemoOverrides();
   const [commandEditTarget, setCommandEditTarget] = useState<ScheduleCommandDto | null>(null);
   const [commandEditOpen, setCommandEditOpen] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -112,19 +114,12 @@ const DayDetailsDialog: React.FC<DayDetailsDialogProps> = ({
   // the full picture without having to open each row individually.
   const dayWarnings = useMemo(() => {
     if (!selectedSite || !libraryItem) return [];
-    const ctx = {
-      forcedNow: overrides.forcedNow ? new Date(overrides.forcedNow) : null,
-      currentSocPercent: overrides.currentSocPercent,
-      curtailmentCeilingKw: overrides.curtailmentCeilingKw,
-      openBreakers: overrides.openBreakers,
-      offlineMegapacks: overrides.offlineMegapacks
-    };
     const all = libraryItem.commands.flatMap(cmd =>
-      evaluateCommandWarnings(cmd, selectedSite, ctx)
+      evaluateCommandWarnings(cmd, selectedSite)
     );
     const persisted = filterDismissedWarnings(all);
     return persisted.filter(w => !sessionDismissed.has(w.key));
-  }, [libraryItem, selectedSite, overrides, sessionDismissed]);
+  }, [libraryItem, selectedSite, sessionDismissed]);
 
   const handleDismissDayWarning = (key: string) => {
     setSessionDismissed(prev => {

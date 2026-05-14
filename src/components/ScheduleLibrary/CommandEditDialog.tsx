@@ -29,7 +29,10 @@ import {
   filterDismissedWarnings
 } from '../../utils/scheduleWarnings';
 import { useSiteContext } from '../../utils/SiteContext';
-import { useDemoOverrides } from '../../utils/demoOverrides';
+// Note: this dialog used to read demo overrides (breakers, megapacks,
+// curtailment, current SoC) into the warning engine. Those are
+// site-state facts, not properties of a future command, so they moved
+// to the app-wide SiteStateIndicator + SLD panel via evaluateSiteState.
 
 interface CommandEditDialogProps {
   open: boolean;
@@ -49,7 +52,6 @@ const CommandEditDialog: React.FC<CommandEditDialogProps> = ({
   onError
 }) => {
   const { selectedSite } = useSiteContext();
-  const { overrides } = useDemoOverrides();
   const [hour, setHour] = useState(0);
   const [minute, setMinute] = useState(0);
   const [type, setType] = useState<'charge' | 'discharge' | 'trickle_charge'>('charge');
@@ -105,16 +107,10 @@ const CommandEditDialog: React.FC<CommandEditDialogProps> = ({
 
   const warnings = useMemo(() => {
     if (!selectedSite) return [];
-    const all = evaluateCommandWarnings(draftCommand, selectedSite, {
-      forcedNow: overrides.forcedNow ? new Date(overrides.forcedNow) : null,
-      currentSocPercent: overrides.currentSocPercent,
-      curtailmentCeilingKw: overrides.curtailmentCeilingKw,
-      openBreakers: overrides.openBreakers,
-      offlineMegapacks: overrides.offlineMegapacks
-    });
+    const all = evaluateCommandWarnings(draftCommand, selectedSite);
     const persisted = filterDismissedWarnings(all);
     return persisted.filter(w => !sessionDismissed.has(w.key));
-  }, [draftCommand, selectedSite, overrides, sessionDismissed]);
+  }, [draftCommand, selectedSite, sessionDismissed]);
 
   const handleDismiss = (key: string) => {
     setSessionDismissed(prev => {

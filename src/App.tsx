@@ -10,6 +10,7 @@ import SchedulerPage from './pages/SchedulerPage';
 import LibraryPage from './pages/LibraryPage';
 import ScheduleAuditPage from './pages/ScheduleAuditPage';
 import SldPage from './pages/SldPage';
+import SiteStateIndicator from './components/SiteStateIndicator/SiteStateIndicator';
 import './styles/App.scss';
 import { useAuth } from './pages/LoginPage/useAuth';
 import LoginPage from './pages/LoginPage/LoginPage';
@@ -48,6 +49,11 @@ const AppContent: React.FC = () => {
       <Box id="authed-ui-box" sx={{ display: 'flex', height: '100vh', width: '100vw', overflow: 'hidden' }}>
         <Sidebar />
         <Box component="main" sx={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, overflow: 'hidden' }}>
+          {/* Thin top strip — empty for healthy sites, surfaces a
+              chip linking to /sld whenever site state has issues. */}
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', px: 2, py: 0.5, minHeight: 32 }}>
+            <SiteStateIndicator />
+          </Box>
           <Routes>
             <Route path="/" element={<Navigate to="/sld" replace />} />
             <Route path="/overview" element={<OverviewPage />} />

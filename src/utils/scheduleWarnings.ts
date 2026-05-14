@@ -1,17 +1,25 @@
 /**
  * Schedule warning engine.
  *
- * Evaluates a [ScheduleCommandDto] against a [Site]'s configured
- * windows and an optional "live" context (breaker states, Megapack
- * availability, utility curtailment ceiling, current SoC) to produce a
- * list of [ScheduleWarning] rows. The edit dialogs render those rows
- * as an [Alert] stack; the user can dismiss any warning, and warnings
- * with a [dismissKey] can be silenced permanently via `localStorage`.
+ * Two pure evaluators live here:
  *
- * The context state lives in `sessionStorage` (set by the demo-time
- * controls drawer in F8) so warnings change as you flip the live state
- * during the demo. We don't import that drawer here — callers pass the
- * already-read context — so this module stays pure.
+ *   - [evaluateCommandWarnings] looks at *schedule shape* — properties
+ *     of the future [ScheduleCommandDto] itself (off-peak / peak-revenue
+ *     window fit, charging direction vs. variant, interconnection cap).
+ *     These are stable predictions about a planned command and render
+ *     inline in the edit dialogs.
+ *
+ *   - [evaluateSiteState] looks at *current operational state* — open
+ *     breakers, offline Megapacks, utility curtailment, low SoC. These
+ *     don't tell you anything about whether a 4pm discharge tomorrow
+ *     is well-formed; by 4pm tomorrow the breaker may have closed and
+ *     SoC may have replenished. They're "is the site OK right now"
+ *     facts and belong on the SLD page + an app-wide indicator, not
+ *     in the schedule editor.
+ *
+ * Both evaluators are pure — they don't import the demo-overrides
+ * context directly. Callers read context state and pass it in, so this
+ * module stays trivially testable under Bun.
  */
 
 import type { ScheduleCommandDto, Site } from '@newtown-energy/types';
@@ -34,26 +42,52 @@ export interface ScheduleWarning {
 }
 
 /**
- * Live state that affects warnings but is not part of the command or
- * the site row. All fields are optional — F8 will populate them via
- * the demo overrides drawer. When omitted, the corresponding warnings
- * simply aren't evaluated.
+ * Optional context for [evaluateCommandWarnings]. Reserved for future
+ * window-vs-now checks (e.g. "this command is in the past from the
+ * operator's forced clock"). The live-state fields that used to live
+ * here have moved to [SiteStateContext] because they describe the
+ * site, not the future shape of a command.
  */
 export interface ScheduleWarningContext {
-  /** Operator-forced "now" (used to compare against site windows). */
+  /** Operator-forced "now" — currently unused by the engine; kept so
+   *  future shape-of-command checks can plug in without breaking the
+   *  callsite signature. */
   forcedNow?: Date | null;
-  /** Current SoC, 0–100. Used for the discharge-runtime warning when
-   *  the command has a [duration_seconds] set. */
+}
+
+/**
+ * Live state used by [evaluateSiteState]. Populated by the demo
+ * overrides drawer; in production it would be derived from real
+ * telemetry (breaker positions, Megapack availability, utility
+ * curtailment, SoC).
+ */
+export interface SiteStateContext {
+  /** Current SoC, 0–100. Below [LOW_SOC_THRESHOLD_PERCENT] flags. */
   currentSocPercent?: number | null;
-  /** Utility curtailment ceiling in kW. Discharge commands that exceed
-   *  this raise a warning. */
+  /** Utility curtailment ceiling in kW. Any non-null value below the
+   *  site's [power_kw] flags. */
   curtailmentCeilingKw?: number | null;
-  /** Per-breaker state map keyed by breaker name. Truthy means open
-   *  (which is unsafe for any command). */
+  /** Breakers currently open. Any non-empty list flags. */
   openBreakers?: string[];
-  /** Per-Megapack offline state map keyed by device name. */
+  /** Megapacks currently offline. Any non-empty list flags. */
   offlineMegapacks?: string[];
 }
+
+/** A single site-state row — what the top-bar indicator and the SLD
+ *  panel render. */
+export interface SiteStateIssue {
+  /** Stable identifier — used to key React lists. */
+  key: string;
+  severity: WarningSeverity;
+  message: string;
+}
+
+/**
+ * SoC at or below this threshold (percent) flags as a site-state
+ * issue. Chosen so the demo's "set SoC to 10%" lights up the banner
+ * without firing on a routine mid-charge reading.
+ */
+export const LOW_SOC_THRESHOLD_PERCENT = 20;
 
 const DISMISS_STORAGE_KEY = 'neems.scheduleWarnings.dismissed';
 
@@ -116,29 +150,22 @@ function timeOfDayInWindow(
   return offsetMinutes >= startMinutes || offsetMinutes < endMinutes;
 }
 
-function formatMinutes(totalMinutes: number): string {
-  if (totalMinutes < 60) {
-    return `${Math.round(totalMinutes)} min`;
-  }
-  const hours = Math.floor(totalMinutes / 60);
-  const mins = Math.round(totalMinutes % 60);
-  return mins === 0 ? `${hours} h` : `${hours} h ${mins} min`;
-}
-
 /**
- * Evaluate the warnings for a single command. Returns warnings in the
- * order callers should display them (hard errors first, then soft
- * "schedule shape" warnings, then SoC math). Pass a partial [context]
- * to opt into the live-state warnings.
+ * Evaluate the schedule-shape warnings for a single command. Returns
+ * warnings in display order (hard errors first, then dismissible
+ * window-fit warnings, then interconnection-cap math).
+ *
+ * Site-state issues (breakers, megapacks, curtailment, SoC) are NOT
+ * evaluated here — see [evaluateSiteState].
  */
 export function evaluateCommandWarnings(
   command: ScheduleCommandDto,
   site: Site,
-  context: ScheduleWarningContext = {}
+  _context: ScheduleWarningContext = {}
 ): ScheduleWarning[] {
   const warnings: ScheduleWarning[] = [];
 
-  // --- Hard safety warnings (never dismissible) -------------------------
+  // --- Hard safety warning (never dismissible) -------------------------
 
   if (site.site_variant === 'no_grid_charge' && command.command_type !== 'discharge') {
     warnings.push({
@@ -149,25 +176,7 @@ export function evaluateCommandWarnings(
     });
   }
 
-  if (context.openBreakers && context.openBreakers.length > 0) {
-    warnings.push({
-      key: `${command.id}:open-breakers`,
-      severity: 'error',
-      message: `Breaker${context.openBreakers.length === 1 ? '' : 's'} currently open: ${context.openBreakers.join(', ')}. Command will not execute.`,
-      dismissible: false
-    });
-  }
-
-  if (context.offlineMegapacks && context.offlineMegapacks.length > 0) {
-    warnings.push({
-      key: `${command.id}:megapack-offline`,
-      severity: 'warning',
-      message: `Megapack${context.offlineMegapacks.length === 1 ? '' : 's'} offline: ${context.offlineMegapacks.join(', ')}. Available power is reduced.`,
-      dismissible: false
-    });
-  }
-
-  // --- Soft "schedule shape" warnings ----------------------------------
+  // --- Soft window-fit warnings ----------------------------------------
 
   const offset = command.execution_offset_seconds;
   const inOffPeak = timeOfDayInWindow(
@@ -220,7 +229,7 @@ export function evaluateCommandWarnings(
     });
   }
 
-  // --- Capacity / curtailment / runtime math ---------------------------
+  // --- Interconnection cap (static site property) ---------------------
 
   if (
     command.command_type === 'discharge' &&
@@ -236,44 +245,62 @@ export function evaluateCommandWarnings(
     });
   }
 
-  if (
-    command.command_type === 'discharge' &&
-    typeof context.curtailmentCeilingKw === 'number' &&
-    site.power_kw !== null &&
-    site.power_kw > context.curtailmentCeilingKw
-  ) {
-    warnings.push({
-      key: `${command.id}:curtailment-ceiling`,
+  return warnings;
+}
+
+/**
+ * Evaluate site-state issues — things that describe the operational
+ * state of the site *right now*, not the shape of a planned command.
+ * Renders in the app-wide indicator and on the SLD page.
+ */
+export function evaluateSiteState(
+  site: Site,
+  context: SiteStateContext = {}
+): SiteStateIssue[] {
+  const issues: SiteStateIssue[] = [];
+
+  if (context.openBreakers && context.openBreakers.length > 0) {
+    issues.push({
+      key: 'open-breakers',
+      severity: 'error',
+      message: `Breaker${context.openBreakers.length === 1 ? '' : 's'} open: ${context.openBreakers.join(', ')}. Commands will not execute.`
+    });
+  }
+
+  if (context.offlineMegapacks && context.offlineMegapacks.length > 0) {
+    issues.push({
+      key: 'megapack-offline',
       severity: 'warning',
-      message: `Utility curtailment is active at ${context.curtailmentCeilingKw} kW. Output will be capped.`,
-      dismissible: false
+      message: `Megapack${context.offlineMegapacks.length === 1 ? '' : 's'} offline: ${context.offlineMegapacks.join(', ')}. Available power is reduced.`
     });
   }
 
   if (
-    command.command_type === 'discharge' &&
-    command.duration_seconds !== null &&
-    command.duration_seconds !== undefined &&
-    site.capacity_kwh !== null &&
+    typeof context.curtailmentCeilingKw === 'number' &&
     site.power_kw !== null &&
-    site.power_kw > 0
+    context.curtailmentCeilingKw < site.power_kw
   ) {
-    const startingSoc = context.currentSocPercent ?? 100;
-    const floor = site.rebound_protection_soc_floor_percent ?? 0;
-    const usableSoc = Math.max(0, startingSoc - floor);
-    const usableKwh = (usableSoc / 100) * site.capacity_kwh;
-    const availableMinutes = (usableKwh / site.power_kw) * 60;
-    const requestedMinutes = command.duration_seconds / 60;
-    if (requestedMinutes > availableMinutes + 0.5) {
-      warnings.push({
-        key: `${command.id}:soc-shortfall`,
-        severity: 'warning',
-        message:
-          `From ${startingSoc.toFixed(0)}% SoC down to the ${floor.toFixed(0)}% floor, this site sustains only ${formatMinutes(availableMinutes)} at ${site.power_kw} kW — ${formatMinutes(requestedMinutes)} requested.`,
-        dismissible: false
-      });
-    }
+    issues.push({
+      key: 'curtailment-active',
+      severity: 'warning',
+      message: `Utility curtailment active: output capped at ${context.curtailmentCeilingKw} kW (site power ${site.power_kw} kW).`
+    });
   }
 
-  return warnings;
+  if (
+    typeof context.currentSocPercent === 'number' &&
+    context.currentSocPercent <= LOW_SOC_THRESHOLD_PERCENT
+  ) {
+    const severity: WarningSeverity =
+      context.currentSocPercent <= site.rebound_protection_soc_floor_percent
+        ? 'error'
+        : 'warning';
+    issues.push({
+      key: 'low-soc',
+      severity,
+      message: `Battery state of charge low: ${context.currentSocPercent}% (rebound floor ${site.rebound_protection_soc_floor_percent}%).`
+    });
+  }
+
+  return issues;
 }

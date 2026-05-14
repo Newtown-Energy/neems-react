@@ -11,6 +11,7 @@ import AccountTreeIcon from '@mui/icons-material/AccountTree';
 import SingleLineDiagram from '../components/SingleLineDiagram/SingleLineDiagram';
 import type { SldDiagramState } from '../components/SingleLineDiagram/types';
 import DemoControlsDrawer from '../components/DemoControlsDrawer/DemoControlsDrawer';
+import SiteStatePanel from '../components/SiteStatePanel/SiteStatePanel';
 import { useAuth } from './LoginPage/useAuth';
 import { useDemoOverrides } from '../utils/demoOverrides';
 
@@ -98,12 +99,11 @@ const SldPage: React.FC = () => {
         </Stack>
       </Stack>
 
-      {hasAnyOverride && (
-        <Alert severity="info" sx={{ mb: 2 }}>
-          Demo overrides are active for this browser tab. Open the demo
-          controls drawer to clear them.
-        </Alert>
-      )}
+      {/* Replaced the generic "demo overrides active" banner with the
+          structured SiteStatePanel — it lists the actual issues that
+          flow from the overrides (breakers, megapacks, SoC, curtailment)
+          and is what the top-bar SiteStateIndicator's chip points to. */}
+      <SiteStatePanel />
 
       {eStopActive && (
         <Alert severity="error" sx={{ mb: 2 }}>
