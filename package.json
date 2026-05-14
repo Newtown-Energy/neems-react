@@ -9,6 +9,7 @@
     "lint": "npm run lint:eslint && npm run lint:tsc",
     "lint:eslint": "eslint ./src --max-warnings=0",
     "lint:tsc": "tsc --noEmit",
+    "test:unit": "bun test src/utils",
     "preview": "vite preview",
     "generate-types": "dosh generate-types"
   },

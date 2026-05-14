@@ -84,7 +84,10 @@ const Provenance: React.FC<ProvenanceProps> = ({ item }) => {
     const load = async () => {
       setLoading(true);
       try {
-        const rows = await getEntityActivity('schedule_library_items', item.id);
+        // The library-item rows live in the `schedule_templates`
+        // table at the DB layer — the API surface uses "library item"
+        // but the audit log keys off the physical table name.
+        const rows = await getEntityActivity('schedule_templates', item.id);
         if (!cancelled) setActivity(rows);
       } catch (err) {
         errorLog('ResultingSchedulePane: failed to load activity', err);

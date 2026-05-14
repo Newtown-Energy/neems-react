@@ -9,7 +9,12 @@ import reactDom from 'eslint-plugin-react-dom';
 import love from 'eslint-config-love';
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  // `src/**/*.test.ts` files are run by `bun test`, not by the app
+  // build. They import from `bun:test`, which the project's TS
+  // resolver doesn't know about — every call surfaces as
+  // `no-unsafe-call`. We ignore them at the linter level rather than
+  // adding bun-types to the production tsconfig.
+  globalIgnores(['dist', 'src/**/*.test.ts', 'src/**/*.test.tsx']),
   js.configs.recommended,
   tseslint.configs.eslintRecommended,
   tseslint.configs.recommendedTypeChecked,
