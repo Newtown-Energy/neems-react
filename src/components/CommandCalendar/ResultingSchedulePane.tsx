@@ -79,6 +79,11 @@ const Provenance: React.FC<ProvenanceProps> = ({ item }) => {
   const [activity, setActivity] = useState<EntityActivityWithUser[] | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Refetch when the item id changes (different schedule) AND when the
+  // parent passes a freshly-loaded item ref (commands just changed,
+  // updated_at advanced, etc.). The parent's CommandCalendar passes a
+  // new applicableLibraryItems array after every loadSelectedDate, so
+  // `item` is reference-fresh whenever the schedule actually moved.
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
@@ -98,7 +103,7 @@ const Provenance: React.FC<ProvenanceProps> = ({ item }) => {
     };
     void load();
     return () => { cancelled = true; };
-  }, [item.id]);
+  }, [item]);
 
   if (loading) {
     return (
