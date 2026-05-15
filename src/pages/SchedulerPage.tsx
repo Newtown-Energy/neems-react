@@ -14,10 +14,14 @@ import {
   DialogContent,
   DialogActions,
   Button,
+  IconButton,
   List,
   ListItem,
   ListItemButton,
+  ListItemIcon,
   ListItemText,
+  Menu,
+  MenuItem,
   Alert,
   TextField,
   Stack
@@ -26,6 +30,7 @@ import {
   AutoFixHigh as WizardIcon,
   CalendarMonth as CalendarIcon,
   LibraryBooks as LibraryIcon,
+  MoreVert as MoreVertIcon,
   Settings as SettingsIcon
 } from '@mui/icons-material';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -84,6 +89,9 @@ const SchedulerPage: React.FC = () => {
 
   // Peak-season wizard
   const [wizardOpen, setWizardOpen] = useState(false);
+
+  // Toolbar overflow menu (Site defaults, Manage Library)
+  const [overflowAnchor, setOverflowAnchor] = useState<HTMLElement | null>(null);
 
   // Load library items for "apply different" dialog
   useEffect(() => {
@@ -203,21 +211,41 @@ const SchedulerPage: React.FC = () => {
           >
             Peak-season wizard
           </Button>
-          <Button
-            variant="outlined"
-            startIcon={<SettingsIcon />}
-            onClick={() => setDefaultsDialogOpen(true)}
-            disabled={!selectedSite}
+          <IconButton
+            aria-label="More scheduler actions"
+            onClick={(e) => setOverflowAnchor(e.currentTarget)}
           >
-            Site defaults
-          </Button>
-          <Button
-            variant="outlined"
-            startIcon={<LibraryIcon />}
-            onClick={() => navigate('/library')}
+            <MoreVertIcon />
+          </IconButton>
+          <Menu
+            anchorEl={overflowAnchor}
+            open={Boolean(overflowAnchor)}
+            onClose={() => setOverflowAnchor(null)}
           >
-            Manage Library
-          </Button>
+            <MenuItem
+              disabled={!selectedSite}
+              onClick={() => {
+                setOverflowAnchor(null);
+                setDefaultsDialogOpen(true);
+              }}
+            >
+              <ListItemIcon>
+                <SettingsIcon fontSize="small" />
+              </ListItemIcon>
+              <ListItemText>Site defaults</ListItemText>
+            </MenuItem>
+            <MenuItem
+              onClick={() => {
+                setOverflowAnchor(null);
+                navigate('/library');
+              }}
+            >
+              <ListItemIcon>
+                <LibraryIcon fontSize="small" />
+              </ListItemIcon>
+              <ListItemText>Manage Library</ListItemText>
+            </MenuItem>
+          </Menu>
         </Stack>
       </Box>
 
