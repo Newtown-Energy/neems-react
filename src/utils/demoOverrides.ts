@@ -5,12 +5,17 @@
  * specific configuration" drawer can twist: a forced wall-clock,
  * utility curtailment ceiling, current battery SoC, the set of open
  * breakers, and the set of offline Megapacks. All of these flow into
- * the schedule warning engine via [ScheduleWarningContext] and into
- * the SLD's `demoMode` plumbing.
+ * the schedule warning engine via [ScheduleWarningContext].
  *
- * Persistence is intentionally `sessionStorage` (not `localStorage`)
- * so a fresh tab starts in the "real" state — operators don't want
- * yesterday's demo SoC override silently shaping today's session.
+ * Forced alarms are kept separately — they live on the server (see the
+ * `/api/1/Alarms/Forced` endpoint and `alarmApi.ts`) so they surface in
+ * the SLD, alarms page, and FDNY view through the same path real
+ * alarms use.
+ *
+ * Persistence here is intentionally `sessionStorage` (not
+ * `localStorage`) so a fresh tab starts in the "real" state —
+ * operators don't want yesterday's demo SoC override silently shaping
+ * today's session.
  */
 
 import React, {

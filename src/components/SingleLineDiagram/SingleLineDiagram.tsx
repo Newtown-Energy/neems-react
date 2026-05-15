@@ -93,8 +93,6 @@ const INITIAL_WIRES = [
 const INITIAL_STATE = createInitialState(INITIAL_COMPONENTS, INITIAL_WIRES);
 
 interface SingleLineDiagramProps {
-  /** When true, live alarm polling is paused (for demo mode). */
-  demoMode?: boolean;
   /** Callback that receives the dispatch function so the parent can send actions. */
   onDispatchReady?: (dispatch: React.Dispatch<SldAction>) => void;
   /** Callback that receives the diagram state on each render so the parent can read it. */
@@ -106,7 +104,6 @@ interface SingleLineDiagramProps {
  * Manages diagram state via useReducer and renders the site layout inside an SVG.
  */
 const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({
-  demoMode = false,
   onDispatchReady,
   onStateChange,
 }) => {
@@ -151,7 +148,12 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({
     return () => cancelAnimationFrame(id);
   }, [viewerSize]);
 
-  useSldAlarms(dispatch, !demoMode);
+  // Always poll active alarms. The /Alarms/Active response now respects
+  // demo overrides server-side (forced alarms come through), and the
+  // alarm reducer never touches breaker/switch positions — so leaving
+  // polling on in demoMode is safe and lets forced alarms surface
+  // through the same path real alarms use.
+  useSldAlarms(dispatch);
 
   useEffect(() => {
     onDispatchReady?.(dispatch);

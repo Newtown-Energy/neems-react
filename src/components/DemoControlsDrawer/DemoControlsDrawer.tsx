@@ -3,20 +3,22 @@
  *
  * Floating bottom-right launcher that opens a right-edge drawer of
  * live state knobs used during a demo: forced wall-clock, utility
- * curtailment ceiling, current SoC, open breakers, and offline
- * Megapacks. Values flow into the schedule warning engine and the
- * SLD's `demoMode` plumbing via the demo overrides context.
+ * curtailment ceiling, current SoC, open breakers, offline Megapacks,
+ * and forced alarms. Tab-local values flow through the demo overrides
+ * context; forced alarms are pushed to the backend so they surface
+ * uniformly on the SLD, alarms page, and FDNY view.
  *
  * Mounted once at the App level. Self-gates to admin-flavored roles
  * so the "force breaker B-1 open" affordance doesn't surface to
  * view-only users — non-admins simply see no button.
  */
 
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   Badge,
   Box,
   Button,
+  Chip,
   Divider,
   Drawer,
   FormControl,
@@ -37,9 +39,17 @@ import {
   BugReport as DemoIcon,
   Close as CloseIcon
 } from '@mui/icons-material';
+import type { AlarmDefinitionDto } from '@newtown-energy/types';
 
 import { useDemoOverrides } from '../../utils/demoOverrides';
 import { useAuth } from '../../pages/LoginPage/useAuth';
+import {
+  fetchAlarmDefinitions,
+  fetchForcedAlarms,
+  setForcedAlarms as putForcedAlarms,
+} from '../../utils/alarmApi';
+import { getSeverityColor } from '../../utils/alarmHelpers';
+import { errorLog } from '../../utils/debug';
 
 const ADMIN_ROLES = ['admin', 'newtown-admin', 'newtown-staff'];
 
@@ -97,6 +107,79 @@ const DemoControlsDrawer: React.FC<DemoControlsDrawerProps> = ({
 
   const [open, setOpen] = useState(false);
 
+  // Demo-time forced alarms live server-side (Rocket-managed state)
+  // so they show up uniformly in the SLD, /alarms, and /fdny pages.
+  // The drawer treats them like any other override — load on open,
+  // mutate via PUT, clear on Reset.
+  const [alarmDefs, setAlarmDefs] = useState<AlarmDefinitionDto[]>([]);
+  const [forcedAlarmNums, setForcedAlarmNums] = useState<number[]>([]);
+
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const [defs, cur] = await Promise.all([fetchAlarmDefinitions(), fetchForcedAlarms()]);
+        if (cancelled) return;
+        setAlarmDefs(defs.definitions);
+        setForcedAlarmNums(cur.alarm_nums);
+      } catch (err) {
+        errorLog('failed to load forced alarms', err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
+
+  const updateForcedAlarms = useCallback(async (next: number[]) => {
+    setForcedAlarmNums(next); // optimistic
+    try {
+      const resp = await putForcedAlarms(next);
+      setForcedAlarmNums(resp.alarm_nums);
+    } catch (err) {
+      errorLog('failed to update forced alarms', err);
+    }
+  }, []);
+
+  const addForcedAlarm = useCallback(
+    (num: number) => {
+      if (forcedAlarmNums.includes(num)) return;
+      void updateForcedAlarms([...forcedAlarmNums, num]);
+    },
+    [forcedAlarmNums, updateForcedAlarms]
+  );
+
+  const removeForcedAlarm = useCallback(
+    (num: number) => {
+      void updateForcedAlarms(forcedAlarmNums.filter(n => n !== num));
+    },
+    [forcedAlarmNums, updateForcedAlarms]
+  );
+
+  const handleReset = useCallback(() => {
+    reset();
+    if (forcedAlarmNums.length > 0) {
+      void updateForcedAlarms([]);
+    }
+  }, [reset, forcedAlarmNums, updateForcedAlarms]);
+
+  const defByNum = React.useMemo(() => {
+    const m = new Map<number, AlarmDefinitionDto>();
+    for (const d of alarmDefs) m.set(d.alarm_num, d);
+    return m;
+  }, [alarmDefs]);
+
+  const availableDefs = React.useMemo(
+    () =>
+      [...alarmDefs]
+        .filter(d => !forcedAlarmNums.includes(d.alarm_num))
+        .sort((a, b) => a.alarm_num - b.alarm_num),
+    [alarmDefs, forcedAlarmNums]
+  );
+
+  const hasOverridesOrAlarms = hasAnyOverride || forcedAlarmNums.length > 0;
+
   if (!isAdmin) return null;
 
   return (
@@ -122,7 +205,7 @@ const DemoControlsDrawer: React.FC<DemoControlsDrawerProps> = ({
           <Badge
             color="warning"
             variant="dot"
-            invisible={!hasAnyOverride}
+            invisible={!hasOverridesOrAlarms}
             overlap="circular"
           >
             <IconButton
@@ -269,7 +352,65 @@ const DemoControlsDrawer: React.FC<DemoControlsDrawerProps> = ({
 
             <Divider />
 
-            <Button onClick={reset} disabled={!hasAnyOverride} color="warning">
+            <Box>
+              <Typography variant="subtitle2" gutterBottom>Trigger alarms</Typography>
+              <FormControl fullWidth size="small">
+                <InputLabel id="trigger-alarm-add-label">Force an alarm on</InputLabel>
+                <Select
+                  labelId="trigger-alarm-add-label"
+                  value=""
+                  label="Force an alarm on"
+                  onChange={e => {
+                    const raw = e.target.value;
+                    const num = typeof raw === 'number' ? raw : Number.parseInt(raw, 10);
+                    if (Number.isFinite(num)) addForcedAlarm(num);
+                  }}
+                  MenuProps={{ PaperProps: { sx: { maxHeight: 360 } } }}
+                >
+                  {availableDefs.map(d => (
+                    <MenuItem key={d.alarm_num} value={d.alarm_num}>
+                      <Typography component="span" variant="body2" sx={{ fontFamily: 'monospace', mr: 1 }}>
+                        #{d.alarm_num}
+                      </Typography>
+                      <Typography component="span" variant="body2" sx={{ flexGrow: 1 }}>
+                        {d.name}
+                      </Typography>
+                      <Chip
+                        size="small"
+                        label={d.severity}
+                        color={getSeverityColor(d.severity)}
+                        sx={{ ml: 1 }}
+                      />
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <Stack direction="row" flexWrap="wrap" gap={1} sx={{ mt: 1 }}>
+                {forcedAlarmNums.map(num => {
+                  const d = defByNum.get(num);
+                  const label = d ? `#${num} ${d.name}` : `#${num}`;
+                  const color = d ? getSeverityColor(d.severity) : 'default';
+                  return (
+                    <Chip
+                      key={num}
+                      label={label}
+                      color={color}
+                      onDelete={() => removeForcedAlarm(num)}
+                      size="small"
+                    />
+                  );
+                })}
+                {forcedAlarmNums.length === 0 && (
+                  <Typography variant="caption" color="text.secondary">
+                    No alarms forced. Pick one above to drive the SLD glow / indicator and the /alarms list.
+                  </Typography>
+                )}
+              </Stack>
+            </Box>
+
+            <Divider />
+
+            <Button onClick={handleReset} disabled={!hasOverridesOrAlarms} color="warning">
               Reset all overrides
             </Button>
           </Stack>

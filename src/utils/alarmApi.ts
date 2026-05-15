@@ -2,6 +2,7 @@ import type {
   ActiveAlarmsResponse,
   AlarmDefinitionsResponse,
   AlarmHistoryResponse,
+  ForcedAlarmsResponse,
 } from '@newtown-energy/types';
 import { apiRequestWithMapping } from './api';
 
@@ -30,4 +31,23 @@ export async function fetchAlarmHistory(
     params.set('alarm_nums', alarmNums.join(','));
   }
   return await apiRequestWithMapping<AlarmHistoryResponse>(`/api/1/Alarms/History?${params.toString()}`);
+}
+
+/**
+ * Read the current set of demo-forced alarm numbers from the backend.
+ * Admin / newtown-admin / newtown-staff only.
+ */
+export async function fetchForcedAlarms(): Promise<ForcedAlarmsResponse> {
+  return await apiRequestWithMapping<ForcedAlarmsResponse>('/api/1/Alarms/Forced');
+}
+
+/**
+ * Replace the set of demo-forced alarms on the backend. Pass an empty
+ * array to clear all forced alarms.
+ */
+export async function setForcedAlarms(alarmNums: number[]): Promise<ForcedAlarmsResponse> {
+  return await apiRequestWithMapping<ForcedAlarmsResponse>('/api/1/Alarms/Forced', {
+    method: 'PUT',
+    body: JSON.stringify({ alarm_nums: alarmNums }),
+  });
 }

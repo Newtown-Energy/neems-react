@@ -10,7 +10,6 @@ import {
 import AccountTreeIcon from '@mui/icons-material/AccountTree';
 import SingleLineDiagram from '../components/SingleLineDiagram/SingleLineDiagram';
 import type { SldDiagramState } from '../components/SingleLineDiagram/types';
-import { useDemoOverrides } from '../utils/demoOverrides';
 // DemoControlsDrawer is now mounted at the app level (fixed
 // bottom-right) and self-gates to admin roles.
 
@@ -57,7 +56,6 @@ const InfoLine: React.FC<{ label: string; value: string }> = ({ label, value }) 
 
 const SldPage: React.FC = () => {
   const [diagramState, setDiagramState] = useState<SldDiagramState | null>(null);
-  const { hasAnyOverride } = useDemoOverrides();
 
   const isStale =
     diagramState?.dataStale ||
@@ -128,7 +126,7 @@ const SldPage: React.FC = () => {
           p: 2,
         }}
       >
-        <SingleLineDiagram onStateChange={setDiagramState} demoMode={hasAnyOverride} />
+        <SingleLineDiagram onStateChange={setDiagramState} />
       </Box>
     </Box>
   );
