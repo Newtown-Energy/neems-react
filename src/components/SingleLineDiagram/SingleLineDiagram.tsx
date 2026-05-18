@@ -25,6 +25,7 @@ import type { SldAction } from './sldState';
 import type { SldDiagramState } from './types';
 import { useSldAlarms } from './useSldAlarms';
 import NewtownLayout from './layouts/NewtownLayout';
+import CurtailmentBadge from './CurtailmentBadge';
 
 const DIAGRAM_WIDTH = 1200;
 const DIAGRAM_HEIGHT = 800;
@@ -187,6 +188,7 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({
         minWidth: 0,
       }}
     >
+      <CurtailmentBadge />
       {viewerSize && (
         <ReactSVGPanZoom
           ref={viewerRef}
