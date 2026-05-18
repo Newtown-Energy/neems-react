@@ -24,6 +24,12 @@ interface DayBarChartProps {
   /** Optional site max output in kW, used only for the tooltip label. */
   sitePowerKw?: number | null;
   height?: number;
+  /**
+   * Seconds-since-midnight of the effective "now" (real wall-clock or the
+   * demo-overrides forced clock). When non-null, a vertical playhead line
+   * is drawn at that offset. Pass null for non-today cells.
+   */
+  nowSeconds?: number | null;
 }
 
 const TOTAL_SECONDS = 86400;
@@ -52,10 +58,20 @@ function commandBar(
   return { x: startPct, y: axisY, width: widthPct, height: barHeight, fill };
 }
 
-const DayBarChart: React.FC<DayBarChartProps> = ({ commands, sitePowerKw, height = 32 }) => {
+const DayBarChart: React.FC<DayBarChartProps> = ({
+  commands,
+  sitePowerKw,
+  height = 32,
+  nowSeconds = null
+}) => {
   // Half above zero (discharge), half below (charge).
   const axisY = height / 2;
   const barHeight = axisY - 2; // 2px breathing room top/bottom
+
+  const nowX =
+    nowSeconds != null && nowSeconds >= 0 && nowSeconds < TOTAL_SECONDS
+      ? (nowSeconds / TOTAL_SECONDS) * 100
+      : null;
 
   return (
     <svg
@@ -91,6 +107,19 @@ const DayBarChart: React.FC<DayBarChartProps> = ({ commands, sitePowerKw, height
           </rect>
         );
       })}
+      {nowX != null && (
+        <line
+          x1={nowX}
+          x2={nowX}
+          y1={0}
+          y2={height}
+          stroke="#d32f2f"
+          strokeWidth={0.75}
+          opacity={0.85}
+        >
+          <title>{`Now: ${secondsToTime(nowSeconds ?? 0)}`}</title>
+        </line>
+      )}
     </svg>
   );
 };

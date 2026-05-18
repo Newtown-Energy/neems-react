@@ -7,6 +7,7 @@ import {
 } from '@mui/icons-material';
 import type { CalendarDaySchedule, ScheduleLibraryItem } from '@newtown-energy/types';
 import { isPastDate, isToday, toISODateString } from '../../utils/scheduleHelpers';
+import { useEffectiveNow } from '../../utils/demoOverrides';
 import DayBarChart from './DayBarChart';
 
 const DAYS_OF_WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -39,6 +40,7 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
   onDateClick,
   sitePowerKw
 }) => {
+  const effectiveNow = useEffectiveNow();
   const firstDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
   const lastDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
   const startDayOfWeek = firstDay.getDay();
@@ -83,8 +85,13 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
               const data = calendarData.get(dateKey);
               const hasSchedule = data && data.library_item_id;
               const isSelected = selectedDate && toISODateString(selectedDate) === dateKey;
-              const isTodayDate = isToday(date);
-              const isPast = isPastDate(date);
+              const isTodayDate = isToday(date, effectiveNow);
+              const isPast = isPastDate(date, effectiveNow);
+              const nowSecondsForCell = isTodayDate
+                ? effectiveNow.getHours() * 3600 +
+                  effectiveNow.getMinutes() * 60 +
+                  effectiveNow.getSeconds()
+                : null;
 
               const scheduleNameBgColor = data?.specificity !== undefined
                 ? SPECIFICITY_BG[data.specificity] ?? 'transparent'
@@ -166,6 +173,7 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
                         commands={libraryItem.commands}
                         sitePowerKw={sitePowerKw}
                         height={28}
+                        nowSeconds={nowSecondsForCell}
                       />
                     </Box>
                   )}

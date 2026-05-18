@@ -185,6 +185,22 @@ export const DemoOverridesProvider: React.FC<{ children: React.ReactNode }> = ({
 };
 
 /**
+ * Resolve the effective "now" Date — `overrides.forcedNow` when set,
+ * otherwise the wall-clock when the hook last ran. Returns a new Date
+ * every render so the calendar re-renders as the user nudges the
+ * forced-now value. Callers that don't need reactive ticking can just
+ * read [useDemoOverrides] directly.
+ */
+export function useEffectiveNow(): Date {
+  const { overrides } = useDemoOverrides();
+  if (overrides.forcedNow) {
+    const parsed = new Date(overrides.forcedNow);
+    if (!Number.isNaN(parsed.getTime())) return parsed;
+  }
+  return new Date();
+}
+
+/**
  * Read the demo overrides context. Returns [EMPTY_OVERRIDES] semantics
  * when called outside a provider so callers that only need to read
  * (e.g. the warning engine in pages that don't host the drawer) don't

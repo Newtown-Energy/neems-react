@@ -47,6 +47,7 @@ import {
   filterDismissedWarnings
 } from '../../utils/scheduleWarnings';
 import { useSiteContext } from '../../utils/SiteContext';
+import { useEffectiveNow } from '../../utils/demoOverrides';
 // Site-state context (breakers, megapacks, curtailment, SoC) used to
 // thread through here and surface inside the day's warning list. Those
 // rows are now site-state issues — see evaluateSiteState — and render
@@ -105,6 +106,7 @@ const DayDetailsDialog: React.FC<DayDetailsDialogProps> = ({
   onCommandsChanged
 }) => {
   const { selectedSite } = useSiteContext();
+  const effectiveNow = useEffectiveNow();
   const [commandEditTarget, setCommandEditTarget] = useState<ScheduleCommandDto | null>(null);
   const [commandEditOpen, setCommandEditOpen] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -136,7 +138,7 @@ const DayDetailsDialog: React.FC<DayDetailsDialogProps> = ({
 
   if (!selectedDate) return null;
 
-  const isPast = isPastDate(selectedDate);
+  const isPast = isPastDate(selectedDate, effectiveNow);
   const ruleReason = getRuleReason(selectedDate, specificity);
 
   // Per-day inline editing only makes sense when the rule is specific to
@@ -199,7 +201,7 @@ const DayDetailsDialog: React.FC<DayDetailsDialogProps> = ({
           <Typography variant="h6" component="span">
             {formatScheduleDate(selectedDate)}
           </Typography>
-          {isToday(selectedDate) && <Chip label="Today" color="primary" size="small" />}
+          {isToday(selectedDate, effectiveNow) && <Chip label="Today" color="primary" size="small" />}
           {isPast && <Chip label="Past Date (Read-Only)" color="warning" size="small" />}
         </Box>
       </DialogTitle>
