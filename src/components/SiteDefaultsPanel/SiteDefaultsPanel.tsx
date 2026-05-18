@@ -26,6 +26,7 @@ import React, {
 import {
   Alert,
   Box,
+  Button,
   Divider,
   FormControl,
   FormControlLabel,
@@ -45,6 +46,10 @@ import { useSiteContext } from '../../utils/SiteContext';
 import { updateSite } from '../../utils/siteApi';
 import { ApiError } from '../../utils/api';
 import { errorLog } from '../../utils/debug';
+import {
+  clearAllDismissedWarnings,
+  getDismissedWarningCount
+} from '../../utils/scheduleWarnings';
 
 type DraftSiteDefaults = {
   power_kw: string;
@@ -123,6 +128,12 @@ const SiteDefaultsPanel: React.FC<SiteDefaultsPanelProps> = ({ onSavingChange, r
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [savedAt, setSavedAt] = useState<number | null>(null);
+  // Re-read on every render — cheap (localStorage sync) and the value
+  // can change from elsewhere (e.g. "Never show again" on a warning).
+  const [dismissedCount, setDismissedCount] = useState<number>(() =>
+    getDismissedWarningCount()
+  );
+  const [resetAt, setResetAt] = useState<number | null>(null);
 
   useEffect(() => {
     if (selectedSite) setDraft(siteToDraft(selectedSite));
@@ -131,6 +142,17 @@ const SiteDefaultsPanel: React.FC<SiteDefaultsPanelProps> = ({ onSavingChange, r
   useEffect(() => {
     onSavingChange?.(saving);
   }, [saving, onSavingChange]);
+
+  // Refresh dismissed-warning count when the panel is mounted/shown.
+  useEffect(() => {
+    setDismissedCount(getDismissedWarningCount());
+  }, [selectedSite]);
+
+  const handleResetDismissedWarnings = () => {
+    clearAllDismissedWarnings();
+    setDismissedCount(0);
+    setResetAt(Date.now());
+  };
 
   // Auto-derived ramp rate: floor(power_kw / 120s) — only used as a hint;
   // the user can override the duration directly.
@@ -367,6 +389,34 @@ const SiteDefaultsPanel: React.FC<SiteDefaultsPanelProps> = ({ onSavingChange, r
             </FormControl>
           </Grid>
         </Grid>
+
+        <Divider />
+
+        <Box>
+          <Typography variant="subtitle1" gutterBottom>
+            Dismissed warnings
+          </Typography>
+          <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
+            <Typography variant="body2" color="text.secondary">
+              {dismissedCount === 0
+                ? 'No warnings have been silenced with "Never show again".'
+                : `${dismissedCount} warning${dismissedCount === 1 ? '' : 's'} currently silenced.`}
+            </Typography>
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={handleResetDismissedWarnings}
+              disabled={dismissedCount === 0}
+            >
+              Reset dismissed warnings
+            </Button>
+          </Stack>
+          {resetAt && (
+            <Alert severity="success" sx={{ mt: 1 }} onClose={() => setResetAt(null)}>
+              All dismissals cleared. Previously-silenced warnings will reappear next time they fire.
+            </Alert>
+          )}
+        </Box>
 
     </Stack>
   );

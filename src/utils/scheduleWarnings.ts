@@ -127,6 +127,22 @@ export function undismissWarning(dismissKey: string): void {
   writeDismissed(set);
 }
 
+/** Drop *all* "never show again" dismissals. Backs the Reset button on
+ *  the Site Defaults panel. */
+export function clearAllDismissedWarnings(): void {
+  try {
+    localStorage.removeItem(DISMISS_STORAGE_KEY);
+  } catch {
+    // see writeDismissed — silent fallback
+  }
+}
+
+/** Read the count of currently-persisted dismissals. Used by the UI to
+ *  decide whether to surface the reset affordance. */
+export function getDismissedWarningCount(): number {
+  return readDismissed().size;
+}
+
 /** Strip warnings the user has asked to never see again. */
 export function filterDismissedWarnings(warnings: ScheduleWarning[]): ScheduleWarning[] {
   const dismissed = readDismissed();

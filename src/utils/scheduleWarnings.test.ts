@@ -37,10 +37,12 @@ if (typeof globalThis.localStorage === 'undefined') {
 }
 
 import {
+  clearAllDismissedWarnings,
   dismissWarningPermanently,
   evaluateCommandWarnings,
   evaluateSiteState,
   filterDismissedWarnings,
+  getDismissedWarningCount,
   undismissWarning,
 } from './scheduleWarnings';
 
@@ -302,5 +304,14 @@ describe('dismiss / undismiss persistence', () => {
     const warnings = evaluateCommandWarnings(cmd, site);
     const survivors = filterDismissedWarnings(warnings);
     expect(survivors.some(w => w.key.includes('variant-no-grid-charge'))).toBe(true);
+  });
+
+  test('clearAllDismissedWarnings drops every persisted dismissal', () => {
+    dismissWarningPermanently('schedule.a');
+    dismissWarningPermanently('schedule.b');
+    expect(getDismissedWarningCount()).toBe(2);
+
+    clearAllDismissedWarnings();
+    expect(getDismissedWarningCount()).toBe(0);
   });
 });
