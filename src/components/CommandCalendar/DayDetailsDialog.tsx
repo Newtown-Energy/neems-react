@@ -52,6 +52,7 @@ import { useEffectiveNow } from '../../utils/demoOverrides';
 import { errorLog } from '../../utils/debug';
 import CommandEditDialog from '../ScheduleLibrary/CommandEditDialog';
 import ResultingSchedulePane from './ResultingSchedulePane';
+import DayChangeHistoryPane from './DayChangeHistoryPane';
 
 export interface ApplicableLibraryItem {
   item: ScheduleLibraryItem;
@@ -65,6 +66,9 @@ interface DayDetailsDialogProps {
   libraryItem: ScheduleLibraryItem | null;
   specificity: number;
   overrideReason: string | null;
+  /** The application rule resolving to this date. Drives the per-day
+   *  change-history pane (S2). May be null on unscheduled days. */
+  prevailingRuleId: number | null;
   applicableLibraryItems: ApplicableLibraryItem[];
   onClose: () => void;
   onRequestEdit?: (date: Date, item: ScheduleLibraryItem | null) => void;
@@ -95,6 +99,7 @@ const DayDetailsDialog: React.FC<DayDetailsDialogProps> = ({
   libraryItem,
   specificity,
   overrideReason,
+  prevailingRuleId,
   applicableLibraryItems,
   onClose,
   onRequestEdit,
@@ -300,6 +305,11 @@ const DayDetailsDialog: React.FC<DayDetailsDialogProps> = ({
             </Box>
 
             <ResultingSchedulePane applicableLibraryItems={applicableLibraryItems} />
+
+            <DayChangeHistoryPane
+              ruleId={prevailingRuleId}
+              overrideReason={overrideReason}
+            />
 
             {applicableLibraryItems.length > 1 && !isPast && (
               <Box sx={{ mb: 2 }}>

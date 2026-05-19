@@ -147,6 +147,10 @@ const CommandCalendar: React.FC<CommandCalendarProps> = ({
   const [selectedLibraryItem, setSelectedLibraryItem] = useState<ScheduleLibraryItem | null>(null);
   const [selectedDateSpecificity, setSelectedDateSpecificity] = useState<number>(-1);
   const [selectedDateOverrideReason, setSelectedDateOverrideReason] = useState<string | null>(null);
+  // The application rule that resolves to this date — used by the
+  // per-day change-history pane to fetch rule-level activity (who
+  // applied this schedule on what day, with what reason).
+  const [selectedDateRuleId, setSelectedDateRuleId] = useState<number | null>(null);
   const [applicableLibraryItems, setApplicableLibraryItems] = useState<ApplicableLibraryItem[]>([]);
   const [calendarData, setCalendarData] = useState<Map<string, CalendarDaySchedule>>(new Map());
   const [libraryItems, setLibraryItems] = useState<ScheduleLibraryItem[]>([]);
@@ -228,11 +232,13 @@ const CommandCalendar: React.FC<CommandCalendarProps> = ({
         setSelectedLibraryItem(result.library_item);
         setSelectedDateSpecificity(result.specificity);
         setSelectedDateOverrideReason(result.rule?.override_reason || null);
+        setSelectedDateRuleId(result.rule?.id ?? null);
         onDateSelect?.(selectedDate, result.library_item);
       } else {
         setSelectedLibraryItem(null);
         setSelectedDateSpecificity(-1);
         setSelectedDateOverrideReason(null);
+        setSelectedDateRuleId(null);
         setApplicableLibraryItems([]);
         onDateSelect?.(selectedDate, null);
       }
@@ -246,6 +252,7 @@ const CommandCalendar: React.FC<CommandCalendarProps> = ({
     setSelectedLibraryItem(null);
     setSelectedDateSpecificity(-1);
     setSelectedDateOverrideReason(null);
+    setSelectedDateRuleId(null);
     setApplicableLibraryItems([]);
   };
 
@@ -341,6 +348,7 @@ const CommandCalendar: React.FC<CommandCalendarProps> = ({
         libraryItem={selectedLibraryItem}
         specificity={selectedDateSpecificity}
         overrideReason={selectedDateOverrideReason}
+        prevailingRuleId={selectedDateRuleId}
         applicableLibraryItems={applicableLibraryItems}
         onClose={handleCloseDetailsModal}
         onRequestEdit={onRequestEdit}
