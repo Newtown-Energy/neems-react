@@ -138,6 +138,23 @@ const SiteDefaultsPanel: React.FC<SiteDefaultsPanelProps> = ({ onSavingChange, r
     return Number.isFinite(power) && power > 0 ? 120 : null;
   }, [draft?.power_kw]);
 
+  /**
+   * Live ramp-rate readout derived from the user's current power +
+   * duration draft, surfaced inline so operators see what their config
+   * actually means in kW/minute (per-minute is the format ConEd uses
+   * when negotiating interconnection terms).
+   *
+   * Returns null when either input is empty or non-positive so the UI
+   * can fall back to a generic helper line.
+   */
+  const rampRateKwPerMin = useMemo(() => {
+    const power = Number.parseFloat(draft?.power_kw ?? '');
+    const duration = Number.parseFloat(draft?.ramp_duration_seconds ?? '');
+    if (!Number.isFinite(power) || power <= 0) return null;
+    if (!Number.isFinite(duration) || duration <= 0) return null;
+    return (power / duration) * 60;
+  }, [draft?.power_kw, draft?.ramp_duration_seconds]);
+
   const handleSave = async (): Promise<boolean> => {
     if (!draft || !selectedSite) return false;
     setSaving(true);
@@ -250,9 +267,11 @@ const SiteDefaultsPanel: React.FC<SiteDefaultsPanelProps> = ({ onSavingChange, r
               slotProps={{ input: { endAdornment: <InputAdornment position="end">s</InputAdornment> } }}
               type="number"
               helperText={
-                autoRampDurationSeconds
-                  ? `Auto-suggested: ${autoRampDurationSeconds}s (matches ConEd 2-min full-power ramp).`
-                  : 'Time to ramp from 0 to full power. Default is 120s.'
+                rampRateKwPerMin != null
+                  ? `≈ ${Math.round(rampRateKwPerMin).toLocaleString()} kW/min ramp rate at current power.`
+                  : autoRampDurationSeconds
+                    ? `Auto-suggested: ${autoRampDurationSeconds}s (matches ConEd 2-min full-power ramp).`
+                    : 'Time to ramp from 0 to full power. Default is 120s.'
               }
             />
           </Grid>
