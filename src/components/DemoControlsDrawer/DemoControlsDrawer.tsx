@@ -184,10 +184,11 @@ const DemoControlsDrawer: React.FC<DemoControlsDrawerProps> = ({
 
   return (
     <>
-      {/* Floating bottom-right launcher. Sits above page content with
-          a subtle Paper backdrop so it's discoverable but doesn't
-          compete with primary actions. A small badge dot appears when
-          overrides are active. */}
+      {/* Floating bottom-right launcher. Hidden (opacity: 0) by default
+          so it doesn't clutter the production-style UI during a demo;
+          appears on hover or keyboard focus. When any override is
+          active the launcher stays visible (with the badge dot) so the
+          operator can find the controls without hunting the corner. */}
       <Tooltip title="Demo controls" placement="left">
         <Paper
           elevation={2}
@@ -197,9 +198,12 @@ const DemoControlsDrawer: React.FC<DemoControlsDrawerProps> = ({
             right: 16,
             borderRadius: '50%',
             zIndex: theme => theme.zIndex.fab,
-            opacity: 0.85,
-            transition: 'opacity 0.15s',
-            '&:hover': { opacity: 1 }
+            opacity: hasOverridesOrAlarms ? 0.85 : 0,
+            transition: 'opacity 0.2s',
+            '&:hover': { opacity: 1 },
+            // Raise opacity when the IconButton inside has keyboard
+            // focus so tab-only operators can still find the launcher.
+            '&:focus-within': { opacity: 1 }
           }}
         >
           <Badge
