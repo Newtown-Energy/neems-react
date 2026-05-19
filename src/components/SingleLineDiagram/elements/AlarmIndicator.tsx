@@ -1,10 +1,16 @@
 import React, { useRef, useState } from 'react';
-import { Chip, Popover, Stack, Typography, useTheme } from '@mui/material';
+import { Box, Button, Chip, Popover, Stack, Typography, useTheme } from '@mui/material';
 import { formatAlarmName, getSeverityColor, ZONE_DISPLAY_NAMES } from '../../../utils/alarmHelpers';
 import type { AlarmSeverityDto } from '@newtown-energy/types';
-import type { SldComponentState } from '../types';
+import type { ActiveAlarmSummary, SldComponentState } from '../types';
 import { SLD_FONT } from '../sldTypography';
 import { severityColor } from './useStatusColors';
+import {
+  acknowledgeAlarm,
+  clearAlarmAcknowledgement,
+  useAllAlarmsAcknowledged,
+  isAlarmAcknowledged
+} from '../../../utils/alarmAcknowledge';
 
 interface AlarmIndicatorProps {
   state: SldComponentState;
@@ -74,6 +80,8 @@ const AlarmIndicator: React.FC<AlarmIndicatorProps> = ({ state, offsetX, offsetY
   const theme = useTheme();
   const badgeRef = useRef<SVGGElement>(null);
   const [popoverOpen, setPopoverOpen] = useState(false);
+  const [ackTick, setAckTick] = useState(0);
+  const allAcked = useAllAlarmsAcknowledged(state.activeAlarms.map(a => a.alarm_num));
 
   if (state.activeAlarmCount === 0 || !state.highestSeverity) return null;
 
@@ -81,15 +89,32 @@ const AlarmIndicator: React.FC<AlarmIndicatorProps> = ({ state, offsetX, offsetY
   const strokeColor = theme.palette.getContrastText(color);
   const shouldPulse =
     state.highestSeverity === 'Emergency' || state.highestSeverity === 'Critical';
+  const animate = shouldPulse && !allAcked;
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     setPopoverOpen(true);
   };
 
+  const handleAcknowledgeAll = () => {
+    for (const alarm of state.activeAlarms) {
+      acknowledgeAlarm(alarm.alarm_num, alarm.severity);
+    }
+    setAckTick(t => t + 1);
+  };
+
+  const handleAcknowledgeOne = (alarm: ActiveAlarmSummary) => {
+    if (isAlarmAcknowledged(alarm.alarm_num)) {
+      clearAlarmAcknowledgement(alarm.alarm_num);
+    } else {
+      acknowledgeAlarm(alarm.alarm_num, alarm.severity);
+    }
+    setAckTick(t => t + 1);
+  };
+
   return (
     <g transform={`translate(${offsetX}, ${offsetY})`}>
-      {shouldPulse && (
+      {animate && (
         <circle cx={0} cy={0} r={12} fill={color} opacity={0.3}>
           <animate
             attributeName="r"
@@ -140,7 +165,7 @@ const AlarmIndicator: React.FC<AlarmIndicatorProps> = ({ state, offsetX, offsetY
             onClose={() => setPopoverOpen(false)}
             anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
             transformOrigin={{ vertical: 'top', horizontal: 'center' }}
-            slotProps={{ paper: { sx: { p: 2, maxWidth: 320 } } }}
+            slotProps={{ paper: { sx: { p: 2, maxWidth: 360 } } }}
           >
             <Typography variant="subtitle2" gutterBottom>
               {ZONE_DISPLAY_NAMES[state.zone]}
@@ -148,17 +173,51 @@ const AlarmIndicator: React.FC<AlarmIndicatorProps> = ({ state, offsetX, offsetY
             <Typography variant="caption" color="text.secondary" gutterBottom component="div">
               {state.activeAlarmCount} active alarm{state.activeAlarmCount !== 1 ? 's' : ''}
             </Typography>
-            <Stack spacing={0.5} sx={{ mt: 1 }}>
-              {state.activeAlarms.map((alarm) => (
-                <Chip
-                  key={alarm.name}
-                  label={formatAlarmName(alarm.name)}
-                  color={getSeverityColor(alarm.severity)}
-                  size="small"
-                  variant="outlined"
-                />
-              ))}
+            <Stack spacing={0.75} sx={{ mt: 1 }}>
+              {state.activeAlarms.map((alarm) => {
+                // Re-read on every render — cheap; key off ackTick to refresh.
+                void ackTick;
+                const acked = isAlarmAcknowledged(alarm.alarm_num);
+                return (
+                  <Box
+                    key={alarm.alarm_num}
+                    sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+                  >
+                    <Chip
+                      label={formatAlarmName(alarm.name)}
+                      color={getSeverityColor(alarm.severity)}
+                      size="small"
+                      variant={acked ? 'filled' : 'outlined'}
+                      sx={{ flex: 1, opacity: acked ? 0.7 : 1 }}
+                    />
+                    <Button
+                      size="small"
+                      variant={acked ? 'outlined' : 'text'}
+                      onClick={() => handleAcknowledgeOne(alarm)}
+                    >
+                      {acked ? 'Unack' : 'Ack'}
+                    </Button>
+                  </Box>
+                );
+              })}
             </Stack>
+            {state.activeAlarmCount > 1 && !allAcked && (
+              <Box sx={{ mt: 1.5, display: 'flex', justifyContent: 'flex-end' }}>
+                <Button size="small" variant="contained" onClick={handleAcknowledgeAll}>
+                  Acknowledge all
+                </Button>
+              </Box>
+            )}
+            {allAcked && (
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ display: 'block', mt: 1.5, fontStyle: 'italic' }}
+              >
+                Flash paused — outline kept so the alarm stays findable.
+                The flash resumes automatically after the ack window expires.
+              </Typography>
+            )}
           </Popover>
         </foreignObject>
       )}

@@ -2,6 +2,9 @@ import type { AlarmSeverityDto, AlarmZoneDto } from '@newtown-energy/types';
 
 /** Summary of a single active alarm on a component */
 export interface ActiveAlarmSummary {
+  /** Stable alarm identifier — matches AlarmDefinitionDto.alarm_num. Needed
+   *  by the acknowledgement system to key ack state by alarm. */
+  alarm_num: number;
   name: string;
   severity: AlarmSeverityDto;
 }
