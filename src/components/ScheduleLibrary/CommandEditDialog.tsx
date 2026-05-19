@@ -57,6 +57,13 @@ const CommandEditDialog: React.FC<CommandEditDialogProps> = ({
   const [durationMinutes, setDurationMinutes] = useState<number | null>(null);
   const [targetSoc, setTargetSoc] = useState<number | null>(null);
   const [sessionDismissed, setSessionDismissed] = useState<Set<string>>(new Set());
+  /**
+   * Local error display so the user always sees a save-blocked message
+   * even when the dialog is rendered above a parent that owns the
+   * canonical error surface. Cleared whenever the dialog is reopened
+   * or the user changes any input that could resolve the conflict.
+   */
+  const [localError, setLocalError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -82,6 +89,7 @@ const CommandEditDialog: React.FC<CommandEditDialogProps> = ({
       setTargetSoc(null);
     }
     setSessionDismissed(new Set());
+    setLocalError(null);
   }, [open, initialCommand]);
 
   // Build a synthetic command from the current draft state so warnings
@@ -124,9 +132,12 @@ const CommandEditDialog: React.FC<CommandEditDialogProps> = ({
       cmd.id !== initialCommand?.id && cmd.execution_offset_seconds === offsetSeconds
     );
     if (conflict) {
-      onError?.('A command already exists at this time');
+      const message = 'A command already exists at this time';
+      setLocalError(message);
+      onError?.(message);
       return;
     }
+    setLocalError(null);
 
     let durationSeconds: number | null = null;
     if (durationHours !== null || durationMinutes !== null) {
@@ -151,6 +162,15 @@ const CommandEditDialog: React.FC<CommandEditDialogProps> = ({
         {initialCommand ? 'Edit Command' : 'Add Command'}
       </DialogTitle>
       <DialogContent>
+        {localError && (
+          <Alert
+            severity="error"
+            sx={{ mt: 2 }}
+            onClose={() => setLocalError(null)}
+          >
+            {localError}
+          </Alert>
+        )}
         {warnings.length > 0 && (
           <Stack spacing={1} sx={{ pt: 2 }}>
             {warnings.map(w => (
@@ -183,7 +203,10 @@ const CommandEditDialog: React.FC<CommandEditDialogProps> = ({
               <Select
                 value={hour}
                 label="Hour"
-                onChange={e => setHour(Number(e.target.value))}
+                onChange={e => {
+                  setHour(Number(e.target.value));
+                  setLocalError(null);
+                }}
               >
                 {Array.from({ length: 24 }, (_, i) => (
                   <MenuItem key={i} value={i}>
@@ -197,7 +220,10 @@ const CommandEditDialog: React.FC<CommandEditDialogProps> = ({
               <Select
                 value={minute}
                 label="Minute"
-                onChange={e => setMinute(Number(e.target.value))}
+                onChange={e => {
+                  setMinute(Number(e.target.value));
+                  setLocalError(null);
+                }}
               >
                 {[0, 15, 30, 45].map(m => (
                   <MenuItem key={m} value={m}>
