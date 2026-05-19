@@ -27,7 +27,8 @@ import {
   Edit as EditIcon,
   Event as EventIcon,
   Loop as LoopIcon,
-  Star as StarIcon
+  Star as StarIcon,
+  Stop as StopIcon
 } from '@mui/icons-material';
 import type { ScheduleCommandDto, ScheduleLibraryItem } from '@newtown-energy/types';
 import {
@@ -191,6 +192,67 @@ const DayDetailsDialog: React.FC<DayDetailsDialogProps> = ({
   const handleDeleteCommand = (cmd: ScheduleCommandDto) => {
     if (!libraryItem) return;
     const next = libraryItem.commands.filter(c => c.id !== cmd.id);
+    void commitCommands(next);
+  };
+
+  /**
+   * True iff effectiveNow falls inside [start, start+duration) on the
+   * selected day. Commands with null/zero duration are never in-flight.
+   */
+  const isCommandInFlight = (cmd: ScheduleCommandDto): boolean => {
+    if (!isToday(selectedDate, effectiveNow)) return false;
+    if (cmd.duration_seconds == null || cmd.duration_seconds <= 0) return false;
+    const nowSec =
+      effectiveNow.getHours() * 3600 +
+      effectiveNow.getMinutes() * 60 +
+      effectiveNow.getSeconds();
+    const start = cmd.execution_offset_seconds;
+    return nowSec >= start && nowSec < start + cmd.duration_seconds;
+  };
+
+  /**
+   * Demo Script v2 Step 4: cancel an in-flight command as-of-NOW. The
+   * original command keeps its start time but its duration shrinks to
+   * `now - start`; a new trickle_charge command at 0 kW (target_soc 0)
+   * runs from `now` to the original end. Both rows audit-trail under
+   * the same library-item update.
+   *
+   * Only available when the rule is a specific-date override (the same
+   * gate as inline edit) so the split doesn't fan out to other days.
+   */
+  const handleCancelAsOfNow = (cmd: ScheduleCommandDto) => {
+    if (!libraryItem || cmd.duration_seconds == null) return;
+    const nowSec =
+      effectiveNow.getHours() * 3600 +
+      effectiveNow.getMinutes() * 60 +
+      effectiveNow.getSeconds();
+    const start = cmd.execution_offset_seconds;
+    const end = start + cmd.duration_seconds;
+    const newOriginalDuration = nowSec - start;
+    const tailDuration = end - nowSec;
+    if (newOriginalDuration <= 0 || tailDuration <= 0) return;
+
+    const shrunkOriginal: ScheduleCommandDto = {
+      ...cmd,
+      duration_seconds: newOriginalDuration
+    };
+    // 0 kW tail. We don't have a kW field on the command; the demo
+    // models "0 kW" as trickle_charge with target_soc_percent = 0 —
+    // the bar chart renders it as a thin orange bar but the warning
+    // engine and audit row both reflect "scheduled for 0 kW".
+    const tail: ScheduleCommandDto = {
+      // Negative synthetic id so the type checker / commitCommands map
+      // call accepts it; the backend assigns the real id on save.
+      id: -Date.now(),
+      execution_offset_seconds: nowSec,
+      duration_seconds: tailDuration,
+      command_type: 'trickle_charge',
+      target_soc_percent: 0
+    };
+    const next = libraryItem.commands
+      .map(c => (c.id === cmd.id ? shrunkOriginal : c))
+      .concat(tail)
+      .sort((a, b) => a.execution_offset_seconds - b.execution_offset_seconds);
     void commitCommands(next);
   };
 
@@ -391,6 +453,17 @@ const DayDetailsDialog: React.FC<DayDetailsDialogProps> = ({
                           <TableCell>{formatSoC(command.target_soc_percent)}</TableCell>
                           {canEditCommandsInline && (
                             <TableCell align="right">
+                              {isCommandInFlight(command) && (
+                                <Tooltip title="Stop this command now: split into the elapsed portion + a 0 kW tail to the original end time">
+                                  <IconButton
+                                    size="small"
+                                    onClick={() => handleCancelAsOfNow(command)}
+                                    color="warning"
+                                  >
+                                    <StopIcon fontSize="small" />
+                                  </IconButton>
+                                </Tooltip>
+                              )}
                               <Tooltip title="Edit command">
                                 <IconButton size="small" onClick={() => handleEditCommand(command)}>
                                   <EditIcon fontSize="small" />
