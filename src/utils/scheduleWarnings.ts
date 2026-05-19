@@ -215,7 +215,7 @@ export function evaluateCommandWarnings(
     warnings.push({
       key: `${command.id}:discharge-outside-peak-revenue`,
       severity: 'warning',
-      message: 'Discharge scheduled outside the peak-revenue window — revenue per kWh will be lower.',
+      message: 'Discharge scheduled outside the peak-revenue window.',
       dismissible: true,
       dismissKey: 'schedule.discharge-outside-peak-revenue'
     });
