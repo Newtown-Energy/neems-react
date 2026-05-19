@@ -169,17 +169,18 @@ const SchedulerPage: React.FC = () => {
 
   const handleApplyLibraryItemToDate = async (item: ScheduleLibraryItem) => {
     if (!applyDate) return;
+    // Reason is required (S1 demo follow-up). Defensive guard in case
+    // a future caller wires up the action without the dialog gating.
+    if (applyOverrideReason.trim().length === 0) return;
 
     try {
-      // Create a specific date rule for this library item with optional reason
       await createApplicationRule(item.id, {
         rule_type: 'specific_date',
         days_of_week: null,
         specific_dates: [toISODateString(applyDate)],
-        override_reason: applyOverrideReason.trim() || null
+        override_reason: applyOverrideReason.trim()
       });
 
-      // Refresh calendar
       setCalendarRefreshKey(prev => prev + 1);
       setApplyDifferentDialogOpen(false);
       setApplyOverrideReason('');
@@ -332,40 +333,47 @@ const SchedulerPage: React.FC = () => {
         </DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" gutterBottom>
-            Select a schedule from the library to apply to this date:
+            Provide a reason, then pick a schedule from the library. The
+            reason appears in this day's change history.
           </Typography>
+          <Box sx={{ mt: 1, mb: 3 }}>
+            <TextField
+              fullWidth
+              required
+              multiline
+              rows={3}
+              label="Override reason"
+              placeholder="e.g., Holiday, special event, maintenance, etc."
+              value={applyOverrideReason}
+              onChange={(e) => setApplyOverrideReason(e.target.value)}
+              helperText="Required — schedules cannot be applied without a reason."
+              error={applyOverrideReason.trim().length === 0}
+            />
+          </Box>
           <List>
-            {libraryItems.map(item => (
-              <ListItem key={item.id} disablePadding>
-                <ListItemButton
-                  onClick={() => handleApplyLibraryItemToDate(item)}
-                  selected={item.id === applyCurrentItem?.id}
-                >
-                  <ListItemText
-                    primary={item.name}
-                    secondary={`${item.commands.length} command${item.commands.length !== 1 ? 's' : ''}`}
-                  />
-                </ListItemButton>
-              </ListItem>
-            ))}
+            {libraryItems.map(item => {
+              const disabled = applyOverrideReason.trim().length === 0;
+              return (
+                <ListItem key={item.id} disablePadding>
+                  <ListItemButton
+                    onClick={() => handleApplyLibraryItemToDate(item)}
+                    selected={item.id === applyCurrentItem?.id}
+                    disabled={disabled}
+                  >
+                    <ListItemText
+                      primary={item.name}
+                      secondary={`${item.commands.length} command${item.commands.length !== 1 ? 's' : ''}`}
+                    />
+                  </ListItemButton>
+                </ListItem>
+              );
+            })}
           </List>
           {libraryItems.length === 0 && (
             <Alert severity="info" sx={{ mt: 2 }}>
               No schedules available. Create a schedule in the Library page first.
             </Alert>
           )}
-          <Box sx={{ mt: 3 }}>
-            <TextField
-              fullWidth
-              multiline
-              rows={3}
-              label="Override Reason (optional)"
-              placeholder="e.g., Holiday, special event, maintenance, etc."
-              value={applyOverrideReason}
-              onChange={(e) => setApplyOverrideReason(e.target.value)}
-              helperText="Explain why this date uses a different schedule"
-            />
-          </Box>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setApplyDifferentDialogOpen(false)}>

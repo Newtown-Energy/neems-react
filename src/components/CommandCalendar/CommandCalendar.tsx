@@ -258,11 +258,13 @@ const CommandCalendar: React.FC<CommandCalendarProps> = ({
     if (!selectedDate || !pendingScheduleSwitch) return;
 
     try {
+      // Reason is required by the dialog (S1 demo follow-up), so
+      // `reason` is always non-empty here. Trim for storage hygiene.
       await createApplicationRule(pendingScheduleSwitch.id, {
         rule_type: 'specific_date',
         days_of_week: null,
         specific_dates: [toISODateString(selectedDate)],
-        override_reason: reason.trim() || null
+        override_reason: reason.trim()
       });
 
       setOverrideReasonDialogOpen(false);
