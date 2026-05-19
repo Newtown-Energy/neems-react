@@ -30,6 +30,10 @@ interface CalendarGridProps {
   selectedDate: Date | null;
   onDateClick: (date: Date) => void;
   sitePowerKw?: number | null;
+  /** Charge ceiling as a percentage of `sitePowerKw`. Forwarded to DayBarChart. */
+  chargeRatePercent?: number | null;
+  /** Discharge ceiling as a percentage of `sitePowerKw`. Forwarded to DayBarChart. */
+  dischargeRatePercent?: number | null;
 }
 
 const CalendarGrid: React.FC<CalendarGridProps> = ({
@@ -38,7 +42,9 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
   libraryItemsById,
   selectedDate,
   onDateClick,
-  sitePowerKw
+  sitePowerKw,
+  chargeRatePercent,
+  dischargeRatePercent
 }) => {
   const effectiveNow = useEffectiveNow();
   const firstDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
@@ -172,6 +178,8 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
                       <DayBarChart
                         commands={libraryItem.commands}
                         sitePowerKw={sitePowerKw}
+                        chargeRatePercent={chargeRatePercent}
+                        dischargeRatePercent={dischargeRatePercent}
                         height={28}
                         nowSeconds={nowSecondsForCell}
                       />

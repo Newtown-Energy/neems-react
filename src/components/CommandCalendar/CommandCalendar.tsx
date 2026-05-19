@@ -328,6 +328,8 @@ const CommandCalendar: React.FC<CommandCalendarProps> = ({
           selectedDate={selectedDate}
           onDateClick={setSelectedDate}
           sitePowerKw={selectedSite?.power_kw ?? null}
+          chargeRatePercent={selectedSite?.charge_rate_percent ?? null}
+          dischargeRatePercent={selectedSite?.discharge_rate_percent ?? null}
         />
       </Box>
 

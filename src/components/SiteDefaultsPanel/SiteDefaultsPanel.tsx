@@ -57,6 +57,8 @@ type DraftSiteDefaults = {
   rebound_protection_soc_floor_percent: string;
   closed_loop_enabled: boolean;
   site_variant: SiteVariant;
+  charge_rate_percent: string;
+  discharge_rate_percent: string;
 };
 
 function minutesToTimeString(minutes: number | null | undefined): string {
@@ -94,7 +96,9 @@ function siteToDraft(site: Site): DraftSiteDefaults {
       site.rebound_protection_soc_floor_percent
     ),
     closed_loop_enabled: site.closed_loop_enabled,
-    site_variant: (site.site_variant as SiteVariant) ?? 'standard'
+    site_variant: (site.site_variant as SiteVariant) ?? 'standard',
+    charge_rate_percent: numericOrEmpty(site.charge_rate_percent),
+    discharge_rate_percent: numericOrEmpty(site.discharge_rate_percent)
   };
 }
 
@@ -171,6 +175,12 @@ const SiteDefaultsPanel: React.FC<SiteDefaultsPanelProps> = ({ onSavingChange, r
       const reboundFloor = draft.rebound_protection_soc_floor_percent === ''
         ? null
         : Number.parseFloat(draft.rebound_protection_soc_floor_percent);
+      const chargeRate = draft.charge_rate_percent === ''
+        ? null
+        : Number.parseFloat(draft.charge_rate_percent);
+      const dischargeRate = draft.discharge_rate_percent === ''
+        ? null
+        : Number.parseFloat(draft.discharge_rate_percent);
 
       await updateSite(selectedSite.id, {
         // Server treats `null` as "leave alone" for some fields, so we
@@ -190,7 +200,9 @@ const SiteDefaultsPanel: React.FC<SiteDefaultsPanelProps> = ({ onSavingChange, r
         peak_revenue_end_minutes: timeStringToMinutes(draft.peak_revenue_end),
         interconnection_max_output_kw: interconnection,
         rebound_protection_soc_floor_percent: reboundFloor,
-        site_variant: draft.site_variant
+        site_variant: draft.site_variant,
+        charge_rate_percent: chargeRate,
+        discharge_rate_percent: dischargeRate
       });
       await refresh();
       setSavedAt(Date.now());
@@ -290,6 +302,28 @@ const SiteDefaultsPanel: React.FC<SiteDefaultsPanelProps> = ({ onSavingChange, r
                 Schedules will be visualized but not enforced while closed-loop is off.
               </Typography>
             )}
+          </Grid>
+          <Grid size={{ xs: 12, md: 6 }}>
+            <TextField
+              label="Charge rate"
+              fullWidth
+              value={draft.charge_rate_percent}
+              onChange={e => setField('charge_rate_percent', e.target.value)}
+              slotProps={{ input: { endAdornment: <InputAdornment position="end">% of power</InputAdornment> } }}
+              type="number"
+              helperText="100 = full power. Drives the calendar's orange bar height."
+            />
+          </Grid>
+          <Grid size={{ xs: 12, md: 6 }}>
+            <TextField
+              label="Discharge rate"
+              fullWidth
+              value={draft.discharge_rate_percent}
+              onChange={e => setField('discharge_rate_percent', e.target.value)}
+              slotProps={{ input: { endAdornment: <InputAdornment position="end">% of power</InputAdornment> } }}
+              type="number"
+              helperText="100 = full power. Drives the calendar's blue bar height."
+            />
           </Grid>
         </Grid>
 

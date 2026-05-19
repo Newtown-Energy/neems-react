@@ -23,6 +23,17 @@ interface DayBarChartProps {
   commands: ScheduleCommandDto[];
   /** Optional site max output in kW, used only for the tooltip label. */
   sitePowerKw?: number | null;
+  /**
+   * Charge ceiling as a percentage of site power (0–100). Scales the
+   * height of orange/charge and trickle bars below the axis. Defaults
+   * to 100 (full power) when omitted, preserving prior behavior.
+   */
+  chargeRatePercent?: number | null;
+  /**
+   * Discharge ceiling as a percentage of site power (0–100). Scales
+   * the height of blue/discharge bars above the axis. Defaults to 100.
+   */
+  dischargeRatePercent?: number | null;
   height?: number;
   /**
    * Seconds-since-midnight of the effective "now" (real wall-clock or the
@@ -35,14 +46,32 @@ interface DayBarChartProps {
 const TOTAL_SECONDS = 86400;
 
 /**
+ * Clamp [value] to the 0..1 range so a misconfigured site percentage
+ * never breaks the SVG layout. Negative values fall back to 0; values
+ * above 100 to 1.
+ */
+function clampUnitFraction(percent: number | null | undefined): number {
+  if (percent == null || !Number.isFinite(percent)) return 1;
+  if (percent <= 0) return 0;
+  if (percent >= 100) return 1;
+  return percent / 100;
+}
+
+/**
  * Compute the SVG geometry for a single command. Returns null if the
  * command has no `duration_seconds` — the data model allows null but for
  * the demo every command has a duration.
+ *
+ * Bars are scaled vertically by the site's charge/discharge rate so
+ * that a charging-at-half-power site renders a half-height orange bar
+ * while a full-power discharge fills the upper half of the cell.
  */
 function commandBar(
   cmd: ScheduleCommandDto,
   axisY: number,
-  barHeight: number
+  maxBarHeight: number,
+  chargeFraction: number,
+  dischargeFraction: number
 ): { x: number; y: number; width: number; height: number; fill: string } | null {
   if (cmd.duration_seconds == null || cmd.duration_seconds <= 0) return null;
   const startPct = (cmd.execution_offset_seconds / TOTAL_SECONDS) * 100;
@@ -53,20 +82,26 @@ function commandBar(
   const fill = COMMAND_BAR_COLORS[cmd.command_type];
   // Discharge goes up (negative y in SVG); charge / trickle go down.
   if (cmd.command_type === 'discharge') {
-    return { x: startPct, y: axisY - barHeight, width: widthPct, height: barHeight, fill };
+    const h = maxBarHeight * dischargeFraction;
+    return { x: startPct, y: axisY - h, width: widthPct, height: h, fill };
   }
-  return { x: startPct, y: axisY, width: widthPct, height: barHeight, fill };
+  const h = maxBarHeight * chargeFraction;
+  return { x: startPct, y: axisY, width: widthPct, height: h, fill };
 }
 
 const DayBarChart: React.FC<DayBarChartProps> = ({
   commands,
   sitePowerKw,
+  chargeRatePercent = null,
+  dischargeRatePercent = null,
   height = 32,
   nowSeconds = null
 }) => {
   // Half above zero (discharge), half below (charge).
   const axisY = height / 2;
-  const barHeight = axisY - 2; // 2px breathing room top/bottom
+  const maxBarHeight = axisY - 2; // 2px breathing room top/bottom
+  const chargeFraction = clampUnitFraction(chargeRatePercent);
+  const dischargeFraction = clampUnitFraction(dischargeRatePercent);
 
   const nowX =
     nowSeconds != null && nowSeconds >= 0 && nowSeconds < TOTAL_SECONDS
@@ -85,7 +120,7 @@ const DayBarChart: React.FC<DayBarChartProps> = ({
     >
       <line x1={0} x2={100} y1={axisY} y2={axisY} stroke="#bdbdbd" strokeWidth={0.5} />
       {commands.map(cmd => {
-        const bar = commandBar(cmd, axisY, barHeight);
+        const bar = commandBar(cmd, axisY, maxBarHeight, chargeFraction, dischargeFraction);
         if (!bar) return null;
         const power = sitePowerKw ? ` @ ~${Math.round(sitePowerKw)} kW` : '';
         const endSeconds = Math.min(
