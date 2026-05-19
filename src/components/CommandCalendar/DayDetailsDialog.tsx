@@ -42,11 +42,7 @@ import {
   secondsToTime
 } from '../../utils/scheduleHelpers';
 import { updateLibraryItem } from '../../utils/scheduleApi';
-import {
-  dismissWarningPermanently,
-  evaluateCommandWarnings,
-  filterDismissedWarnings
-} from '../../utils/scheduleWarnings';
+import { evaluateCommandWarnings } from '../../utils/scheduleWarnings';
 import { useSiteContext } from '../../utils/SiteContext';
 import { useEffectiveNow } from '../../utils/demoOverrides';
 // Site-state context (breakers, megapacks, curtailment, SoC) used to
@@ -120,8 +116,7 @@ const DayDetailsDialog: React.FC<DayDetailsDialogProps> = ({
     const all = libraryItem.commands.flatMap(cmd =>
       evaluateCommandWarnings(cmd, selectedSite)
     );
-    const persisted = filterDismissedWarnings(all);
-    return persisted.filter(w => !sessionDismissed.has(w.key));
+    return all.filter(w => !sessionDismissed.has(w.key));
   }, [libraryItem, selectedSite, sessionDismissed]);
 
   const handleDismissDayWarning = (key: string) => {
@@ -130,11 +125,6 @@ const DayDetailsDialog: React.FC<DayDetailsDialogProps> = ({
       next.add(key);
       return next;
     });
-  };
-
-  const handleDismissDayWarningForever = (dismissKey: string) => {
-    dismissWarningPermanently(dismissKey);
-    setSessionDismissed(prev => new Set(prev));
   };
 
   if (!selectedDate) return null;
@@ -373,27 +363,16 @@ const DayDetailsDialog: React.FC<DayDetailsDialogProps> = ({
                       key={w.key}
                       severity={w.severity}
                       action={
-                        <Stack direction="row" spacing={0.5} alignItems="center">
-                          {w.dismissible && w.dismissKey && (
-                            <Button
-                              size="small"
-                              color="inherit"
-                              onClick={() => handleDismissDayWarningForever(w.dismissKey!)}
-                            >
-                              Never show again
-                            </Button>
-                          )}
-                          {w.dismissible && (
-                            <IconButton
-                              size="small"
-                              color="inherit"
-                              onClick={() => handleDismissDayWarning(w.key)}
-                              aria-label="Dismiss warning"
-                            >
-                              <CloseIcon fontSize="small" />
-                            </IconButton>
-                          )}
-                        </Stack>
+                        w.dismissible ? (
+                          <IconButton
+                            size="small"
+                            color="inherit"
+                            onClick={() => handleDismissDayWarning(w.key)}
+                            aria-label="Dismiss warning"
+                          >
+                            <CloseIcon fontSize="small" />
+                          </IconButton>
+                        ) : undefined
                       }
                     >
                       {w.message}

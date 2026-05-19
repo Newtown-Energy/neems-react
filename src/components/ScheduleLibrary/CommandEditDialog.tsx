@@ -24,9 +24,7 @@ import {
   timeToSeconds
 } from '../../utils/scheduleHelpers';
 import {
-  dismissWarningPermanently,
-  evaluateCommandWarnings,
-  filterDismissedWarnings
+  evaluateCommandWarnings
 } from '../../utils/scheduleWarnings';
 import { useSiteContext } from '../../utils/SiteContext';
 // Note: this dialog used to read demo overrides (breakers, megapacks,
@@ -108,8 +106,7 @@ const CommandEditDialog: React.FC<CommandEditDialogProps> = ({
   const warnings = useMemo(() => {
     if (!selectedSite) return [];
     const all = evaluateCommandWarnings(draftCommand, selectedSite);
-    const persisted = filterDismissedWarnings(all);
-    return persisted.filter(w => !sessionDismissed.has(w.key));
+    return all.filter(w => !sessionDismissed.has(w.key));
   }, [draftCommand, selectedSite, sessionDismissed]);
 
   const handleDismiss = (key: string) => {
@@ -118,13 +115,6 @@ const CommandEditDialog: React.FC<CommandEditDialogProps> = ({
       next.add(key);
       return next;
     });
-  };
-
-  const handleDismissForever = (dismissKey: string) => {
-    dismissWarningPermanently(dismissKey);
-    // Force re-render — the localStorage write means future evals will
-    // strip this key, but the current render is memoized.
-    setSessionDismissed(prev => new Set(prev));
   };
 
   const handleSave = () => {
@@ -168,27 +158,16 @@ const CommandEditDialog: React.FC<CommandEditDialogProps> = ({
                 key={w.key}
                 severity={w.severity}
                 action={
-                  <Stack direction="row" spacing={0.5} alignItems="center">
-                    {w.dismissible && w.dismissKey && (
-                      <Button
-                        size="small"
-                        color="inherit"
-                        onClick={() => handleDismissForever(w.dismissKey!)}
-                      >
-                        Never show again
-                      </Button>
-                    )}
-                    {w.dismissible && (
-                      <IconButton
-                        size="small"
-                        color="inherit"
-                        onClick={() => handleDismiss(w.key)}
-                        aria-label="Dismiss warning"
-                      >
-                        <CloseIcon fontSize="small" />
-                      </IconButton>
-                    )}
-                  </Stack>
+                  w.dismissible ? (
+                    <IconButton
+                      size="small"
+                      color="inherit"
+                      onClick={() => handleDismiss(w.key)}
+                      aria-label="Dismiss warning"
+                    >
+                      <CloseIcon fontSize="small" />
+                    </IconButton>
+                  ) : undefined
                 }
               >
                 {w.message}

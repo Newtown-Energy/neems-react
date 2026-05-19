@@ -14,45 +14,13 @@
  * `neems-react` directory (or `bun test` to run every test file).
  */
 
-import { describe, expect, beforeEach, test } from 'bun:test';
+import { describe, expect, test } from 'bun:test';
 import type { Site, ScheduleCommandDto } from '@newtown-energy/types';
 
-// Bun's test environment doesn't expose a DOM, so localStorage isn't
-// defined. The dismissal helpers swallow the resulting ReferenceError
-// and fall back to in-memory, which would make every dismissal test
-// silently no-op. Install a minimal Storage-compatible shim before
-// importing the module under test.
-if (typeof globalThis.localStorage === 'undefined') {
-  const memory = new Map<string, string>();
-  const shim: Storage = {
-    get length() { return memory.size; },
-    clear: () => memory.clear(),
-    getItem: (k) => memory.get(k) ?? null,
-    key: (i) => Array.from(memory.keys())[i] ?? null,
-    removeItem: (k) => { memory.delete(k); },
-    setItem: (k, v) => { memory.set(k, String(v)); },
-  };
-  // @ts-expect-error -- we're installing a polyfill at runtime
-  globalThis.localStorage = shim;
-}
-
 import {
-  clearAllDismissedWarnings,
-  dismissWarningPermanently,
   evaluateCommandWarnings,
   evaluateSiteState,
-  filterDismissedWarnings,
-  getDismissedWarningCount,
-  undismissWarning,
 } from './scheduleWarnings';
-
-function clearLocalStorage(): void {
-  try {
-    globalThis.localStorage?.clear?.();
-  } catch {
-    /* ignore */
-  }
-}
 
 function makeSite(overrides: Partial<Site> = {}): Site {
   return {
@@ -89,7 +57,6 @@ function makeCommand(overrides: Partial<ScheduleCommandDto> = {}): ScheduleComma
 }
 
 describe('evaluateCommandWarnings — happy paths', () => {
-  beforeEach(clearLocalStorage);
 
   test('charge inside off-peak window has no warnings', () => {
     const warnings = evaluateCommandWarnings(makeCommand(), makeSite());
@@ -108,7 +75,6 @@ describe('evaluateCommandWarnings — happy paths', () => {
 });
 
 describe('evaluateCommandWarnings — window mismatches', () => {
-  beforeEach(clearLocalStorage);
 
   test('discharge outside peak-revenue window warns (dismissible)', () => {
     const cmd = makeCommand({
@@ -121,7 +87,6 @@ describe('evaluateCommandWarnings — window mismatches', () => {
     expect(w).toBeDefined();
     expect(w!.severity).toBe('warning');
     expect(w!.dismissible).toBe(true);
-    expect(w!.dismissKey).toBe('schedule.discharge-outside-peak-revenue');
   });
 
   test('discharge inside off-peak charging window flags the conflict', () => {
@@ -144,7 +109,6 @@ describe('evaluateCommandWarnings — window mismatches', () => {
 });
 
 describe('evaluateCommandWarnings — variant + interconnection', () => {
-  beforeEach(clearLocalStorage);
 
   test('no_grid_charge variant + charge command is a non-dismissible error', () => {
     const cmd = makeCommand();
@@ -154,7 +118,6 @@ describe('evaluateCommandWarnings — variant + interconnection', () => {
     expect(variant).toBeDefined();
     expect(variant!.severity).toBe('error');
     expect(variant!.dismissible).toBe(false);
-    expect(variant!.dismissKey).toBeUndefined();
   });
 
   test('site power above interconnection cap warns on discharge', () => {
@@ -177,7 +140,6 @@ describe('evaluateCommandWarnings — no longer surfaces site-state', () => {
   // used to leak into the command warning list belong in
   // evaluateSiteState now. If someone re-adds breaker/megapack/SoC/
   // curtailment checks to evaluateCommandWarnings, these tests fire.
-  beforeEach(clearLocalStorage);
 
   test('ignores openBreakers and offlineMegapacks in context', () => {
     const cmd = makeCommand();
@@ -263,55 +225,3 @@ describe('evaluateSiteState', () => {
   });
 });
 
-describe('dismiss / undismiss persistence', () => {
-  beforeEach(clearLocalStorage);
-
-  test('dismissWarningPermanently drops matching warnings on next eval', () => {
-    const cmd = makeCommand({
-      command_type: 'discharge',
-      execution_offset_seconds: 12 * 3600,
-      duration_seconds: 60 * 60,
-    });
-    const warnings = evaluateCommandWarnings(cmd, makeSite());
-    const target = warnings.find(w => w.dismissKey === 'schedule.discharge-outside-peak-revenue');
-    expect(target).toBeDefined();
-
-    dismissWarningPermanently('schedule.discharge-outside-peak-revenue');
-    const survivors = filterDismissedWarnings(warnings);
-    expect(survivors.find(w => w.dismissKey === 'schedule.discharge-outside-peak-revenue'))
-      .toBeUndefined();
-  });
-
-  test('undismissWarning restores a previously-silenced key', () => {
-    dismissWarningPermanently('schedule.discharge-outside-peak-revenue');
-    undismissWarning('schedule.discharge-outside-peak-revenue');
-
-    const cmd = makeCommand({
-      command_type: 'discharge',
-      execution_offset_seconds: 12 * 3600,
-      duration_seconds: 60 * 60,
-    });
-    const warnings = evaluateCommandWarnings(cmd, makeSite());
-    const survivors = filterDismissedWarnings(warnings);
-    expect(survivors.some(w => w.dismissKey === 'schedule.discharge-outside-peak-revenue'))
-      .toBe(true);
-  });
-
-  test('hard errors without a dismissKey are unaffected by dismissals', () => {
-    dismissWarningPermanently('schedule.does-not-exist');
-    const cmd = makeCommand();
-    const site = makeSite({ site_variant: 'no_grid_charge' });
-    const warnings = evaluateCommandWarnings(cmd, site);
-    const survivors = filterDismissedWarnings(warnings);
-    expect(survivors.some(w => w.key.includes('variant-no-grid-charge'))).toBe(true);
-  });
-
-  test('clearAllDismissedWarnings drops every persisted dismissal', () => {
-    dismissWarningPermanently('schedule.a');
-    dismissWarningPermanently('schedule.b');
-    expect(getDismissedWarningCount()).toBe(2);
-
-    clearAllDismissedWarnings();
-    expect(getDismissedWarningCount()).toBe(0);
-  });
-});

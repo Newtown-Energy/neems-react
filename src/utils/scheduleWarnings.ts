@@ -27,18 +27,15 @@ import type { ScheduleCommandDto, Site } from '@newtown-energy/types';
 export type WarningSeverity = 'info' | 'warning' | 'error';
 
 export interface ScheduleWarning {
-  /** Stable identifier — used to dedupe and (when [dismissible]) to
-   *  remember dismissals across reloads. */
+  /** Stable identifier — used to dedupe and as the key for in-session
+   *  dismissal via the X button on each warning Alert. */
   key: string;
   severity: WarningSeverity;
   message: string;
-  /** Whether the user is allowed to silence this permanently. Hard
-   *  safety warnings (variant mismatch, interconnection breach) stay
-   *  un-dismissible. */
+  /** Whether the user is allowed to silence this. Hard safety warnings
+   *  (variant mismatch, interconnection breach) stay un-dismissible
+   *  even within a session. */
   dismissible: boolean;
-  /** When set, the user's "Never show again" choice for this key is
-   *  written to `localStorage`. */
-  dismissKey?: string;
 }
 
 /**
@@ -89,65 +86,11 @@ export interface SiteStateIssue {
  */
 export const LOW_SOC_THRESHOLD_PERCENT = 20;
 
-const DISMISS_STORAGE_KEY = 'neems.scheduleWarnings.dismissed';
-
-function readDismissed(): Set<string> {
-  try {
-    const raw = localStorage.getItem(DISMISS_STORAGE_KEY);
-    if (!raw) return new Set();
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return new Set();
-    return new Set(parsed.filter((v): v is string => typeof v === 'string'));
-  } catch {
-    return new Set();
-  }
-}
-
-function writeDismissed(set: Set<string>): void {
-  try {
-    localStorage.setItem(DISMISS_STORAGE_KEY, JSON.stringify(Array.from(set)));
-  } catch {
-    // localStorage may be disabled (Safari private mode); silently
-    // fall back to in-memory dismissal for this session.
-  }
-}
-
-/** Permanently silence a warning [dismissKey] across reloads. */
-export function dismissWarningPermanently(dismissKey: string): void {
-  const set = readDismissed();
-  set.add(dismissKey);
-  writeDismissed(set);
-}
-
-/** Restore a previously-silenced warning. Exposed for tests and a
- *  future "reset warnings" affordance in the UI. */
-export function undismissWarning(dismissKey: string): void {
-  const set = readDismissed();
-  set.delete(dismissKey);
-  writeDismissed(set);
-}
-
-/** Drop *all* "never show again" dismissals. Backs the Reset button on
- *  the Site Defaults panel. */
-export function clearAllDismissedWarnings(): void {
-  try {
-    localStorage.removeItem(DISMISS_STORAGE_KEY);
-  } catch {
-    // see writeDismissed — silent fallback
-  }
-}
-
-/** Read the count of currently-persisted dismissals. Used by the UI to
- *  decide whether to surface the reset affordance. */
-export function getDismissedWarningCount(): number {
-  return readDismissed().size;
-}
-
-/** Strip warnings the user has asked to never see again. */
-export function filterDismissedWarnings(warnings: ScheduleWarning[]): ScheduleWarning[] {
-  const dismissed = readDismissed();
-  return warnings.filter(w => !w.dismissKey || !dismissed.has(w.dismissKey));
-}
+// Persistent "Never show again" dismissals were removed per the
+// 2026-05-18 demo feedback. Warnings still support an in-session X
+// (handled by the consuming dialogs), but no localStorage state is
+// kept. If a future need for persistent silencing reappears, prefer a
+// per-site backend setting over reintroducing a client-only store.
 
 function timeOfDayInWindow(
   offsetSeconds: number,
@@ -217,7 +160,6 @@ export function evaluateCommandWarnings(
       severity: 'warning',
       message: 'Discharge scheduled outside the peak-revenue window.',
       dismissible: true,
-      dismissKey: 'schedule.discharge-outside-peak-revenue'
     });
   }
 
@@ -227,7 +169,6 @@ export function evaluateCommandWarnings(
       severity: 'warning',
       message: 'Discharge scheduled inside the off-peak charging window — this fights the charging plan.',
       dismissible: true,
-      dismissKey: 'schedule.discharge-inside-off-peak'
     });
   }
 
@@ -241,7 +182,6 @@ export function evaluateCommandWarnings(
       severity: 'warning',
       message: 'Charging scheduled outside the off-peak window — energy costs will be higher.',
       dismissible: true,
-      dismissKey: 'schedule.charge-outside-off-peak'
     });
   }
 
