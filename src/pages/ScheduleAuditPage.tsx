@@ -79,7 +79,7 @@ const ScheduleAuditPage: React.FC = () => {
         }
       } catch (err) {
         errorLog('ScheduleAuditPage: failed to load', err);
-        if (!cancelled) setError('Failed to load audit history.');
+        if (!cancelled) setError('Failed to load change history.');
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -104,7 +104,7 @@ const ScheduleAuditPage: React.FC = () => {
         </Button>
         <Box>
           <Typography variant="h4" component="h1">
-            Schedule audit log
+            Schedule change history
           </Typography>
           {item && (
             <Typography variant="body2" color="text.secondary">
@@ -123,7 +123,7 @@ const ScheduleAuditPage: React.FC = () => {
       )}
 
       {!loading && !error && activity && activity.length === 0 && (
-        <Alert severity="info">No audit history recorded for this schedule.</Alert>
+        <Alert severity="info">No change history recorded for this schedule.</Alert>
       )}
 
       {!loading && !error && ordered.length > 0 && (

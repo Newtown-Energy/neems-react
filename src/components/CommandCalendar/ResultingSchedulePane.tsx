@@ -112,7 +112,7 @@ const Provenance: React.FC<ProvenanceProps> = ({ item }) => {
     return (
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 0.5 }}>
         <CircularProgress size={14} />
-        <Typography variant="caption" color="text.secondary">Loading audit…</Typography>
+        <Typography variant="caption" color="text.secondary">Loading change history…</Typography>
       </Box>
     );
   }
@@ -120,7 +120,7 @@ const Provenance: React.FC<ProvenanceProps> = ({ item }) => {
   if (!activity || activity.length === 0) {
     return (
       <Typography variant="caption" color="text.secondary">
-        No audit entries.
+        No change history.
       </Typography>
     );
   }
@@ -155,7 +155,7 @@ const Provenance: React.FC<ProvenanceProps> = ({ item }) => {
             startIcon={<HistoryIcon fontSize="small" />}
             sx={{ textTransform: 'none', px: 0 }}
           >
-            Show all {activity.length} audit entries
+            Show all {activity.length} history entries
           </Button>
         </Box>
       )}
