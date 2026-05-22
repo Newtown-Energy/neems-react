@@ -82,6 +82,12 @@ function numericOrEmpty(value: number | null | undefined): string {
   return value === null || value === undefined ? '' : String(value);
 }
 
+function isRateOutOfRange(value: string): boolean {
+  if (value === '') return false;
+  const n = Number.parseFloat(value);
+  return Number.isNaN(n) || n < 0 || n > 100;
+}
+
 function siteToDraft(site: Site): DraftSiteDefaults {
   return {
     power_kw: numericOrEmpty(site.power_kw),
@@ -181,6 +187,16 @@ const SiteDefaultsPanel: React.FC<SiteDefaultsPanelProps> = ({ onSavingChange, r
       const dischargeRate = draft.discharge_rate_percent === ''
         ? null
         : Number.parseFloat(draft.discharge_rate_percent);
+
+      // Rates are bounded percentages: bail before the round-trip so the
+      // operator sees the problem inline instead of as a backend 400.
+      const outOfRange = (v: number | null) =>
+        v !== null && (Number.isNaN(v) || v < 0 || v > 100);
+      if (outOfRange(chargeRate) || outOfRange(dischargeRate)) {
+        setError('Charge and discharge rate must be between 0 and 100%.');
+        setSaving(false);
+        return false;
+      }
 
       await updateSite(selectedSite.id, {
         // Server treats `null` as "leave alone" for some fields, so we
@@ -309,9 +325,17 @@ const SiteDefaultsPanel: React.FC<SiteDefaultsPanelProps> = ({ onSavingChange, r
               fullWidth
               value={draft.charge_rate_percent}
               onChange={e => setField('charge_rate_percent', e.target.value)}
-              slotProps={{ input: { endAdornment: <InputAdornment position="end">% of power</InputAdornment> } }}
+              slotProps={{
+                input: { endAdornment: <InputAdornment position="end">% of power</InputAdornment> },
+                htmlInput: { min: 0, max: 100, step: 1 }
+              }}
               type="number"
-              helperText="100 = full power. Drives the calendar's orange bar height."
+              error={isRateOutOfRange(draft.charge_rate_percent)}
+              helperText={
+                isRateOutOfRange(draft.charge_rate_percent)
+                  ? 'Must be between 0 and 100.'
+                  : '100 = full power. Drives the calendar\'s orange bar height.'
+              }
             />
           </Grid>
           <Grid size={{ xs: 12, md: 6 }}>
@@ -320,9 +344,17 @@ const SiteDefaultsPanel: React.FC<SiteDefaultsPanelProps> = ({ onSavingChange, r
               fullWidth
               value={draft.discharge_rate_percent}
               onChange={e => setField('discharge_rate_percent', e.target.value)}
-              slotProps={{ input: { endAdornment: <InputAdornment position="end">% of power</InputAdornment> } }}
+              slotProps={{
+                input: { endAdornment: <InputAdornment position="end">% of power</InputAdornment> },
+                htmlInput: { min: 0, max: 100, step: 1 }
+              }}
               type="number"
-              helperText="100 = full power. Drives the calendar's blue bar height."
+              error={isRateOutOfRange(draft.discharge_rate_percent)}
+              helperText={
+                isRateOutOfRange(draft.discharge_rate_percent)
+                  ? 'Must be between 0 and 100.'
+                  : '100 = full power. Drives the calendar\'s blue bar height.'
+              }
             />
           </Grid>
         </Grid>
