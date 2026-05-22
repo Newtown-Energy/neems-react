@@ -31,9 +31,7 @@ const Sidebar: React.FC<SidebarProps> = () => { // Removed unused className
 
   const showAdminPanel = isAdmin(userInfo?.roles);
 
-  // Stripped dev-target menu (SLD feedback round). The Overview deep-link route
-  // still exists in App.tsx but is no longer in the sidebar.
-  const enabledPageIds = ['sld', 'scheduler', 'alarms', 'fdny'];
+  const enabledPageIds = ['overview', 'sld', 'scheduler', 'alarms', 'fdny'];
   
   const navItems = enabledPageIds.map(pageId => {
     const config = getPageConfig(pageId);
