@@ -36,6 +36,7 @@ import type { ChargeDischargeBucket } from '@newtown-energy/types';
 
 import { fetchChargeDischargeSummary } from '../utils/reportsApi';
 import { useSiteContext } from '../utils/SiteContext';
+import { COMMAND_BAR_COLORS } from '../utils/scheduleHelpers';
 import { downloadCsv, toCsv } from '../utils/csv';
 import { errorLog } from '../utils/debug';
 
@@ -237,14 +238,14 @@ const ReportsPage: React.FC = () => {
                         dataKey="charging_minutes"
                         name="Charging"
                         stackId="state"
-                        fill={theme.palette.success.main}
+                        fill={COMMAND_BAR_COLORS.charge}
                         isAnimationActive={false}
                       />
                       <Bar
                         dataKey="discharging_minutes"
                         name="Discharging"
                         stackId="state"
-                        fill={theme.palette.primary.main}
+                        fill={COMMAND_BAR_COLORS.discharge}
                         isAnimationActive={false}
                       />
                       <Bar
