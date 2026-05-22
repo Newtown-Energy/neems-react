@@ -2,7 +2,10 @@
  * SoC mini-chart for the Overview dashboard.
  *
  * Fetches the last 24 hours of state-of-charge readings for the
- * currently-selected site and renders them as a thin recharts line.
+ * currently-selected site and renders them as a recharts bar chart —
+ * each reading is a discrete sample (6-min cadence by default), so
+ * bars are a more honest visualization than a line.
+ *
  * Empty state when the site has no history yet.
  */
 
@@ -15,9 +18,9 @@ import {
   useTheme,
 } from '@mui/material';
 import {
+  Bar,
+  BarChart,
   CartesianGrid,
-  Line,
-  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -121,7 +124,7 @@ const SocMiniChart: React.FC<SocMiniChartProps> = ({
         </Typography>
       )}
       <ResponsiveContainer width="100%" height={height}>
-        <LineChart data={points} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+        <BarChart data={points} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
           <CartesianGrid stroke={theme.palette.divider} strokeDasharray="3 3" />
           <XAxis
             dataKey="t"
@@ -142,16 +145,14 @@ const SocMiniChart: React.FC<SocMiniChartProps> = ({
           <Tooltip
             labelFormatter={formatTooltipLabel}
             formatter={(value: number) => [`${value.toFixed(1)}%`, 'SoC']}
+            cursor={{ fill: theme.palette.action.hover }}
           />
-          <Line
-            type="monotone"
+          <Bar
             dataKey="soc"
-            stroke={theme.palette.primary.main}
-            strokeWidth={2}
-            dot={false}
+            fill={theme.palette.primary.main}
             isAnimationActive={false}
           />
-        </LineChart>
+        </BarChart>
       </ResponsiveContainer>
     </Box>
   );
