@@ -1,4 +1,7 @@
-import type { ChargeDischargeSummary } from '@newtown-energy/types';
+import type {
+  ChargeDischargeSummary,
+  RecentScheduleActivityResponse,
+} from '@newtown-energy/types';
 
 import { apiRequest } from './api';
 
@@ -18,4 +21,17 @@ export async function fetchChargeDischargeSummary(
   const qs = params.toString();
   const url = `/api/1/Sites/${siteId}/ChargeDischargeSummary${qs ? `?${qs}` : ''}`;
   return await apiRequest<ChargeDischargeSummary>(url);
+}
+
+/**
+ * Recent schedule activity (S1c-4) — merged feed across the site's
+ * library items + application rules. Newest first; default limit 50.
+ */
+export async function fetchRecentScheduleActivity(
+  siteId: number,
+  limit: number = 50,
+): Promise<RecentScheduleActivityResponse> {
+  return await apiRequest<RecentScheduleActivityResponse>(
+    `/api/1/Sites/${siteId}/RecentScheduleActivity?limit=${limit}`,
+  );
 }

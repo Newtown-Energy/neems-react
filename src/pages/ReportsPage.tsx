@@ -16,6 +16,9 @@ import {
   Card,
   CardContent,
   CircularProgress,
+  List,
+  ListItem,
+  ListItemText,
   Stack,
   TextField,
   Typography,
@@ -32,9 +35,15 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import type { ChargeDischargeBucket } from '@newtown-energy/types';
+import type {
+  ChargeDischargeBucket,
+  RecentScheduleActivityEntry,
+} from '@newtown-energy/types';
 
-import { fetchChargeDischargeSummary } from '../utils/reportsApi';
+import {
+  fetchChargeDischargeSummary,
+  fetchRecentScheduleActivity,
+} from '../utils/reportsApi';
 import { useSiteContext } from '../utils/SiteContext';
 import { COMMAND_BAR_COLORS } from '../utils/scheduleHelpers';
 import { downloadCsv, toCsv } from '../utils/csv';
@@ -85,6 +94,7 @@ const ReportsPage: React.FC = () => {
   const [from, setFrom] = useState<Date>(() => startOfDaysAgo(7));
   const [to, setTo] = useState<Date>(() => new Date());
   const [buckets, setBuckets] = useState<ChargeDischargeBucket[] | null>(null);
+  const [activity, setActivity] = useState<RecentScheduleActivityEntry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -93,10 +103,14 @@ const ReportsPage: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetchChargeDischargeSummary(selectedSite.id, from, to);
-      setBuckets(response.buckets);
+      const [summary, activityResponse] = await Promise.all([
+        fetchChargeDischargeSummary(selectedSite.id, from, to),
+        fetchRecentScheduleActivity(selectedSite.id, 25),
+      ]);
+      setBuckets(summary.buckets);
+      setActivity(activityResponse.entries);
     } catch (err) {
-      errorLog('ReportsPage: failed to load summary', err);
+      errorLog('ReportsPage: failed to load report data', err);
       setError('Failed to load report data.');
     } finally {
       setLoading(false);
@@ -268,6 +282,64 @@ const ReportsPage: React.FC = () => {
                     </Box>
                   )}
                 </>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card sx={{ mt: 3 }}>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                Recent schedule changes
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Merged feed of library-item edits and application-rule changes for
+                this site, newest first.
+              </Typography>
+              {activity === null ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
+                  <CircularProgress size={24} />
+                </Box>
+              ) : activity.length === 0 ? (
+                <Typography variant="body2" color="text.secondary">
+                  No recorded schedule changes for this site.
+                </Typography>
+              ) : (
+                <List dense disablePadding>
+                  {activity.map(row => {
+                    const isTemplate = row.table_name === 'schedule_templates';
+                    const verb = row.operation_type === 'create'
+                      ? (isTemplate ? 'Created' : 'Applied')
+                      : row.operation_type === 'update'
+                        ? (isTemplate ? 'Edited commands' : 'Updated')
+                        : row.operation_type === 'delete'
+                          ? 'Removed'
+                          : row.operation_type;
+                    const actor = row.user_email
+                      ?? (row.user_id !== null ? `user #${row.user_id}` : 'system');
+                    return (
+                      <ListItem key={`${row.table_name}-${row.id}`} disableGutters sx={{ py: 0.5 }}>
+                        <ListItemText
+                          primary={`${row.library_item_name} — ${verb} by ${actor}`}
+                          secondary={
+                            <>
+                              {new Date(row.timestamp).toLocaleString()}
+                              {row.change_reason && (
+                                <Box
+                                  component="span"
+                                  sx={{ display: 'block', mt: 0.25, fontStyle: 'italic' }}
+                                >
+                                  Reason: {row.change_reason}
+                                </Box>
+                              )}
+                            </>
+                          }
+                          primaryTypographyProps={{ variant: 'body2' }}
+                          secondaryTypographyProps={{ variant: 'caption', component: 'div' }}
+                        />
+                      </ListItem>
+                    );
+                  })}
+                </List>
               )}
             </CardContent>
           </Card>
