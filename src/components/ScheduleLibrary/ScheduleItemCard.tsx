@@ -26,6 +26,8 @@ import type {
 import { formatDaysOfWeek } from '../../utils/scheduleHelpers';
 import CommandEditDialog from './CommandEditDialog';
 import CommandsTable from './CommandsTable';
+import DayChangeHistoryPane from '../CommandCalendar/DayChangeHistoryPane';
+import ReasonPromptDialog from '../CommandCalendar/ReasonPromptDialog';
 
 interface ScheduleItemCardProps {
   item: ScheduleLibraryItem;
@@ -33,7 +35,11 @@ interface ScheduleItemCardProps {
   isDefault: boolean;
   isExpanded: boolean;
   onToggleExpand: () => void;
-  onSave: (id: number, data: { name: string; description: string | null; commands: ScheduleCommandDto[] }) => Promise<void>;
+  onSave: (
+    id: number,
+    data: { name: string; description: string | null; commands: ScheduleCommandDto[] },
+    changeReason: string,
+  ) => Promise<void>;
   onDelete: (item: ScheduleLibraryItem) => void;
   onManageRules?: (item: ScheduleLibraryItem) => void;
   onViewSpecificDates: (itemId: number) => void;
@@ -58,6 +64,9 @@ const ScheduleItemCard: React.FC<ScheduleItemCardProps> = ({
   const [editCommands, setEditCommands] = useState<ScheduleCommandDto[]>([]);
   const [commandDialogOpen, setCommandDialogOpen] = useState(false);
   const [editingCommandIndex, setEditingCommandIndex] = useState<number | null>(null);
+  // S1c — capture a required reason once per Save click, then persist
+  // the staged name/description/commands with it.
+  const [reasonPromptOpen, setReasonPromptOpen] = useState(false);
 
   const reusableRules = isDefault
     ? rules.filter(r => r.rule_type === 'default')
@@ -83,16 +92,25 @@ const ScheduleItemCard: React.FC<ScheduleItemCardProps> = ({
     setEditCommands([]);
   };
 
-  const handleSave = async () => {
+  const handleSave = () => {
     if (!editName.trim()) {
       onError?.('Name is required');
       return;
     }
-    await onSave(item.id, {
-      name: editName.trim(),
-      description: editDescription.trim() || null,
-      commands: editCommands
-    });
+    setReasonPromptOpen(true);
+  };
+
+  const handleReasonConfirm = async (reason: string) => {
+    setReasonPromptOpen(false);
+    await onSave(
+      item.id,
+      {
+        name: editName.trim(),
+        description: editDescription.trim() || null,
+        commands: editCommands,
+      },
+      reason,
+    );
     setIsEditing(false);
   };
 
@@ -277,6 +295,16 @@ const ScheduleItemCard: React.FC<ScheduleItemCardProps> = ({
                 {isEditing ? 'No commands. Click "Add Command" to create one.' : 'No commands configured.'}
               </Typography>
             )}
+
+            {!isEditing && (
+              <Box sx={{ mt: 3 }}>
+                <DayChangeHistoryPane
+                  ruleId={null}
+                  libraryItemId={item.id}
+                  overrideReason={null}
+                />
+              </Box>
+            )}
           </Box>
         )}
       </CardContent>
@@ -288,6 +316,15 @@ const ScheduleItemCard: React.FC<ScheduleItemCardProps> = ({
         onSave={handleCommandSave}
         onClose={() => setCommandDialogOpen(false)}
         onError={onError}
+      />
+
+      <ReasonPromptDialog
+        open={reasonPromptOpen}
+        title={`Edit ${item.name}`}
+        description="Why is this schedule being changed? The reason appears in the schedule's change history."
+        confirmLabel="Save"
+        onCancel={() => setReasonPromptOpen(false)}
+        onConfirm={handleReasonConfirm}
       />
     </Card>
   );

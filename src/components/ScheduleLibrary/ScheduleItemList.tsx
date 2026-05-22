@@ -12,7 +12,8 @@ interface ScheduleItemListProps {
   rulesByItemId: (itemId: number) => ApplicationRule[];
   onSaveItem: (
     id: number,
-    data: { name: string; description: string | null; commands: ScheduleCommandDto[] }
+    data: { name: string; description: string | null; commands: ScheduleCommandDto[] },
+    changeReason: string,
   ) => Promise<void>;
   onDeleteItem: (item: ScheduleLibraryItem) => void;
   onManageRules?: (item: ScheduleLibraryItem) => void;
