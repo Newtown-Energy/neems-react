@@ -51,6 +51,7 @@ import { useEffectiveNow } from '../../utils/demoOverrides';
 // in the app-wide SiteStatePanel banner + the SLD page.
 import { errorLog } from '../../utils/debug';
 import CommandEditDialog from '../ScheduleLibrary/CommandEditDialog';
+import ReasonPromptDialog from './ReasonPromptDialog';
 import ResultingSchedulePane from './ResultingSchedulePane';
 import DayChangeHistoryPane from './DayChangeHistoryPane';
 
@@ -113,6 +114,15 @@ const DayDetailsDialog: React.FC<DayDetailsDialogProps> = ({
   const [commandEditOpen, setCommandEditOpen] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [sessionDismissed, setSessionDismissed] = useState<Set<string>>(new Set());
+  // S1b — collect a reason before any inline command edit lands on the
+  // backend. We stash the staged next-commands + a human-readable
+  // action label, then ReasonPromptDialog confirms with the reason.
+  const [pendingCommit, setPendingCommit] = useState<{
+    next: ScheduleCommandDto[];
+    title: string;
+    description: string;
+    confirmLabel: string;
+  } | null>(null);
 
   // Collect warnings across every command on the day so the user sees
   // the full picture without having to open each row individually.
@@ -153,7 +163,7 @@ const DayDetailsDialog: React.FC<DayDetailsDialogProps> = ({
     setCommandEditOpen(true);
   };
 
-  const commitCommands = async (next: ScheduleCommandDto[]) => {
+  const commitCommands = async (next: ScheduleCommandDto[], reason: string) => {
     if (!libraryItem) return;
     setSaveError(null);
     try {
@@ -165,7 +175,8 @@ const DayDetailsDialog: React.FC<DayDetailsDialogProps> = ({
           command_type: c.command_type,
           duration_seconds: c.duration_seconds ?? null,
           target_soc_percent: c.target_soc_percent ?? null
-        }))
+        })),
+        change_reason: reason
       });
       setCommandEditOpen(false);
       onCommandsChanged?.();
@@ -177,17 +188,31 @@ const DayDetailsDialog: React.FC<DayDetailsDialogProps> = ({
 
   const handleSaveCommand = (cmd: ScheduleCommandDto) => {
     if (!libraryItem) return;
-    const next = commandEditTarget
-      ? libraryItem.commands.map(c => (c.id === commandEditTarget.id ? cmd : c))
+    const isEdit = commandEditTarget !== null;
+    const next = isEdit
+      ? libraryItem.commands.map(c => (c.id === commandEditTarget!.id ? cmd : c))
       : [...libraryItem.commands, cmd];
     next.sort((a, b) => a.execution_offset_seconds - b.execution_offset_seconds);
-    void commitCommands(next);
+    setPendingCommit({
+      next,
+      title: isEdit ? 'Edit command' : 'Add command',
+      description: isEdit
+        ? 'Why is this command being changed? The reason appears in the per-day change history.'
+        : 'Why is this command being added? The reason appears in the per-day change history.',
+      confirmLabel: 'Save'
+    });
   };
 
   const handleDeleteCommand = (cmd: ScheduleCommandDto) => {
     if (!libraryItem) return;
     const next = libraryItem.commands.filter(c => c.id !== cmd.id);
-    void commitCommands(next);
+    setPendingCommit({
+      next,
+      title: 'Delete command',
+      description:
+        'Why is this command being removed? The reason appears in the per-day change history.',
+      confirmLabel: 'Delete'
+    });
   };
 
   /**
@@ -248,7 +273,13 @@ const DayDetailsDialog: React.FC<DayDetailsDialogProps> = ({
       .map(c => (c.id === cmd.id ? shrunkOriginal : c))
       .concat(tail)
       .sort((a, b) => a.execution_offset_seconds - b.execution_offset_seconds);
-    void commitCommands(next);
+    setPendingCommit({
+      next,
+      title: 'Stop command now',
+      description:
+        'Why is this command being stopped early? The reason appears in the per-day change history.',
+      confirmLabel: 'Stop'
+    });
   };
 
   return (
@@ -308,6 +339,7 @@ const DayDetailsDialog: React.FC<DayDetailsDialogProps> = ({
 
             <DayChangeHistoryPane
               ruleId={prevailingRuleId}
+              libraryItemId={libraryItem?.id ?? null}
               overrideReason={overrideReason}
             />
 
@@ -532,6 +564,20 @@ const DayDetailsDialog: React.FC<DayDetailsDialogProps> = ({
         onSave={handleSaveCommand}
         onClose={() => setCommandEditOpen(false)}
         onError={(message) => setSaveError(message)}
+      />
+
+      <ReasonPromptDialog
+        open={pendingCommit !== null}
+        title={pendingCommit?.title ?? ''}
+        description={pendingCommit?.description}
+        confirmLabel={pendingCommit?.confirmLabel}
+        onCancel={() => setPendingCommit(null)}
+        onConfirm={reason => {
+          if (pendingCommit) {
+            void commitCommands(pendingCommit.next, reason);
+            setPendingCommit(null);
+          }
+        }}
       />
     </Dialog>
   );
