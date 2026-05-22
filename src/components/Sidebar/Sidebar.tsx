@@ -22,9 +22,11 @@ const Sidebar: React.FC<SidebarProps> = () => { // Removed unused className
   const getSelectedItem = () => {
     const path = location.pathname;
     if (path === '/' || path === '/sld') return 'sld';
+    if (path === '/overview') return 'overview';
     if (path === '/alarms') return 'alarms';
     if (path === '/fdny') return 'fdny';
-    if (path === '/scheduler' || path === '/library') return 'scheduler';
+    if (path === '/reports') return 'reports';
+    if (path === '/scheduler' || path.startsWith('/library')) return 'scheduler';
     if (path === '/admin') return 'admin';
     return 'sld';
   };

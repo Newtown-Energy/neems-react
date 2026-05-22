@@ -68,7 +68,7 @@ const OverviewPage: React.FC = () => {
       <Card sx={{ mb: 3 }}>
         <CardContent>
           <Typography variant="h6" gutterBottom>
-            Battery state of charge — last 24 hours
+            Available state of charge — last 24 hours
           </Typography>
           {selectedSite ? (
             <SocMiniChart siteId={selectedSite.id} />
