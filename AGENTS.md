@@ -34,7 +34,8 @@ NEEMS React is the frontend web interface for a Battery Energy Storage System (B
 - React Router for navigation
 - SCSS for styling
 - Bun for package management
-- Jest + Puppeteer for E2E browser automation tests (no unit tests currently)
+- Bun's built-in test runner for unit tests (`src/utils/*.test.ts`)
+- Jest + Puppeteer for E2E browser automation tests
 
 ## Docker-Based Development (Optional)
 
@@ -626,9 +627,13 @@ bun run lint:eslint  # Without Docker
 ```
 
 **Testing Stack:**
-- Jest + Puppeteer for E2E browser automation tests only
-- No unit tests currently (could use Bun's built-in test runner in future)
-- See `test/README.md` for detailed testing information
+- Bun's built-in test runner for unit tests (`bun run test:unit` — runs all `src/utils/*.test.ts`). Wired into CI so every PR runs them.
+- Jest + Puppeteer for E2E browser automation tests
+- See `test/README.md` for detailed E2E testing information
+
+Unit-test conventions:
+- Co-locate the test next to the module it covers: `src/utils/foo.ts` ↔ `src/utils/foo.test.ts`.
+- Bun's test env has no DOM. If the module touches `sessionStorage`, `localStorage`, `window`, etc., install an in-memory shim at the top of the test file (see `alarmAcknowledge.test.ts` for the pattern).
 
 ### Building for Production
 
