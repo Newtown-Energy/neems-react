@@ -31,7 +31,7 @@ const Sidebar: React.FC<SidebarProps> = () => { // Removed unused className
 
   const showAdminPanel = isAdmin(userInfo?.roles);
 
-  const enabledPageIds = ['overview', 'sld', 'scheduler', 'alarms', 'fdny'];
+  const enabledPageIds = ['overview', 'sld', 'scheduler', 'alarms', 'reports', 'fdny'];
   
   const navItems = enabledPageIds.map(pageId => {
     const config = getPageConfig(pageId);

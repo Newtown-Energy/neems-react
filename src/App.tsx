@@ -6,6 +6,7 @@ import OverviewPage from './pages/OverviewPage';
 import FDNYPage from './pages/FDNYPage';
 import AdminPage from './pages/AdminPage';
 import AlarmsPage from './pages/AlarmsPage';
+import ReportsPage from './pages/ReportsPage';
 import SchedulerPage from './pages/SchedulerPage';
 import LibraryPage from './pages/LibraryPage';
 import ScheduleAuditPage from './pages/ScheduleAuditPage';
@@ -69,6 +70,7 @@ const AppContent: React.FC = () => {
             <Route path="/overview" element={<OverviewPage />} />
             <Route path="/alarms" element={<AlarmsPage />} />
             <Route path="/fdny" element={<FDNYPage />} />
+            <Route path="/reports" element={<ReportsPage />} />
             <Route path="/scheduler" element={<SchedulerPage />} />
             <Route path="/library" element={<LibraryPage />} />
             <Route path="/library/:itemId/audit" element={<ScheduleAuditPage />} />
