@@ -15,9 +15,11 @@ import {
   Delete as DeleteIcon,
   Edit as EditIcon,
   Event as EventIcon,
+  History as HistoryIcon,
   Loop as LoopIcon,
   Star as StarIcon
 } from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
 import type {
   ApplicationRule,
   ScheduleCommandDto,
@@ -58,6 +60,7 @@ const ScheduleItemCard: React.FC<ScheduleItemCardProps> = ({
   onViewSpecificDates,
   onError
 }) => {
+  const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState('');
   const [editDescription, setEditDescription] = useState('');
@@ -219,6 +222,13 @@ const ScheduleItemCard: React.FC<ScheduleItemCardProps> = ({
                     <CalendarMonthIcon />
                   </IconButton>
                 )}
+                <IconButton
+                  size="small"
+                  onClick={() => navigate(`/library/${item.id}/audit`)}
+                  title="View full change history"
+                >
+                  <HistoryIcon />
+                </IconButton>
                 <IconButton size="small" onClick={handleEnterEdit} title="Edit">
                   <EditIcon />
                 </IconButton>
