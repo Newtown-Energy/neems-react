@@ -38,12 +38,16 @@ const OverviewPage: React.FC = () => {
     return () => clearInterval(interval);
   }, [loadAlarms]);
 
-  // Top 5 most severe alarms for the summary
+  // Demo feedback (2026-05-18): only show the top 2 site-wide alarms
+  // inline, with a "+N more" link to the full list when there's more.
+  const TOP_ALARM_LIMIT = 2;
+  const totalAlarms = alarmData?.alarms.length ?? 0;
   const topAlarms = alarmData
     ? [...alarmData.alarms]
         .sort((a, b) => getSeverityOrder(a.severity) - getSeverityOrder(b.severity))
-        .slice(0, 5)
+        .slice(0, TOP_ALARM_LIMIT)
     : [];
+  const additionalAlarmCount = Math.max(0, totalAlarms - topAlarms.length);
 
   const severityCounts: Record<string, number> = {};
   if (alarmData) {
@@ -177,6 +181,14 @@ const OverviewPage: React.FC = () => {
                   </TableBody>
                 </Table>
               </TableContainer>
+            )}
+
+            {additionalAlarmCount > 0 && (
+              <Box sx={{ mt: 1, textAlign: 'right' }}>
+                <Button size="small" onClick={() => navigate('/alarms')}>
+                  +{additionalAlarmCount} more — view all site-wide alarms
+                </Button>
+              </Box>
             )}
           </CardContent>
         </Card>
