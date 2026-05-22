@@ -271,7 +271,10 @@ const CommandCalendar: React.FC<CommandCalendarProps> = ({
         rule_type: 'specific_date',
         days_of_week: null,
         specific_dates: [toISODateString(selectedDate)],
-        override_reason: reason.trim()
+        // Mirror the reason into change_reason so it shows up on the
+        // activity row too (DayChangeHistoryPane prefers it).
+        override_reason: reason.trim(),
+        change_reason: reason.trim()
       });
 
       setOverrideReasonDialogOpen(false);

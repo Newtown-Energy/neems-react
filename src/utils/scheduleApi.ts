@@ -111,9 +111,17 @@ export async function createApplicationRule(
   );
 }
 
-export async function deleteApplicationRule(ruleId: number): Promise<void> {
+export async function deleteApplicationRule(
+  ruleId: number,
+  changeReason?: string,
+): Promise<void> {
+  // S1c-3: optional change_reason lands on the entity_activity row
+  // for the delete so the change-history pane can show *why*.
+  const qs = changeReason && changeReason.trim().length > 0
+    ? `?change_reason=${encodeURIComponent(changeReason.trim())}`
+    : '';
   await apiRequestWithMapping(
-    `/api/1/ApplicationRules/${ruleId}`,
+    `/api/1/ApplicationRules/${ruleId}${qs}`,
     { method: 'DELETE' }
   );
 }

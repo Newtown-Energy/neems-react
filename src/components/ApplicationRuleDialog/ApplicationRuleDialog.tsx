@@ -43,6 +43,7 @@ import {
   deleteApplicationRule
 } from '../../utils/scheduleApi';
 import { errorLog } from '../../utils/debug';
+import ReasonPromptDialog from '../CommandCalendar/ReasonPromptDialog';
 
 interface ApplicationRuleDialogProps {
   open: boolean;
@@ -72,6 +73,15 @@ const ApplicationRuleDialog: React.FC<ApplicationRuleDialogProps> = ({
   // Date overrides state
   const [dateOverridesExpanded, setDateOverridesExpanded] = useState(false);
   const [specificDateRules, setSpecificDateRules] = useState<ApplicationRule[]>([]);
+
+  // S1c-3 — capture a reason for any rule mutation before it hits the
+  // backend. Day-of-week toggles fan out to multiple deletes + one
+  // create, but the user thinks of it as a single change, so we ask
+  // once per intent and pass the reason to every underlying call.
+  type PendingRuleChange =
+    | { kind: 'day_toggle'; dayIndex: number }
+    | { kind: 'delete_specific_date'; ruleId: number };
+  const [pendingRuleChange, setPendingRuleChange] = useState<PendingRuleChange | null>(null);
 
   useEffect(() => {
     if (open && libraryItem) {
@@ -112,8 +122,13 @@ const ApplicationRuleDialog: React.FC<ApplicationRuleDialogProps> = ({
     }
   };
 
-  const handleDayToggle = async (dayIndex: number) => {
+  const handleDayToggle = (dayIndex: number) => {
     if (!libraryItem || loading) return;
+    setPendingRuleChange({ kind: 'day_toggle', dayIndex });
+  };
+
+  const commitDayToggle = async (dayIndex: number, reason: string) => {
+    if (!libraryItem) return;
 
     const newActiveDays = new Set(activeDays);
     if (newActiveDays.has(dayIndex)) {
@@ -125,19 +140,18 @@ const ApplicationRuleDialog: React.FC<ApplicationRuleDialogProps> = ({
     setLoading(true);
     setError(null);
     try {
-      // Delete all existing day-of-week rules
       const dayOfWeekRules = rules.filter(r => r.rule_type === 'day_of_week');
       for (const rule of dayOfWeekRules) {
-        await deleteApplicationRule(rule.id);
+        await deleteApplicationRule(rule.id, reason);
       }
 
-      // Create new day-of-week rule with all active days (if any)
       if (newActiveDays.size > 0) {
         await createApplicationRule(libraryItem.id, {
           rule_type: 'day_of_week',
           days_of_week: Array.from(newActiveDays).sort((a, b) => a - b),
           specific_dates: null,
-          override_reason: null
+          override_reason: null,
+          change_reason: reason
         });
       }
 
@@ -147,18 +161,21 @@ const ApplicationRuleDialog: React.FC<ApplicationRuleDialogProps> = ({
     } catch (err) {
       setError('Failed to update recurring rules');
       errorLog('Error updating recurring rules:', err);
-      // Reload to restore previous state
       await loadRules();
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDeleteSpecificDateRule = async (ruleId: number) => {
+  const handleDeleteSpecificDateRule = (ruleId: number) => {
+    setPendingRuleChange({ kind: 'delete_specific_date', ruleId });
+  };
+
+  const commitDeleteSpecificDateRule = async (ruleId: number, reason: string) => {
     setLoading(true);
     setError(null);
     try {
-      await deleteApplicationRule(ruleId);
+      await deleteApplicationRule(ruleId, reason);
       await loadRules();
       onRulesChanged?.();
     } catch (err) {
@@ -166,6 +183,37 @@ const ApplicationRuleDialog: React.FC<ApplicationRuleDialogProps> = ({
       errorLog('Error deleting date override:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const reasonPromptCopy = (() => {
+    if (!pendingRuleChange) return { title: '', description: '', confirmLabel: 'Apply' };
+    if (pendingRuleChange.kind === 'day_toggle') {
+      const dayName = DAY_NAMES[pendingRuleChange.dayIndex];
+      const turningOn = !activeDays.has(pendingRuleChange.dayIndex);
+      return {
+        title: `${turningOn ? 'Add' : 'Remove'} ${dayName} from recurring rule`,
+        description:
+          'Why is this recurring rule changing? The reason appears in the change history.',
+        confirmLabel: turningOn ? 'Add' : 'Remove',
+      };
+    }
+    return {
+      title: 'Remove date override',
+      description:
+        'Why is this date override being removed? The reason appears in the change history.',
+      confirmLabel: 'Remove',
+    };
+  })();
+
+  const handleReasonConfirm = (reason: string) => {
+    const change = pendingRuleChange;
+    setPendingRuleChange(null);
+    if (!change) return;
+    if (change.kind === 'day_toggle') {
+      void commitDayToggle(change.dayIndex, reason);
+    } else {
+      void commitDeleteSpecificDateRule(change.ruleId, reason);
     }
   };
 
@@ -329,6 +377,15 @@ const ApplicationRuleDialog: React.FC<ApplicationRuleDialogProps> = ({
           Close
         </Button>
       </DialogActions>
+
+      <ReasonPromptDialog
+        open={pendingRuleChange !== null}
+        title={reasonPromptCopy.title}
+        description={reasonPromptCopy.description}
+        confirmLabel={reasonPromptCopy.confirmLabel}
+        onCancel={() => setPendingRuleChange(null)}
+        onConfirm={handleReasonConfirm}
+      />
     </Dialog>
   );
 };

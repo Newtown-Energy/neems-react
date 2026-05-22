@@ -128,7 +128,8 @@ const SchedulerPage: React.FC = () => {
         rule_type: 'specific_date',
         days_of_week: null,
         specific_dates: [toISODateString(editDate)],
-        override_reason: null
+        override_reason: null,
+        change_reason: null
       });
 
       // Re-open the day details dialog on the newly-cloned schedule.
@@ -178,7 +179,11 @@ const SchedulerPage: React.FC = () => {
         rule_type: 'specific_date',
         days_of_week: null,
         specific_dates: [toISODateString(applyDate)],
-        override_reason: applyOverrideReason.trim()
+        // Mirror the reason into change_reason so the activity row
+        // also carries it; DayChangeHistoryPane prefers change_reason
+        // and falls back to override_reason if absent.
+        override_reason: applyOverrideReason.trim(),
+        change_reason: applyOverrideReason.trim()
       });
 
       setCalendarRefreshKey(prev => prev + 1);
