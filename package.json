@@ -22,7 +22,8 @@
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-router-dom": "^7.7.0",
-    "react-svg-pan-zoom": "^3.13.1"
+    "react-svg-pan-zoom": "^3.13.1",
+    "recharts": "^3.8.1"
   },
   "devDependencies": {
     "@newtown-energy/types": "0.3.1",
