@@ -13,9 +13,13 @@ import {
   Button,
   CircularProgress,
   IconButton,
+  ToggleButton,
+  ToggleButtonGroup,
   Typography
 } from '@mui/material';
 import {
+  CalendarMonth as CalendarMonthIcon,
+  CalendarViewWeek as CalendarViewWeekIcon,
   ChevronLeft as ChevronLeftIcon,
   ChevronRight as ChevronRightIcon,
   Today as TodayIcon
@@ -31,7 +35,7 @@ import {
 import { toISODateString } from '../../utils/scheduleHelpers';
 import { debugLog, errorLog } from '../../utils/debug';
 import { useSiteContext } from '../../utils/SiteContext';
-import CalendarGrid from './CalendarGrid';
+import CalendarGrid, { getWeekCount, getWeekIndexForDate } from './CalendarGrid';
 import DayDetailsDialog from './DayDetailsDialog';
 import type { ApplicableLibraryItem } from './DayDetailsDialog';
 import OverrideReasonDialog from './OverrideReasonDialog';
@@ -144,6 +148,65 @@ const CommandCalendar: React.FC<CommandCalendarProps> = ({
       return params;
     }, { replace: false });
   }, [setSearchParams]);
+  const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
+  const [weekIndex, setWeekIndex] = useState(0);
+
+  const totalWeeks = useMemo(() => getWeekCount(currentMonth), [currentMonth]);
+
+  const handleViewModeChange = useCallback((_: React.MouseEvent, newMode: 'month' | 'week' | null) => {
+    if (!newMode) return;
+    setViewMode(newMode);
+    if (newMode === 'week') {
+      const today = new Date();
+      if (selectedDate && selectedDate.getMonth() === currentMonth.getMonth() && selectedDate.getFullYear() === currentMonth.getFullYear()) {
+        setWeekIndex(getWeekIndexForDate(currentMonth, selectedDate));
+      } else if (today.getMonth() === currentMonth.getMonth() && today.getFullYear() === currentMonth.getFullYear()) {
+        setWeekIndex(getWeekIndexForDate(currentMonth, today));
+      } else {
+        setWeekIndex(0);
+      }
+    }
+  }, [currentMonth, selectedDate]);
+
+  const handlePrev = useCallback(() => {
+    if (viewMode === 'month') {
+      setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
+    } else {
+      if (weekIndex > 0) {
+        setWeekIndex(weekIndex - 1);
+      } else {
+        const prevMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1);
+        setCurrentMonth(prevMonth);
+        setWeekIndex(getWeekCount(prevMonth) - 1);
+      }
+    }
+  }, [viewMode, currentMonth, weekIndex, setCurrentMonth]);
+
+  const handleNext = useCallback(() => {
+    if (viewMode === 'month') {
+      setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
+    } else {
+      if (weekIndex < totalWeeks - 1) {
+        setWeekIndex(weekIndex + 1);
+      } else {
+        const nextMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1);
+        setCurrentMonth(nextMonth);
+        setWeekIndex(0);
+      }
+    }
+  }, [viewMode, currentMonth, weekIndex, totalWeeks, setCurrentMonth]);
+
+  const weekDateRange = useMemo(() => {
+    if (viewMode !== 'week') return null;
+    const first = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+    const startDow = first.getDay();
+    const weekStartDay = weekIndex * 7 - startDow + 1;
+    const start = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), weekStartDay);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 6);
+    return { start, end };
+  }, [viewMode, currentMonth, weekIndex]);
+
   const [selectedLibraryItem, setSelectedLibraryItem] = useState<ScheduleLibraryItem | null>(null);
   const [selectedDateSpecificity, setSelectedDateSpecificity] = useState<number>(-1);
   const [selectedDateOverrideReason, setSelectedDateOverrideReason] = useState<string | null>(null);
@@ -297,27 +360,50 @@ const CommandCalendar: React.FC<CommandCalendarProps> = ({
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <IconButton onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1))} size="small">
+          <IconButton onClick={handlePrev} size="small">
             <ChevronLeftIcon />
           </IconButton>
-          <Typography variant="h5" sx={{ minWidth: 200, textAlign: 'center' }}>
-            {currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+          <Typography variant="h5" sx={{ minWidth: 240, textAlign: 'center' }}>
+            {viewMode === 'week' && weekDateRange
+              ? `${weekDateRange.start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${weekDateRange.end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+              : currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+            }
           </Typography>
-          <IconButton onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1))} size="small">
+          <IconButton onClick={handleNext} size="small">
             <ChevronRightIcon />
           </IconButton>
         </Box>
-        <Button
-          startIcon={<TodayIcon />}
-          onClick={() => {
-            const today = new Date();
-            setCurrentMonth(new Date(today.getFullYear(), today.getMonth(), 1));
-            setSelectedDate(today);
-          }}
-          size="small"
-        >
-          Today
-        </Button>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <ToggleButtonGroup
+            value={viewMode}
+            exclusive
+            onChange={handleViewModeChange}
+            size="small"
+          >
+            <ToggleButton value="month">
+              <CalendarMonthIcon sx={{ fontSize: 18, mr: 0.5 }} />
+              Month
+            </ToggleButton>
+            <ToggleButton value="week">
+              <CalendarViewWeekIcon sx={{ fontSize: 18, mr: 0.5 }} />
+              Week
+            </ToggleButton>
+          </ToggleButtonGroup>
+          <Button
+            startIcon={<TodayIcon />}
+            onClick={() => {
+              const today = new Date();
+              setCurrentMonth(new Date(today.getFullYear(), today.getMonth(), 1));
+              setSelectedDate(today);
+              if (viewMode === 'week') {
+                setWeekIndex(getWeekIndexForDate(new Date(today.getFullYear(), today.getMonth(), 1), today));
+              }
+            }}
+            size="small"
+          >
+            Today
+          </Button>
+        </Box>
       </Box>
 
       {error && (
@@ -342,6 +428,8 @@ const CommandCalendar: React.FC<CommandCalendarProps> = ({
           sitePowerKw={selectedSite?.power_kw ?? null}
           chargeRatePercent={selectedSite?.charge_rate_percent ?? null}
           dischargeRatePercent={selectedSite?.discharge_rate_percent ?? null}
+          viewMode={viewMode}
+          weekIndex={weekIndex}
         />
       </Box>
 

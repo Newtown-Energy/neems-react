@@ -12,6 +12,19 @@ import DayBarChart from './DayBarChart';
 
 const DAYS_OF_WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
+export function getWeekCount(month: Date): number {
+  const first = new Date(month.getFullYear(), month.getMonth(), 1);
+  const last = new Date(month.getFullYear(), month.getMonth() + 1, 0);
+  return Math.ceil((last.getDate() + first.getDay()) / 7);
+}
+
+export function getWeekIndexForDate(month: Date, target: Date): number {
+  const first = new Date(month.getFullYear(), month.getMonth(), 1);
+  const startDow = first.getDay();
+  const dayOfMonth = target.getDate();
+  return Math.floor((dayOfMonth - 1 + startDow) / 7);
+}
+
 const SPECIFICITY_BG: Record<number, string> = {
   0: 'rgba(25, 118, 210, 0.15)',
   1: 'rgba(156, 39, 176, 0.15)',
@@ -34,6 +47,8 @@ interface CalendarGridProps {
   chargeRatePercent?: number | null;
   /** Discharge ceiling as a percentage of `sitePowerKw`. Forwarded to DayBarChart. */
   dischargeRatePercent?: number | null;
+  viewMode?: 'month' | 'week';
+  weekIndex?: number;
 }
 
 const CalendarGrid: React.FC<CalendarGridProps> = ({
@@ -44,7 +59,9 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
   onDateClick,
   sitePowerKw,
   chargeRatePercent,
-  dischargeRatePercent
+  dischargeRatePercent,
+  viewMode = 'month',
+  weekIndex = 0
 }) => {
   const effectiveNow = useEffectiveNow();
   const firstDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
@@ -58,10 +75,17 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
   for (let d = 1; d <= lastDay.getDate(); d += 1) {
     days.push(new Date(currentMonth.getFullYear(), currentMonth.getMonth(), d));
   }
-  const weeks: (Date | null)[][] = [];
+  const allWeeks: (Date | null)[][] = [];
   for (let i = 0; i < days.length; i += 7) {
-    weeks.push(days.slice(i, i + 7));
+    allWeeks.push(days.slice(i, i + 7));
   }
+
+  const weeks = viewMode === 'week'
+    ? [allWeeks[Math.min(weekIndex, allWeeks.length - 1)] ?? allWeeks[0]]
+    : allWeeks;
+
+  const isWeekView = viewMode === 'week';
+  const cellMinHeight = isWeekView ? 200 : 110;
 
   return (
     <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
@@ -82,7 +106,7 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
                 return (
                   <Box
                     key={`empty-${weekKey}-${DAYS_OF_WEEK[dayIdx]}`}
-                    sx={{ minHeight: 80, minWidth: 0, borderRight: '1px solid', borderBottom: '1px solid', borderColor: 'divider' }}
+                    sx={{ minHeight: cellMinHeight * 0.7, minWidth: 0, borderRight: '1px solid', borderBottom: '1px solid', borderColor: 'divider' }}
                   />
                 );
               }
@@ -110,7 +134,7 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
                   key={dateKey}
                   onClick={() => onDateClick(date)}
                   sx={{
-                    minHeight: 110,
+                    minHeight: cellMinHeight,
                     minWidth: 0,
                     p: 0.5,
                     borderRight: '1px solid',
@@ -165,7 +189,7 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
                           whiteSpace: 'nowrap',
-                          fontSize: '0.7rem'
+                          fontSize: isWeekView ? '0.8rem' : '0.7rem'
                         }}
                       >
                         {data.library_item_name}
@@ -180,7 +204,7 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
                         sitePowerKw={sitePowerKw}
                         chargeRatePercent={chargeRatePercent}
                         dischargeRatePercent={dischargeRatePercent}
-                        height={28}
+                        height={isWeekView ? 80 : 28}
                         nowSeconds={nowSecondsForCell}
                       />
                     </Box>
