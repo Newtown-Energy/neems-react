@@ -36,8 +36,10 @@ import {
   Stack,
   Switch,
   TextField,
+  Tooltip,
   Typography
 } from '@mui/material';
+import { HelpOutline } from '@mui/icons-material';
 import type { Site, SiteVariant } from '@newtown-energy/types';
 
 import { useSiteContext } from '../../utils/SiteContext';
@@ -125,6 +127,43 @@ interface SiteDefaultsPanelProps {
   /** React 19 ref-as-prop. Exposes [SiteDefaultsPanelHandle]. */
   ref?: Ref<SiteDefaultsPanelHandle>;
 }
+
+const FIELD_HELP: Record<string, string> = {
+  power_kw:
+    'Nameplate power of the battery system. Drives charge/discharge command sizing and the ramp-rate calculation.',
+  capacity_kwh:
+    'Total energy storage capacity. Used for the available-SoC duration warning.',
+  ramp_duration_seconds:
+    'Time to ramp from 0 to full power. ConEd standard is 120 seconds (2-minute full-power ramp).',
+  closed_loop_enabled:
+    'When on, scheduled commands are sent to the RTAC for execution. When off, schedules are visualized but not enforced.',
+  charge_rate_percent:
+    'Percentage of nameplate power used for charge commands. 100% = full power. Drives the calendar bar height.',
+  discharge_rate_percent:
+    'Percentage of nameplate power used for discharge commands. 100% = full power. Drives the calendar bar height.',
+  off_peak_window:
+    'Off-peak charging window — when the battery may draw from the grid at the lower tariff.',
+  peak_revenue_window:
+    'Peak-revenue discharge window — when the battery should be paying back to the grid at the higher tariff.',
+  interconnection_max_output_kw:
+    'Discharge cap from the interconnection agreement. Discharge commands will be clamped at this value.',
+  rebound_protection_soc_floor_percent:
+    'State-of-charge at which discharge ramps to 0 kW to protect the battery from a deep-discharge rebound.',
+  site_variant:
+    'Determines hardware constraints. "No grid charge" means inverters cannot charge from the grid.',
+};
+
+const FieldHelp: React.FC<{ field: string }> = ({ field }) => {
+  const tip = FIELD_HELP[field];
+  if (!tip) return null;
+  return (
+    <Tooltip title={tip} arrow placement="top">
+      <HelpOutline
+        sx={{ fontSize: 16, ml: 0.5, verticalAlign: 'text-bottom', color: 'action.active', cursor: 'help' }}
+      />
+    </Tooltip>
+  );
+};
 
 const SiteDefaultsPanel: React.FC<SiteDefaultsPanelProps> = ({ onSavingChange, ref }) => {
   const { selectedSite, refresh } = useSiteContext();
@@ -267,7 +306,7 @@ const SiteDefaultsPanel: React.FC<SiteDefaultsPanelProps> = ({ onSavingChange, r
         <Grid container spacing={2}>
           <Grid size={{ xs: 12, md: 6 }}>
             <TextField
-              label="Site power"
+              label={<>Site power<FieldHelp field="power_kw" /></>}
               fullWidth
               value={draft.power_kw}
               onChange={e => setField('power_kw', e.target.value)}
@@ -277,18 +316,17 @@ const SiteDefaultsPanel: React.FC<SiteDefaultsPanelProps> = ({ onSavingChange, r
           </Grid>
           <Grid size={{ xs: 12, md: 6 }}>
             <TextField
-              label="Site capacity"
+              label={<>Site capacity<FieldHelp field="capacity_kwh" /></>}
               fullWidth
               value={draft.capacity_kwh}
               onChange={e => setField('capacity_kwh', e.target.value)}
               slotProps={{ input: { endAdornment: <InputAdornment position="end">kWh</InputAdornment> } }}
               type="number"
-              helperText="Used for the available-SoC ÷ kW duration warning."
             />
           </Grid>
           <Grid size={{ xs: 12, md: 6 }}>
             <TextField
-              label="Max ramp duration"
+              label={<>Max ramp duration<FieldHelp field="ramp_duration_seconds" /></>}
               fullWidth
               value={draft.ramp_duration_seconds}
               onChange={e => setField('ramp_duration_seconds', e.target.value)}
@@ -311,7 +349,7 @@ const SiteDefaultsPanel: React.FC<SiteDefaultsPanelProps> = ({ onSavingChange, r
                   onChange={e => setField('closed_loop_enabled', e.target.checked)}
                 />
               }
-              label="Closed-loop control enabled"
+              label={<>Closed-loop control enabled<FieldHelp field="closed_loop_enabled" /></>}
             />
             {!draft.closed_loop_enabled && (
               <Typography variant="caption" color="warning.main" display="block">
@@ -321,7 +359,7 @@ const SiteDefaultsPanel: React.FC<SiteDefaultsPanelProps> = ({ onSavingChange, r
           </Grid>
           <Grid size={{ xs: 12, md: 6 }}>
             <TextField
-              label="Charge rate"
+              label={<>Charge rate<FieldHelp field="charge_rate_percent" /></>}
               fullWidth
               value={draft.charge_rate_percent}
               onChange={e => setField('charge_rate_percent', e.target.value)}
@@ -340,7 +378,7 @@ const SiteDefaultsPanel: React.FC<SiteDefaultsPanelProps> = ({ onSavingChange, r
           </Grid>
           <Grid size={{ xs: 12, md: 6 }}>
             <TextField
-              label="Discharge rate"
+              label={<>Discharge rate<FieldHelp field="discharge_rate_percent" /></>}
               fullWidth
               value={draft.discharge_rate_percent}
               onChange={e => setField('discharge_rate_percent', e.target.value)}
@@ -361,7 +399,7 @@ const SiteDefaultsPanel: React.FC<SiteDefaultsPanelProps> = ({ onSavingChange, r
 
         <Divider />
 
-        <Typography variant="subtitle1">Off-peak charging window</Typography>
+        <Typography variant="subtitle1">Off-peak charging window<FieldHelp field="off_peak_window" /></Typography>
         <Grid container spacing={2}>
           <Grid size={{ xs: 6 }}>
             <TextField
@@ -385,7 +423,7 @@ const SiteDefaultsPanel: React.FC<SiteDefaultsPanelProps> = ({ onSavingChange, r
           </Grid>
         </Grid>
 
-        <Typography variant="subtitle1">Peak-revenue discharge window</Typography>
+        <Typography variant="subtitle1">Peak-revenue discharge window<FieldHelp field="peak_revenue_window" /></Typography>
         <Grid container spacing={2}>
           <Grid size={{ xs: 6 }}>
             <TextField
@@ -414,18 +452,17 @@ const SiteDefaultsPanel: React.FC<SiteDefaultsPanelProps> = ({ onSavingChange, r
         <Grid container spacing={2}>
           <Grid size={{ xs: 12, md: 6 }}>
             <TextField
-              label="Interconnection max output"
+              label={<>Interconnection max output<FieldHelp field="interconnection_max_output_kw" /></>}
               fullWidth
               value={draft.interconnection_max_output_kw}
               onChange={e => setField('interconnection_max_output_kw', e.target.value)}
               slotProps={{ input: { endAdornment: <InputAdornment position="end">kW</InputAdornment> } }}
               type="number"
-              helperText="Discharge cap from the interconnection agreement."
             />
           </Grid>
           <Grid size={{ xs: 12, md: 6 }}>
             <TextField
-              label="Rebound protection SoC floor"
+              label={<>Rebound protection SoC floor<FieldHelp field="rebound_protection_soc_floor_percent" /></>}
               fullWidth
               value={draft.rebound_protection_soc_floor_percent}
               onChange={e =>
@@ -433,12 +470,11 @@ const SiteDefaultsPanel: React.FC<SiteDefaultsPanelProps> = ({ onSavingChange, r
               }
               slotProps={{ input: { endAdornment: <InputAdornment position="end">%</InputAdornment> } }}
               type="number"
-              helperText="Ramp to 0 kW when SoC drops below this floor."
             />
           </Grid>
           <Grid size={{ xs: 12, md: 6 }}>
             <FormControl fullWidth>
-              <InputLabel id="site-variant-label">Site variant</InputLabel>
+              <InputLabel id="site-variant-label">Site variant<FieldHelp field="site_variant" /></InputLabel>
               <Select
                 labelId="site-variant-label"
                 value={draft.site_variant}
