@@ -2,7 +2,6 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Box } from '@mui/material';
 import Sidebar from './components/Sidebar/Sidebar';
-import OverviewPage from './pages/OverviewPage';
 import FDNYPage from './pages/FDNYPage';
 import AdminPage from './pages/AdminPage';
 import AlarmsPage from './pages/AlarmsPage';
@@ -67,7 +66,7 @@ const AppContent: React.FC = () => {
           <SiteStateBannerSlot />
           <Routes>
             <Route path="/" element={<Navigate to="/sld" replace />} />
-            <Route path="/overview" element={<OverviewPage />} />
+            <Route path="/overview" element={<Navigate to="/reports" replace />} />
             <Route path="/alarms" element={<AlarmsPage />} />
             <Route path="/fdny" element={<FDNYPage />} />
             <Route path="/reports" element={<ReportsPage />} />

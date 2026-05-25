@@ -1,18 +1,23 @@
 /**
  * Operations Reports page.
  *
- * For each day in the chosen window, shows how many minutes the site
- * spent charging vs discharging vs holding (the demo's "how long we
- * charged for / discharged for" framing). Backed by the new
- * /api/1/Sites/<id>/ChargeDischargeSummary endpoint, which derives
- * these totals from the existing charging_state readings.
+ * Two chart sections:
+ * 1. Available state of charge — sliding 24h window anchored to "now",
+ *    auto-refreshes every 60s so the right edge tracks the current time.
+ * 2. Charge / discharge / hold time per day — stacked bar for a
+ *    user-chosen date range.
+ *
+ * Both charts support PNG, PDF, and CSV export.
+ *
+ * Below the charts: a "Recent schedule changes" activity feed.
  */
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Box,
   Button,
+  ButtonGroup,
   Card,
   CardContent,
   CircularProgress,
@@ -24,12 +29,13 @@ import {
   Typography,
   useTheme,
 } from '@mui/material';
-import { Assessment, Download } from '@mui/icons-material';
+import { Assessment, Download, Image, PictureAsPdf } from '@mui/icons-material';
 import {
   Bar,
   BarChart,
   CartesianGrid,
   Legend,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -38,15 +44,18 @@ import {
 import type {
   ChargeDischargeBucket,
   RecentScheduleActivityEntry,
+  SocHistoryPoint,
 } from '@newtown-energy/types';
 
 import {
   fetchChargeDischargeSummary,
   fetchRecentScheduleActivity,
 } from '../utils/reportsApi';
+import { fetchSocHistory } from '../utils/socApi';
 import { useSiteContext } from '../utils/SiteContext';
 import { COMMAND_BAR_COLORS } from '../utils/scheduleHelpers';
 import { downloadCsv, toCsv } from '../utils/csv';
+import { exportChartPng, exportChartPdf } from '../utils/chartExport';
 import { errorLog } from '../utils/debug';
 
 export const pageConfig = {
@@ -54,6 +63,10 @@ export const pageConfig = {
   title: 'Reports',
   icon: Assessment,
 };
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
 
 function startOfDaysAgo(days: number): Date {
   const d = new Date();
@@ -75,7 +88,6 @@ function fromDateInput(s: string): Date | null {
 }
 
 function formatDayLabel(day: string): string {
-  // Strip the year for a tidier x-axis; full date appears in the tooltip.
   const parts = day.split('-');
   if (parts.length !== 3) return day;
   return `${parts[1]}/${parts[2]}`;
@@ -88,20 +100,127 @@ function formatMinutes(value: number): string {
   return m === 0 ? `${h}h` : `${h}h ${m}m`;
 }
 
+function formatHourLabel(epochMs: number): string {
+  const d = new Date(epochMs);
+  return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+}
+
+function formatTooltipLabel(epochMs: number): string {
+  return new Date(epochMs).toLocaleString();
+}
+
+// ---------------------------------------------------------------------------
+// SoC chart types
+// ---------------------------------------------------------------------------
+
+interface SocChartPoint {
+  t: number;
+  soc: number;
+}
+
+function toSocChartPoints(points: SocHistoryPoint[]): SocChartPoint[] {
+  return points.map(p => ({
+    t: new Date(`${p.timestamp}Z`).getTime(),
+    soc: p.soc_percent,
+  }));
+}
+
+// ---------------------------------------------------------------------------
+// Chart export button group
+// ---------------------------------------------------------------------------
+
+interface ChartExportProps {
+  chartRef: React.RefObject<HTMLDivElement | null>;
+  filePrefix: string;
+  pdfTitle: string;
+  onCsvExport: () => void;
+  disabled?: boolean;
+}
+
+const ChartExportButtons: React.FC<ChartExportProps> = ({
+  chartRef,
+  filePrefix,
+  pdfTitle,
+  onCsvExport,
+  disabled,
+}) => {
+  const [busy, setBusy] = useState(false);
+  const handlePng = async () => {
+    if (!chartRef.current) return;
+    setBusy(true);
+    try { await exportChartPng(chartRef.current, `${filePrefix}.png`); }
+    catch (err) { errorLog('PNG export failed', err); }
+    finally { setBusy(false); }
+  };
+  const handlePdf = async () => {
+    if (!chartRef.current) return;
+    setBusy(true);
+    try { await exportChartPdf(chartRef.current, `${filePrefix}.pdf`, pdfTitle); }
+    catch (err) { errorLog('PDF export failed', err); }
+    finally { setBusy(false); }
+  };
+  return (
+    <ButtonGroup size="small" variant="outlined" disabled={disabled || busy}>
+      <Button startIcon={<Image />} onClick={handlePng}>PNG</Button>
+      <Button startIcon={<PictureAsPdf />} onClick={handlePdf}>PDF</Button>
+      <Button startIcon={<Download />} onClick={onCsvExport}>CSV</Button>
+    </ButtonGroup>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// Main component
+// ---------------------------------------------------------------------------
+
+const SOC_WINDOW_HOURS = 24;
+const SOC_REFRESH_INTERVAL_MS = 60_000;
+
 const ReportsPage: React.FC = () => {
   const theme = useTheme();
   const { selectedSite } = useSiteContext();
+
+  // -- SoC chart state --
+  const [socPoints, setSocPoints] = useState<SocChartPoint[] | null>(null);
+  const [socError, setSocError] = useState<string | null>(null);
+  const [nowMs, setNowMs] = useState(Date.now());
+  const socChartRef = useRef<HTMLDivElement | null>(null);
+
+  // -- Charge/discharge chart state --
   const [from, setFrom] = useState<Date>(() => startOfDaysAgo(7));
   const [to, setTo] = useState<Date>(() => new Date());
   const [buckets, setBuckets] = useState<ChargeDischargeBucket[] | null>(null);
   const [activity, setActivity] = useState<RecentScheduleActivityEntry[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [cdError, setCdError] = useState<string | null>(null);
+  const [cdLoading, setCdLoading] = useState(false);
+  const cdChartRef = useRef<HTMLDivElement | null>(null);
 
-  const load = useCallback(async () => {
+  // -- SoC data loading with auto-refresh --
+  const loadSoc = useCallback(async () => {
     if (!selectedSite) return;
-    setLoading(true);
-    setError(null);
+    const now = new Date();
+    setNowMs(now.getTime());
+    const windowFrom = new Date(now.getTime() - SOC_WINDOW_HOURS * 3600_000);
+    try {
+      const response = await fetchSocHistory(selectedSite.id, windowFrom, now);
+      setSocPoints(toSocChartPoints(response.points));
+      setSocError(null);
+    } catch (err) {
+      errorLog('ReportsPage: SoC load failed', err);
+      setSocError('Failed to load SoC history.');
+    }
+  }, [selectedSite]);
+
+  useEffect(() => {
+    void loadSoc();
+    const interval = setInterval(() => void loadSoc(), SOC_REFRESH_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [loadSoc]);
+
+  // -- Charge/discharge data loading --
+  const loadCd = useCallback(async () => {
+    if (!selectedSite) return;
+    setCdLoading(true);
+    setCdError(null);
     try {
       const [summary, activityResponse] = await Promise.all([
         fetchChargeDischargeSummary(selectedSite.id, from, to),
@@ -110,16 +229,27 @@ const ReportsPage: React.FC = () => {
       setBuckets(summary.buckets);
       setActivity(activityResponse.entries);
     } catch (err) {
-      errorLog('ReportsPage: failed to load report data', err);
-      setError('Failed to load report data.');
+      errorLog('ReportsPage: charge/discharge load failed', err);
+      setCdError('Failed to load report data.');
     } finally {
-      setLoading(false);
+      setCdLoading(false);
     }
   }, [selectedSite, from, to]);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    void loadCd();
+  }, [loadCd]);
+
+  // -- Derived --
+  const socDomain: [number, number] = useMemo(
+    () => [nowMs - SOC_WINDOW_HOURS * 3600_000, nowMs],
+    [nowMs],
+  );
+
+  const latestSoc = useMemo(() => {
+    if (!socPoints || socPoints.length === 0) return null;
+    return socPoints[socPoints.length - 1].soc;
+  }, [socPoints]);
 
   const totals = useMemo(() => {
     if (!buckets || buckets.length === 0) return null;
@@ -133,7 +263,21 @@ const ReportsPage: React.FC = () => {
     );
   }, [buckets]);
 
-  const handleExportCsv = () => {
+  // -- CSV exports --
+  const handleSocCsv = () => {
+    if (!socPoints || !selectedSite) return;
+    const headers = ['Timestamp', 'SoC (%)'];
+    const rows = socPoints.map(p => [
+      new Date(p.t).toISOString(),
+      p.soc.toFixed(1),
+    ]);
+    downloadCsv(
+      `soc-site-${selectedSite.id}-${new Date().toISOString().slice(0, 10)}.csv`,
+      toCsv(headers, rows),
+    );
+  };
+
+  const handleCdCsv = () => {
     if (!buckets || !selectedSite) return;
     const headers = ['Day', 'Charging (min)', 'Discharging (min)', 'Hold (min)'];
     const rows = buckets.map(b => [
@@ -149,13 +293,9 @@ const ReportsPage: React.FC = () => {
   };
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: 3, overflowY: 'auto', height: '100%' }}>
       <Typography variant="h2" gutterBottom>
         Reports
-      </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        Time the site actually spent charging, discharging, or holding —
-        derived from the RTAC reading log.
       </Typography>
 
       {!selectedSite && (
@@ -164,9 +304,91 @@ const ReportsPage: React.FC = () => {
 
       {selectedSite && (
         <>
+          {/* ---- SoC chart ---- */}
           <Card sx={{ mb: 3 }}>
-            <CardContent sx={{ '&:last-child': { pb: 2 } }}>
-              <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="center">
+            <CardContent>
+              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
+                <Box>
+                  <Typography variant="h6">
+                    Available state of charge — last {SOC_WINDOW_HOURS} hours
+                  </Typography>
+                  {latestSoc !== null && (
+                    <Typography variant="body2" color="text.secondary">
+                      Latest: {latestSoc.toFixed(1)}% · updates every {SOC_REFRESH_INTERVAL_MS / 1000}s
+                    </Typography>
+                  )}
+                </Box>
+                <ChartExportButtons
+                  chartRef={socChartRef}
+                  filePrefix={`soc-site-${selectedSite.id}`}
+                  pdfTitle={`Available State of Charge — ${selectedSite.name}`}
+                  onCsvExport={handleSocCsv}
+                  disabled={!socPoints || socPoints.length === 0}
+                />
+              </Stack>
+
+              {socError && <Alert severity="error" sx={{ mb: 1 }}>{socError}</Alert>}
+
+              {socPoints === null ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
+                  <CircularProgress />
+                </Box>
+              ) : socPoints.length === 0 ? (
+                <Typography variant="body2" color="text.secondary">
+                  No SoC readings in the last {SOC_WINDOW_HOURS} hours. Seed history with{' '}
+                  <code>neems-data seed-soc-history --site-id {selectedSite.id}</code>.
+                </Typography>
+              ) : (
+                <Box ref={socChartRef}>
+                  <ResponsiveContainer width="100%" height={280}>
+                    <BarChart data={socPoints} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+                      <CartesianGrid stroke={theme.palette.divider} strokeDasharray="3 3" />
+                      <XAxis
+                        dataKey="t"
+                        type="number"
+                        domain={socDomain}
+                        scale="time"
+                        tickFormatter={formatHourLabel}
+                        stroke={theme.palette.text.secondary}
+                        tick={{ fontSize: 12 }}
+                      />
+                      <YAxis
+                        domain={[0, 100]}
+                        tickFormatter={v => `${v}%`}
+                        stroke={theme.palette.text.secondary}
+                        tick={{ fontSize: 12 }}
+                        width={48}
+                      />
+                      <Tooltip
+                        labelFormatter={formatTooltipLabel}
+                        formatter={(value: number) => [`${value.toFixed(1)}%`, 'SoC']}
+                        cursor={{ fill: theme.palette.action.hover }}
+                      />
+                      <ReferenceLine
+                        x={nowMs}
+                        stroke={theme.palette.error.main}
+                        strokeDasharray="4 4"
+                        label={{ value: 'Now', position: 'top', fill: theme.palette.error.main, fontSize: 11 }}
+                      />
+                      <Bar
+                        dataKey="soc"
+                        fill={theme.palette.primary.main}
+                        isAnimationActive={false}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </Box>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* ---- Charge / discharge chart ---- */}
+          <Card sx={{ mb: 3 }}>
+            <CardContent>
+              <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="center" sx={{ mb: 2 }}>
+                <Typography variant="h6" sx={{ flex: 1 }}>
+                  Time per day in each state
+                </Typography>
                 <TextField
                   type="date"
                   label="From"
@@ -189,32 +411,18 @@ const ReportsPage: React.FC = () => {
                   }}
                   slotProps={{ inputLabel: { shrink: true } }}
                 />
-                <Box sx={{ flex: 1 }} />
-                <Button
-                  size="small"
-                  variant="outlined"
-                  startIcon={<Download />}
-                  onClick={handleExportCsv}
+                <ChartExportButtons
+                  chartRef={cdChartRef}
+                  filePrefix={`charge-discharge-site-${selectedSite.id}`}
+                  pdfTitle={`Charge/Discharge Summary — ${selectedSite.name}`}
+                  onCsvExport={handleCdCsv}
                   disabled={!buckets || buckets.length === 0}
-                >
-                  Download CSV
-                </Button>
+                />
               </Stack>
-            </CardContent>
-          </Card>
 
-          {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {error}
-            </Alert>
-          )}
+              {cdError && <Alert severity="error" sx={{ mb: 1 }}>{cdError}</Alert>}
 
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Time per day in each state
-              </Typography>
-              {loading && buckets === null ? (
+              {cdLoading && buckets === null ? (
                 <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
                   <CircularProgress />
                 </Box>
@@ -226,51 +434,53 @@ const ReportsPage: React.FC = () => {
                 </Typography>
               ) : (
                 <>
-                  <ResponsiveContainer width="100%" height={360}>
-                    <BarChart
-                      data={buckets}
-                      margin={{ top: 8, right: 16, left: 0, bottom: 0 }}
-                    >
-                      <CartesianGrid stroke={theme.palette.divider} strokeDasharray="3 3" />
-                      <XAxis
-                        dataKey="day"
-                        tickFormatter={formatDayLabel}
-                        stroke={theme.palette.text.secondary}
-                        tick={{ fontSize: 12 }}
-                      />
-                      <YAxis
-                        tickFormatter={v => `${v}m`}
-                        stroke={theme.palette.text.secondary}
-                        tick={{ fontSize: 12 }}
-                        width={56}
-                      />
-                      <Tooltip
-                        formatter={(value: number, name) => [formatMinutes(value), name]}
-                      />
-                      <Legend />
-                      <Bar
-                        dataKey="charging_minutes"
-                        name="Charging"
-                        stackId="state"
-                        fill={COMMAND_BAR_COLORS.charge}
-                        isAnimationActive={false}
-                      />
-                      <Bar
-                        dataKey="discharging_minutes"
-                        name="Discharging"
-                        stackId="state"
-                        fill={COMMAND_BAR_COLORS.discharge}
-                        isAnimationActive={false}
-                      />
-                      <Bar
-                        dataKey="hold_minutes"
-                        name="Hold"
-                        stackId="state"
-                        fill={theme.palette.grey[400]}
-                        isAnimationActive={false}
-                      />
-                    </BarChart>
-                  </ResponsiveContainer>
+                  <Box ref={cdChartRef}>
+                    <ResponsiveContainer width="100%" height={360}>
+                      <BarChart
+                        data={buckets}
+                        margin={{ top: 8, right: 16, left: 0, bottom: 0 }}
+                      >
+                        <CartesianGrid stroke={theme.palette.divider} strokeDasharray="3 3" />
+                        <XAxis
+                          dataKey="day"
+                          tickFormatter={formatDayLabel}
+                          stroke={theme.palette.text.secondary}
+                          tick={{ fontSize: 12 }}
+                        />
+                        <YAxis
+                          tickFormatter={v => `${v}m`}
+                          stroke={theme.palette.text.secondary}
+                          tick={{ fontSize: 12 }}
+                          width={56}
+                        />
+                        <Tooltip
+                          formatter={(value: number, name) => [formatMinutes(value), name]}
+                        />
+                        <Legend />
+                        <Bar
+                          dataKey="charging_minutes"
+                          name="Charging"
+                          stackId="state"
+                          fill={COMMAND_BAR_COLORS.charge}
+                          isAnimationActive={false}
+                        />
+                        <Bar
+                          dataKey="discharging_minutes"
+                          name="Discharging"
+                          stackId="state"
+                          fill={COMMAND_BAR_COLORS.discharge}
+                          isAnimationActive={false}
+                        />
+                        <Bar
+                          dataKey="hold_minutes"
+                          name="Hold"
+                          stackId="state"
+                          fill={theme.palette.grey[400]}
+                          isAnimationActive={false}
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </Box>
 
                   {totals && (
                     <Box sx={{ mt: 2 }}>
@@ -286,6 +496,7 @@ const ReportsPage: React.FC = () => {
             </CardContent>
           </Card>
 
+          {/* ---- Recent schedule changes ---- */}
           <Card sx={{ mt: 3 }}>
             <CardContent>
               <Typography variant="h6" gutterBottom>
