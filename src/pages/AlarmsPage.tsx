@@ -223,7 +223,6 @@ const AlarmsPage: React.FC = () => {
         case 'zone':
           return ZONE_DISPLAY_NAMES[a.zone].localeCompare(ZONE_DISPLAY_NAMES[b.zone]) * dir;
         case 'name':
-        default:
           return a.name.localeCompare(b.name) * dir;
       }
     },

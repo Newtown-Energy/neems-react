@@ -143,8 +143,8 @@ const SocMiniChart: React.FC<SocMiniChartProps> = ({
             width={48}
           />
           <Tooltip
-            labelFormatter={formatTooltipLabel}
-            formatter={(value: number) => [`${value.toFixed(1)}%`, 'SoC']}
+            labelFormatter={(label) => formatTooltipLabel(label as number)}
+            formatter={(value) => [`${(value as number).toFixed(1)}%`, 'SoC']}
             cursor={{ fill: theme.palette.action.hover }}
           />
           <Bar

@@ -240,7 +240,9 @@ const PeakSeasonWizard: React.FC<PeakSeasonWizardProps> = ({ open, onClose, onCo
         rebound_protection_soc_floor_percent: Number.parseFloat(
           draft.rebound_protection_soc_floor_percent
         ),
-        site_variant: null
+        site_variant: null,
+        charge_rate_percent: null,
+        discharge_rate_percent: null
       });
       await refresh();
 

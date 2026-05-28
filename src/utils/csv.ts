@@ -10,9 +10,17 @@ const SPECIAL = /[",\r\n]/;
 
 function encodeField(value: unknown): string {
   if (value === null || value === undefined) return '';
-  const s = String(value);
+  const s = stringifyScalar(value);
   if (!SPECIAL.test(s)) return s;
   return `"${s.replace(/"/g, '""')}"`;
+}
+
+function stringifyScalar(value: unknown): string {
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') {
+    return value.toString();
+  }
+  return JSON.stringify(value) ?? '';
 }
 
 export function toCsv(headers: string[], rows: ReadonlyArray<ReadonlyArray<unknown>>): string {

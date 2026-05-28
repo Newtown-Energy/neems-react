@@ -29,7 +29,7 @@ export async function fetchChargeDischargeSummary(
  */
 export async function fetchRecentScheduleActivity(
   siteId: number,
-  limit: number = 50,
+  limit = 50,
 ): Promise<RecentScheduleActivityResponse> {
   return await apiRequest<RecentScheduleActivityResponse>(
     `/api/1/Sites/${siteId}/RecentScheduleActivity?limit=${limit}`,

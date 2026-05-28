@@ -66,13 +66,18 @@ function clampUnitFraction(percent: number | null | undefined): number {
  * that a charging-at-half-power site renders a half-height orange bar
  * while a full-power discharge fills the upper half of the cell.
  */
+interface CommandBarLayout {
+  axisY: number;
+  maxBarHeight: number;
+  chargeFraction: number;
+  dischargeFraction: number;
+}
+
 function commandBar(
   cmd: ScheduleCommandDto,
-  axisY: number,
-  maxBarHeight: number,
-  chargeFraction: number,
-  dischargeFraction: number
+  layout: CommandBarLayout
 ): { x: number; y: number; width: number; height: number; fill: string } | null {
+  const { axisY, maxBarHeight, chargeFraction, dischargeFraction } = layout;
   if (cmd.duration_seconds == null || cmd.duration_seconds <= 0) return null;
   const startPct = (cmd.execution_offset_seconds / TOTAL_SECONDS) * 100;
   const widthPct = Math.min(
@@ -120,7 +125,7 @@ const DayBarChart: React.FC<DayBarChartProps> = ({
     >
       <line x1={0} x2={100} y1={axisY} y2={axisY} stroke="#bdbdbd" strokeWidth={0.5} />
       {commands.map(cmd => {
-        const bar = commandBar(cmd, axisY, maxBarHeight, chargeFraction, dischargeFraction);
+        const bar = commandBar(cmd, { axisY, maxBarHeight, chargeFraction, dischargeFraction });
         if (!bar) return null;
         const power = sitePowerKw ? ` @ ~${Math.round(sitePowerKw)} kW` : '';
         const endSeconds = Math.min(

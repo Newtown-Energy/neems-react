@@ -171,28 +171,24 @@ const CommandCalendar: React.FC<CommandCalendarProps> = ({
   const handlePrev = useCallback(() => {
     if (viewMode === 'month') {
       setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
+    } else if (weekIndex > 0) {
+      setWeekIndex(weekIndex - 1);
     } else {
-      if (weekIndex > 0) {
-        setWeekIndex(weekIndex - 1);
-      } else {
-        const prevMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1);
-        setCurrentMonth(prevMonth);
-        setWeekIndex(getWeekCount(prevMonth) - 1);
-      }
+      const prevMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1);
+      setCurrentMonth(prevMonth);
+      setWeekIndex(getWeekCount(prevMonth) - 1);
     }
   }, [viewMode, currentMonth, weekIndex, setCurrentMonth]);
 
   const handleNext = useCallback(() => {
     if (viewMode === 'month') {
       setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
+    } else if (weekIndex < totalWeeks - 1) {
+      setWeekIndex(weekIndex + 1);
     } else {
-      if (weekIndex < totalWeeks - 1) {
-        setWeekIndex(weekIndex + 1);
-      } else {
-        const nextMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1);
-        setCurrentMonth(nextMonth);
-        setWeekIndex(0);
-      }
+      const nextMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1);
+      setCurrentMonth(nextMonth);
+      setWeekIndex(0);
     }
   }, [viewMode, currentMonth, weekIndex, totalWeeks, setCurrentMonth]);
 

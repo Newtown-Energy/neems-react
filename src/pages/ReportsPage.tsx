@@ -212,7 +212,7 @@ const ReportsPage: React.FC = () => {
 
   useEffect(() => {
     void loadSoc();
-    const interval = setInterval(() => void loadSoc(), SOC_REFRESH_INTERVAL_MS);
+    const interval = setInterval(() => { void loadSoc(); }, SOC_REFRESH_INTERVAL_MS);
     return () => clearInterval(interval);
   }, [loadSoc]);
 
@@ -360,8 +360,8 @@ const ReportsPage: React.FC = () => {
                         width={48}
                       />
                       <Tooltip
-                        labelFormatter={formatTooltipLabel}
-                        formatter={(value: number) => [`${value.toFixed(1)}%`, 'SoC']}
+                        labelFormatter={(label) => formatTooltipLabel(label as number)}
+                        formatter={(value) => [`${(value as number).toFixed(1)}%`, 'SoC']}
                         cursor={{ fill: theme.palette.action.hover }}
                       />
                       <ReferenceLine
@@ -454,7 +454,7 @@ const ReportsPage: React.FC = () => {
                           width={56}
                         />
                         <Tooltip
-                          formatter={(value: number, name) => [formatMinutes(value), name]}
+                          formatter={(value, name) => [formatMinutes(value as number), name]}
                         />
                         <Legend />
                         <Bar

@@ -106,7 +106,7 @@ export function clearAlarmAcknowledgement(alarmNum: number): void {
   const map = readStored();
   const key = ackKey(alarmNum);
   if (key in map) {
-    delete map[key];
+    Reflect.deleteProperty(map, key);
     writeStored(map);
     window.dispatchEvent(new CustomEvent('neems:alarmAck'));
   }

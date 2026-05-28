@@ -13,6 +13,7 @@ function getSvgFromContainer(container: HTMLElement): SVGSVGElement | null {
 }
 
 function svgToCanvas(svg: SVGSVGElement, scale = 2): Promise<HTMLCanvasElement> {
+  // eslint-disable-next-line promise/avoid-new -- wraps event-based image decoding; no async equivalent
   return new Promise((resolve, reject) => {
     const serializer = new XMLSerializer();
     const svgStr = serializer.serializeToString(svg);
@@ -22,7 +23,10 @@ function svgToCanvas(svg: SVGSVGElement, scale = 2): Promise<HTMLCanvasElement> 
     canvas.width = width * scale;
     canvas.height = height * scale;
     const ctx = canvas.getContext('2d');
-    if (!ctx) return reject(new Error('Canvas context unavailable'));
+    if (!ctx) {
+      reject(new Error('Canvas context unavailable'));
+      return;
+    }
 
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -32,7 +36,7 @@ function svgToCanvas(svg: SVGSVGElement, scale = 2): Promise<HTMLCanvasElement> 
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
       resolve(canvas);
     };
-    img.onerror = () => reject(new Error('Failed to render SVG to image'));
+    img.onerror = () => { reject(new Error('Failed to render SVG to image')); };
     img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgStr)}`;
   });
 }
@@ -41,8 +45,9 @@ export async function exportChartPng(container: HTMLElement, filename: string): 
   const svg = getSvgFromContainer(container);
   if (!svg) throw new Error('No recharts SVG found in container');
   const canvas = await svgToCanvas(svg);
+  // eslint-disable-next-line promise/avoid-new -- wraps canvas.toBlob callback API
   const blob = await new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob(b => (b ? resolve(b) : reject(new Error('toBlob failed'))), 'image/png');
+    canvas.toBlob(b => { b ? resolve(b) : reject(new Error('toBlob failed')); }, 'image/png');
   });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -59,6 +64,7 @@ export async function exportChartPdf(container: HTMLElement, filename: string, t
   const imgData = canvas.toDataURL('image/png');
   const { width, height } = svg.getBoundingClientRect();
 
+  // eslint-disable-next-line new-cap -- jsPDF is the library's canonical export name
   const pdf = new jsPDF({
     orientation: width > height ? 'landscape' : 'portrait',
     unit: 'pt',
