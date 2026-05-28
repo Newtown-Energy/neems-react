@@ -9,6 +9,7 @@
     "lint": "npm run lint:eslint && npm run lint:tsc",
     "lint:eslint": "eslint ./src --max-warnings=0",
     "lint:tsc": "tsc --noEmit",
+    "test:unit": "bun test src/utils",
     "preview": "vite preview",
     "generate-types": "dosh generate-types"
   },
@@ -21,10 +22,12 @@
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-router-dom": "^7.7.0",
-    "react-svg-pan-zoom": "^3.13.1"
+    "react-svg-pan-zoom": "^3.13.1",
+    "jspdf": "^3.0.1",
+    "recharts": "^3.8.1"
   },
   "devDependencies": {
-    "@newtown-energy/types": "0.3.1",
+    "@newtown-energy/types": "0.3.2",
     "@types/jest": "^30.0.0",
     "@types/node": "^24.0.10",
     "@types/react": "^19.1.8",

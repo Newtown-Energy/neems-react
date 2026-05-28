@@ -2,6 +2,7 @@ import React from 'react';
 import { useTheme } from '@mui/material';
 import type { SldComponentState } from '../types';
 import { severityColor } from './useStatusColors';
+import { useAllAlarmsAcknowledged } from '../../../utils/alarmAcknowledge';
 
 interface AlarmGlowProps {
   state: SldComponentState;
@@ -22,6 +23,11 @@ interface AlarmGlowProps {
  * carries an Emergency or Critical active alarm. Sits in the component's
  * local coordinate space (assumes the parent has already translated to the
  * entity's center) so callers only need to provide the entity's half-size.
+ *
+ * When *all* of the component's active alarms have been acknowledged via
+ * [acknowledgeAlarm], the glow renders without its pulse animation so
+ * the operator isn't visually pestered — the static color remains as a
+ * findable cue that the alarm is still present.
  */
 const AlarmGlow: React.FC<AlarmGlowProps> = ({
   state,
@@ -32,6 +38,9 @@ const AlarmGlow: React.FC<AlarmGlowProps> = ({
   padding = 5,
 }) => {
   const theme = useTheme();
+  const allAcked = useAllAlarmsAcknowledged(
+    state.activeAlarms.map(a => a.alarm_num)
+  );
 
   if (!state.highestSeverity) return null;
   const shouldPulse =
@@ -39,6 +48,7 @@ const AlarmGlow: React.FC<AlarmGlowProps> = ({
   if (!shouldPulse) return null;
 
   const color = severityColor(state.highestSeverity, theme);
+  const animate = !allAcked;
 
   // No stroke on the glow — the parent entity already renders a severity-tinted
   // stroke via useStatusColors, so an outlined halo here would read as a
@@ -46,13 +56,15 @@ const AlarmGlow: React.FC<AlarmGlowProps> = ({
   // readable without competing with the entity outline.
   if (shape === 'circle' && radius != null) {
     return (
-      <circle cx={0} cy={0} r={radius + padding} fill={color} opacity={0.25}>
-        <animate
-          attributeName="opacity"
-          values="0.3;0.08;0.3"
-          dur="1.5s"
-          repeatCount="indefinite"
-        />
+      <circle cx={0} cy={0} r={radius + padding} fill={color} opacity={animate ? 0.25 : 0.18}>
+        {animate && (
+          <animate
+            attributeName="opacity"
+            values="0.3;0.08;0.3"
+            dur="1.5s"
+            repeatCount="indefinite"
+          />
+        )}
       </circle>
     );
   }
@@ -65,14 +77,16 @@ const AlarmGlow: React.FC<AlarmGlowProps> = ({
       height={halfH * 2 + padding * 2}
       fill={color}
       rx={4}
-      opacity={0.25}
+      opacity={animate ? 0.25 : 0.18}
     >
-      <animate
-        attributeName="opacity"
-        values="0.3;0.08;0.3"
-        dur="1.5s"
-        repeatCount="indefinite"
-      />
+      {animate && (
+        <animate
+          attributeName="opacity"
+          values="0.3;0.08;0.3"
+          dur="1.5s"
+          repeatCount="indefinite"
+        />
+      )}
     </rect>
   );
 };

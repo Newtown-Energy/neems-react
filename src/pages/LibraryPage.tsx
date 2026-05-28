@@ -5,17 +5,31 @@
  * Create, edit, and delete schedules. Configure application rules.
  */
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
+  Alert,
   Box,
-  Typography,
-  Button
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Stack,
+  Typography
 } from '@mui/material';
-import { LibraryBooks as LibraryIcon, ArrowBack as ArrowBackIcon } from '@mui/icons-material';
+import {
+  ArrowBack as ArrowBackIcon,
+  LibraryBooks as LibraryIcon,
+  Settings as SettingsIcon
+} from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 
 import ScheduleLibrary from '../components/ScheduleLibrary';
 import ApplicationRuleDialog from '../components/ApplicationRuleDialog';
+import SiteSelector from '../components/SiteSelector/SiteSelector';
+import SiteDefaultsPanel, { type SiteDefaultsPanelHandle } from '../components/SiteDefaultsPanel/SiteDefaultsPanel';
+
+import { useSiteContext } from '../utils/SiteContext';
 
 import type { ScheduleLibraryItem } from '@newtown-energy/types';
 
@@ -27,12 +41,12 @@ export const pageConfig = {
 
 const LibraryPage: React.FC = () => {
   const navigate = useNavigate();
+  const { selectedSiteId, selectedSite } = useSiteContext();
 
-  // Hard-coded site ID for MVP
-  const HARDCODED_SITE_ID = 1;
-
-  // State
   const [rulesDialogItem, setRulesDialogItem] = useState<ScheduleLibraryItem | null>(null);
+  const [defaultsDialogOpen, setDefaultsDialogOpen] = useState(false);
+  const [defaultsSaving, setDefaultsSaving] = useState(false);
+  const defaultsPanelRef = useRef<SiteDefaultsPanelHandle>(null);
 
   const handleManageRules = (item: ScheduleLibraryItem) => {
     setRulesDialogItem(item);
@@ -41,6 +55,8 @@ const LibraryPage: React.FC = () => {
   const handleRulesDialogClose = () => {
     setRulesDialogItem(null);
   };
+
+  const closedLoopOff = selectedSite !== null && !selectedSite.closed_loop_enabled;
 
   return (
     <Box sx={{ p: 3, height: 'calc(100vh - 100px)' }}>
@@ -53,18 +69,44 @@ const LibraryPage: React.FC = () => {
           Back to Calendar
         </Button>
       </Box>
-      <Typography variant="h4" gutterBottom>
-        Schedule Library
-      </Typography>
-      <Typography variant="body2" color="text.secondary" gutterBottom sx={{ mb: 3 }}>
-        Create and manage reusable schedules. Configure when each schedule is applied using rules.
-      </Typography>
 
-      <Box sx={{ height: 'calc(100% - 100px)' }}>
-        <ScheduleLibrary
-          siteId={HARDCODED_SITE_ID}
-          onRequestManageRules={handleManageRules}
-        />
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+        <Box>
+          <Typography variant="h4" gutterBottom>
+            Schedule Library
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Create and manage reusable schedules. Configure when each schedule is applied using rules.
+          </Typography>
+        </Box>
+        <Stack direction="row" spacing={2} alignItems="center">
+          <SiteSelector />
+          <Button
+            variant="outlined"
+            startIcon={<SettingsIcon />}
+            onClick={() => setDefaultsDialogOpen(true)}
+            disabled={!selectedSite}
+          >
+            Site defaults
+          </Button>
+        </Stack>
+      </Box>
+
+      {closedLoopOff && (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          Closed-loop control is disabled for this site — schedules will be visualized but not enforced.
+        </Alert>
+      )}
+
+      <Box sx={{ height: 'calc(100% - 160px)' }}>
+        {selectedSiteId === null ? (
+          <Alert severity="info">No site available.</Alert>
+        ) : (
+          <ScheduleLibrary
+            siteId={selectedSiteId}
+            onRequestManageRules={handleManageRules}
+          />
+        )}
       </Box>
 
       {/* Application Rules Dialog */}
@@ -73,6 +115,35 @@ const LibraryPage: React.FC = () => {
         libraryItem={rulesDialogItem}
         onClose={handleRulesDialogClose}
       />
+
+      <Dialog
+        open={defaultsDialogOpen}
+        onClose={() => setDefaultsDialogOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          Site defaults{selectedSite ? ` — ${selectedSite.name}` : ''}
+        </DialogTitle>
+        <DialogContent dividers>
+          <SiteDefaultsPanel ref={defaultsPanelRef} onSavingChange={setDefaultsSaving} />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDefaultsDialogOpen(false)} disabled={defaultsSaving}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            disabled={defaultsSaving || !selectedSite}
+            onClick={async () => {
+              const ok = await defaultsPanelRef.current?.save();
+              if (ok) setDefaultsDialogOpen(false);
+            }}
+          >
+            {defaultsSaving ? 'Saving…' : 'Save defaults'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

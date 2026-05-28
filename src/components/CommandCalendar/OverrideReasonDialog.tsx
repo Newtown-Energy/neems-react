@@ -44,23 +44,30 @@ const OverrideReasonDialog: React.FC<OverrideReasonDialogProps> = ({
             You are switching to: <strong>{pendingScheduleSwitch?.name}</strong>
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Optionally provide a reason for this override to help explain why this date uses a different schedule:
+            Please provide a reason for this override. The reason appears
+            in this day's change history and in the system-wide audit log.
           </Typography>
           <TextField
             fullWidth
+            required
             multiline
             rows={3}
-            label="Override Reason (optional)"
+            label="Override reason"
             placeholder="e.g., Holiday, special event, maintenance, etc."
             value={reason}
             onChange={(e) => setReason(e.target.value)}
-            helperText="This will be visible when viewing this day's schedule"
+            helperText="Required — describe why this date uses a different schedule."
+            error={reason.trim().length === 0}
           />
         </Box>
       </DialogContent>
       <DialogActions>
         <Button onClick={onCancel}>Cancel</Button>
-        <Button onClick={() => onConfirm(reason)} variant="contained">
+        <Button
+          onClick={() => onConfirm(reason)}
+          variant="contained"
+          disabled={reason.trim().length === 0}
+        >
           Apply Override
         </Button>
       </DialogActions>

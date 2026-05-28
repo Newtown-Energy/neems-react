@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Box,
+  Button,
   Card,
   CardContent,
   Chip,
@@ -22,7 +23,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import { Refresh } from '@mui/icons-material';
+import { Download, Refresh } from '@mui/icons-material';
 import type {
   AlarmDefinitionDto,
   AlarmHistoryEntry,
@@ -34,6 +35,7 @@ import {
   getSeverityColor,
 } from '../utils/alarmHelpers';
 import { resolveAlarmSeverity } from '../config/siteConfig';
+import { downloadCsv, toCsv } from '../utils/csv';
 import { errorLog } from '../utils/debug';
 
 export const pageConfig = {
@@ -136,6 +138,28 @@ const FDNYPage: React.FC = () => {
     return m;
   }, [definitions]);
 
+  const handleExportCsv = useCallback(() => {
+    const headers = ['Time', 'Alarm', 'Zone', 'Severity', 'Transition', 'Status'];
+    const rows = sortedEntries.map((entry) => {
+      const def = definitionsByNum.get(entry.alarm_num);
+      const severity = resolveAlarmSeverity(
+        entry.alarm_num,
+        def?.severity ?? entry.severity,
+      );
+      return [
+        new Date(entry.timestamp).toISOString(),
+        formatAlarmName(entry.name),
+        ZONE_DISPLAY_NAMES[entry.zone],
+        severity,
+        entry.active ? 'Activated' : 'Cleared',
+        isCurrentRow(entry) ? 'CURRENT' : '',
+      ];
+    });
+    const csv = toCsv(headers, rows);
+    const stamp = (d: Date) => d.toISOString().slice(0, 10);
+    downloadCsv(`fdny-alarms-${stamp(from)}_to_${stamp(to)}.csv`, csv);
+  }, [sortedEntries, definitionsByNum, isCurrentRow, from, to]);
+
   return (
     <Box sx={{ p: 3 }}>
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
@@ -212,6 +236,15 @@ const FDNYPage: React.FC = () => {
             <Typography variant="body2" color="text.secondary" sx={{ ml: 'auto' }}>
               {sortedEntries.length} transition{sortedEntries.length === 1 ? '' : 's'}
             </Typography>
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<Download />}
+              onClick={handleExportCsv}
+              disabled={sortedEntries.length === 0}
+            >
+              Download CSV
+            </Button>
           </Stack>
         </CardContent>
       </Card>

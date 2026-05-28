@@ -103,19 +103,41 @@ export function getCommandTypeLabel(type: CommandType): string {
 }
 
 /**
- * Get Material-UI color for command type chip
+ * Get Material-UI color for command type chip.
  *
- * @param type - Command type
- * @returns MUI color name
+ * Per Demo Script v2, the calendar reserves orange for charge (drawn
+ * below the zero line) and blue for discharge (drawn above). Green and
+ * red are reserved for breaker states elsewhere in the SLD, so we don't
+ * use them here. Trickle charge is the same family as charge but visually
+ * subdued via the `default` chip color.
  */
-export function getCommandTypeColor(type: CommandType): 'success' | 'warning' | 'info' | 'default' {
-  const colors: Record<CommandType, 'success' | 'warning' | 'info'> = {
-    charge: 'success',      // green
-    discharge: 'warning',   // orange
-    trickle_charge: 'info'  // blue
+export function getCommandTypeColor(
+  type: CommandType
+): 'warning' | 'info' | 'default' {
+  const colors: Record<CommandType, 'warning' | 'info' | 'default'> = {
+    charge: 'warning',         // orange
+    discharge: 'info',         // blue
+    trickle_charge: 'default'  // gray — same direction as charge but lower power
   };
   return colors[type] || 'default';
 }
+
+/**
+ * Hex fill colors for the day-cell bar chart. The MUI chip color tokens
+ * (`getCommandTypeColor`) map to roughly these palettes but the bar
+ * renderer needs explicit hex values to draw SVG fills.
+ *
+ *   charge / trickle_charge → orange (bars below 0 kW)
+ *   discharge              → blue   (bars above 0 kW)
+ *
+ * Kept in sync with the MUI theme defaults (`warning.main`, `info.main`)
+ * so chips and bars read as the same color at a glance.
+ */
+export const COMMAND_BAR_COLORS: Record<CommandType, string> = {
+  charge: '#ed6c02',
+  discharge: '#0288d1',
+  trickle_charge: '#f6a536'
+};
 
 /**
  * Validate hour value (0-23)
@@ -260,10 +282,13 @@ export function formatScheduleDate(date: Date): string {
  * Check if a date is in the past (before today)
  *
  * @param date - Date to check
- * @returns true if date is before today
+ * @param now - Reference "now" (defaults to wall-clock). Lets callers pass
+ *   the demo-overrides `forcedNow` clock so calendar past-shading follows
+ *   the same clock the rest of the UI is using.
+ * @returns true if date is before "today" as defined by `now`
  */
-export function isPastDate(date: Date): boolean {
-  const today = new Date();
+export function isPastDate(date: Date, now: Date = new Date()): boolean {
+  const today = new Date(now);
   today.setHours(0, 0, 0, 0);
   const checkDate = new Date(date);
   checkDate.setHours(0, 0, 0, 0);
@@ -274,14 +299,14 @@ export function isPastDate(date: Date): boolean {
  * Check if a date is today
  *
  * @param date - Date to check
- * @returns true if date is today
+ * @param now - Reference "now" (defaults to wall-clock). See [isPastDate].
+ * @returns true if date is the same calendar day as `now`
  */
-export function isToday(date: Date): boolean {
-  const today = new Date();
+export function isToday(date: Date, now: Date = new Date()): boolean {
   return (
-    date.getFullYear() === today.getFullYear() &&
-    date.getMonth() === today.getMonth() &&
-    date.getDate() === today.getDate()
+    date.getFullYear() === now.getFullYear() &&
+    date.getMonth() === now.getMonth() &&
+    date.getDate() === now.getDate()
   );
 }
 

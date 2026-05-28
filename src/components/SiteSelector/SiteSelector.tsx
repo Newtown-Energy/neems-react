@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import {
   FormControl,
   InputLabel,
@@ -8,75 +8,29 @@ import {
   Alert,
   type SelectChangeEvent
 } from '@mui/material';
-import { apiRequestWithMapping, ApiError } from '../../utils/api';
-import type { Site } from '@newtown-energy/types';
-import { debugLog, errorLog } from '../../utils/debug';
+
+import { useSiteContext } from '../../utils/SiteContext';
 
 interface SiteSelectorProps {
-  selectedSiteId: number | null;
-  onSiteChange: (siteId: number) => void;
   label?: string;
   disabled?: boolean;
+  size?: 'small' | 'medium';
+  /** Override the maxWidth applied to the dropdown — defaults to 320px. */
+  maxWidth?: number;
 }
 
 /**
- * Site Selector Component
- *
- * Dropdown component for selecting a site. Fetches available sites
- * based on user permissions and displays them in a select input.
+ * Site selector dropdown. Reads from the shared [SiteContext] so a
+ * selection made on any page is reflected everywhere the selector is
+ * rendered. The list of sites is whatever the current user can see.
  */
 const SiteSelector: React.FC<SiteSelectorProps> = ({
-  selectedSiteId,
-  onSiteChange,
-  label = 'Select Site',
-  disabled = false
+  label = 'Site',
+  disabled = false,
+  size = 'small',
+  maxWidth = 320
 }) => {
-  const [sites, setSites] = useState<Site[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    fetchSites();
-  }, []);
-
-  const fetchSites = async () => {
-    debugLog('SiteSelector: Fetching sites');
-    setLoading(true);
-    setError(null);
-    try {
-      // Fetch all sites the user has access to
-      const data = await apiRequestWithMapping<Site[]>('/api/1/Sites');
-      debugLog('SiteSelector: Sites loaded', {
-        count: data.length,
-        sites: data.map(s => ({ id: s.id, name: s.name }))
-      });
-      setSites(data);
-
-      // Auto-select first site if none selected
-      if (!selectedSiteId && data.length > 0) {
-        debugLog('SiteSelector: Auto-selecting first site', { siteId: data[0].id, name: data[0].name });
-        onSiteChange(data[0].id);
-      }
-    } catch (err) {
-      errorLog('Error fetching sites:', err);
-      debugLog('SiteSelector: Error fetching sites', err);
-      if (err instanceof ApiError) {
-        setError(`Failed to load sites: ${err.message}`);
-      } else {
-        setError('Failed to load sites');
-      }
-      setSites([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleChange = (event: SelectChangeEvent<number>) => {
-    const siteId = event.target.value as number;
-    const site = sites.find(s => s.id === siteId);
-    debugLog('SiteSelector: Site changed', { siteId, siteName: site?.name });
-    onSiteChange(siteId);
-  };
+  const { sites, selectedSiteId, setSelectedSiteId, loading, error } = useSiteContext();
 
   if (error) {
     return (
@@ -86,16 +40,23 @@ const SiteSelector: React.FC<SiteSelectorProps> = ({
     );
   }
 
+  const handleChange = (event: SelectChangeEvent<number>) => {
+    const id = event.target.value as number;
+    if (Number.isFinite(id)) {
+      setSelectedSiteId(id);
+    }
+  };
+
   return (
-    <FormControl fullWidth disabled={disabled || loading}>
+    <FormControl size={size} sx={{ minWidth: 200, maxWidth }} disabled={disabled || loading}>
       <InputLabel id="site-selector-label">{label}</InputLabel>
       <Select
         labelId="site-selector-label"
         id="site-selector"
-        value={selectedSiteId || ''}
+        value={selectedSiteId ?? ''}
         label={label}
         onChange={handleChange}
-        endAdornment={loading ? <CircularProgress size={20} sx={{ mr: 2 }} /> : null}
+        endAdornment={loading ? <CircularProgress size={16} sx={{ mr: 3 }} /> : null}
       >
         {sites.length === 0 && !loading && (
           <MenuItem value="" disabled>

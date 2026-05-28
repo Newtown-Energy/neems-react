@@ -10,6 +10,8 @@ import {
 import AccountTreeIcon from '@mui/icons-material/AccountTree';
 import SingleLineDiagram from '../components/SingleLineDiagram/SingleLineDiagram';
 import type { SldDiagramState } from '../components/SingleLineDiagram/types';
+// DemoControlsDrawer is now mounted at the app level (fixed
+// bottom-right) and self-gates to admin roles.
 
 export const pageConfig = {
   id: 'sld',

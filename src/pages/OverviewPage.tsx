@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Box, Typography, Card, CardContent, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, List, ListItem, ListItemText, ListItemIcon, Chip, Alert, CircularProgress, Button } from '@mui/material';
-import { TrendingDown, CheckCircle, Dashboard } from '@mui/icons-material';
+import { CheckCircle, Dashboard } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import type { ActiveAlarmsResponse } from '@newtown-energy/types';
 import { fetchActiveAlarms } from '../utils/alarmApi';
 import { formatAlarmName, getSeverityColor, getSeverityOrder, ZONE_DISPLAY_NAMES } from '../utils/alarmHelpers';
+import { useSiteContext } from '../utils/SiteContext';
 import { errorLog } from '../utils/debug';
+import SocMiniChart from '../components/SocMiniChart/SocMiniChart';
 
 export const pageConfig = {
   id: 'overview',
@@ -15,6 +17,7 @@ export const pageConfig = {
 
 const OverviewPage: React.FC = () => {
   const navigate = useNavigate();
+  const { selectedSite } = useSiteContext();
   const [alarmData, setAlarmData] = useState<ActiveAlarmsResponse | null>(null);
   const [alarmLoading, setAlarmLoading] = useState(true);
   const [alarmError, setAlarmError] = useState<string | null>(null);
@@ -38,12 +41,16 @@ const OverviewPage: React.FC = () => {
     return () => clearInterval(interval);
   }, [loadAlarms]);
 
-  // Top 5 most severe alarms for the summary
+  // Demo feedback (2026-05-18): only show the top 2 site-wide alarms
+  // inline, with a "+N more" link to the full list when there's more.
+  const TOP_ALARM_LIMIT = 2;
+  const totalAlarms = alarmData?.alarms.length ?? 0;
   const topAlarms = alarmData
     ? [...alarmData.alarms]
         .sort((a, b) => getSeverityOrder(a.severity) - getSeverityOrder(b.severity))
-        .slice(0, 5)
+        .slice(0, TOP_ALARM_LIMIT)
     : [];
+  const additionalAlarmCount = Math.max(0, totalAlarms - topAlarms.length);
 
   const severityCounts: Record<string, number> = {};
   if (alarmData) {
@@ -58,43 +65,20 @@ const OverviewPage: React.FC = () => {
         Overview
       </Typography>
 
-      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 3, mb: 3 }}>
-        <Card>
-          <CardContent>
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Typography variant="h6" gutterBottom>
+            Available state of charge — last 24 hours
+          </Typography>
+          {selectedSite ? (
+            <SocMiniChart siteId={selectedSite.id} />
+          ) : (
             <Typography variant="body2" color="text.secondary">
-              Monthly flibbers
+              Select a site to view its SoC history.
             </Typography>
-            <Typography variant="h4" component="div">
-              1,018
-            </Typography>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent>
-            <Typography variant="body2" color="text.secondary">
-              Total Whatchamacallits
-            </Typography>
-            <Typography variant="h4" component="div">
-              5,133
-            </Typography>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent>
-            <Typography variant="body2" color="text.secondary">
-              TSLA share price
-            </Typography>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <TrendingDown color="error" />
-              <Typography variant="h4" component="div" color="error">
-                22.8%
-              </Typography>
-            </Box>
-          </CardContent>
-        </Card>
-      </Box>
+          )}
+        </CardContent>
+      </Card>
 
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '2fr 1fr' }, gap: 3 }}>
         <Card>
@@ -177,6 +161,14 @@ const OverviewPage: React.FC = () => {
                   </TableBody>
                 </Table>
               </TableContainer>
+            )}
+
+            {additionalAlarmCount > 0 && (
+              <Box sx={{ mt: 1, textAlign: 'right' }}>
+                <Button size="small" onClick={() => navigate('/alarms')}>
+                  +{additionalAlarmCount} more — view all site-wide alarms
+                </Button>
+              </Box>
             )}
           </CardContent>
         </Card>

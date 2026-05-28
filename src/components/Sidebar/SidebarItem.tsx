@@ -31,7 +31,10 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
         sx={{
           px: collapsed ? 2 : 2.5,
           py: 1,
-          borderRadius: 2,
+          // No border radius — the sidebar items are full-width rows
+          // against the sidebar's edge, so rounded corners on the
+          // active state read as a stuck-on chip.
+          borderRadius: 0,
           justifyContent: collapsed ? 'center' : 'flex-start',
           minHeight: 48,
         }}

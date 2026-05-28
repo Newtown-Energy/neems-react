@@ -5,10 +5,25 @@ import {
   Loop as LoopIcon,
   Star as StarIcon
 } from '@mui/icons-material';
-import type { CalendarDaySchedule } from '@newtown-energy/types';
+import type { CalendarDaySchedule, ScheduleLibraryItem } from '@newtown-energy/types';
 import { isPastDate, isToday, toISODateString } from '../../utils/scheduleHelpers';
+import { useEffectiveNow } from '../../utils/demoOverrides';
+import DayBarChart from './DayBarChart';
 
 const DAYS_OF_WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+export function getWeekCount(month: Date): number {
+  const first = new Date(month.getFullYear(), month.getMonth(), 1);
+  const last = new Date(month.getFullYear(), month.getMonth() + 1, 0);
+  return Math.ceil((last.getDate() + first.getDay()) / 7);
+}
+
+export function getWeekIndexForDate(month: Date, target: Date): number {
+  const first = new Date(month.getFullYear(), month.getMonth(), 1);
+  const startDow = first.getDay();
+  const dayOfMonth = target.getDate();
+  return Math.floor((dayOfMonth - 1 + startDow) / 7);
+}
 
 const SPECIFICITY_BG: Record<number, string> = {
   0: 'rgba(25, 118, 210, 0.15)',
@@ -19,16 +34,36 @@ const SPECIFICITY_BG: Record<number, string> = {
 interface CalendarGridProps {
   currentMonth: Date;
   calendarData: Map<string, CalendarDaySchedule>;
+  /**
+   * Library items keyed by `library_item_id`. The grid uses these to draw
+   * each day's charge/discharge bars. Passing an empty map is fine —
+   * cells will render without bars.
+   */
+  libraryItemsById: Map<number, ScheduleLibraryItem>;
   selectedDate: Date | null;
   onDateClick: (date: Date) => void;
+  sitePowerKw?: number | null;
+  /** Charge ceiling as a percentage of `sitePowerKw`. Forwarded to DayBarChart. */
+  chargeRatePercent?: number | null;
+  /** Discharge ceiling as a percentage of `sitePowerKw`. Forwarded to DayBarChart. */
+  dischargeRatePercent?: number | null;
+  viewMode?: 'month' | 'week';
+  weekIndex?: number;
 }
 
 const CalendarGrid: React.FC<CalendarGridProps> = ({
   currentMonth,
   calendarData,
+  libraryItemsById,
   selectedDate,
-  onDateClick
+  onDateClick,
+  sitePowerKw,
+  chargeRatePercent,
+  dischargeRatePercent,
+  viewMode = 'month',
+  weekIndex = 0
 }) => {
+  const effectiveNow = useEffectiveNow();
   const firstDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
   const lastDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
   const startDayOfWeek = firstDay.getDay();
@@ -40,10 +75,17 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
   for (let d = 1; d <= lastDay.getDate(); d += 1) {
     days.push(new Date(currentMonth.getFullYear(), currentMonth.getMonth(), d));
   }
-  const weeks: (Date | null)[][] = [];
+  const allWeeks: (Date | null)[][] = [];
   for (let i = 0; i < days.length; i += 7) {
-    weeks.push(days.slice(i, i + 7));
+    allWeeks.push(days.slice(i, i + 7));
   }
+
+  const weeks = viewMode === 'week'
+    ? [allWeeks[Math.min(weekIndex, allWeeks.length - 1)] ?? allWeeks[0]]
+    : allWeeks;
+
+  const isWeekView = viewMode === 'week';
+  const cellMinHeight = isWeekView ? 200 : 110;
 
   return (
     <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
@@ -64,7 +106,7 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
                 return (
                   <Box
                     key={`empty-${weekKey}-${DAYS_OF_WEEK[dayIdx]}`}
-                    sx={{ minHeight: 80, minWidth: 0, borderRight: '1px solid', borderBottom: '1px solid', borderColor: 'divider' }}
+                    sx={{ minHeight: cellMinHeight * 0.7, minWidth: 0, borderRight: '1px solid', borderBottom: '1px solid', borderColor: 'divider' }}
                   />
                 );
               }
@@ -73,19 +115,26 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
               const data = calendarData.get(dateKey);
               const hasSchedule = data && data.library_item_id;
               const isSelected = selectedDate && toISODateString(selectedDate) === dateKey;
-              const isTodayDate = isToday(date);
-              const isPast = isPastDate(date);
+              const isTodayDate = isToday(date, effectiveNow);
+              const isPast = isPastDate(date, effectiveNow);
+              const nowSecondsForCell = isTodayDate
+                ? effectiveNow.getHours() * 3600 +
+                  effectiveNow.getMinutes() * 60 +
+                  effectiveNow.getSeconds()
+                : null;
 
               const scheduleNameBgColor = data?.specificity !== undefined
                 ? SPECIFICITY_BG[data.specificity] ?? 'transparent'
                 : 'transparent';
+
+              const libraryItem = data ? libraryItemsById.get(data.library_item_id) : undefined;
 
               return (
                 <Box
                   key={dateKey}
                   onClick={() => onDateClick(date)}
                   sx={{
-                    minHeight: 80,
+                    minHeight: cellMinHeight,
                     minWidth: 0,
                     p: 0.5,
                     borderRight: '1px solid',
@@ -97,7 +146,9 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
                     boxShadow: isSelected ? (theme) => `inset 0 0 0 3px ${theme.palette.primary.main}` : 'none',
                     '&:hover': { bgcolor: 'action.selected' },
                     position: 'relative',
-                    overflow: 'hidden'
+                    overflow: 'hidden',
+                    display: 'flex',
+                    flexDirection: 'column'
                   }}
                 >
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 0.5 }}>
@@ -138,11 +189,24 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
                           whiteSpace: 'nowrap',
-                          fontSize: '0.7rem'
+                          fontSize: isWeekView ? '0.8rem' : '0.7rem'
                         }}
                       >
                         {data.library_item_name}
                       </Typography>
+                    </Box>
+                  )}
+
+                  {libraryItem && libraryItem.commands.length > 0 && (
+                    <Box sx={{ mt: 'auto', pt: 0.5 }}>
+                      <DayBarChart
+                        commands={libraryItem.commands}
+                        sitePowerKw={sitePowerKw}
+                        chargeRatePercent={chargeRatePercent}
+                        dischargeRatePercent={dischargeRatePercent}
+                        height={isWeekView ? 80 : 28}
+                        nowSeconds={nowSecondsForCell}
+                      />
                     </Box>
                   )}
                 </Box>

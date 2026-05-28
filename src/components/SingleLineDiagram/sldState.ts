@@ -51,6 +51,7 @@ function applyAlarms(
         const newOrder = getSeverityOrder(severity);
 
         const alarmSummary: ActiveAlarmSummary = {
+          alarm_num: alarm.alarm_num,
           name: alarm.name,
           severity,
         };

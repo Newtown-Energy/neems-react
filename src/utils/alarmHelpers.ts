@@ -53,3 +53,41 @@ export function getSeverityOrder(severity: AlarmSeverityDto): number {
       return 3;
   }
 }
+
+/**
+ * Higher-level category grouping for the FDNY / Alarms page. The
+ * underlying [AlarmZoneDto] is a physical system; categories group those
+ * systems into the operator-facing buckets the demo script asks for
+ * (electrical / fire / battery / control).
+ */
+export type AlarmCategory = 'Fire' | 'Electrical' | 'Battery' | 'Control';
+
+export const ALARM_CATEGORY_ORDER: AlarmCategory[] = [
+  'Fire',
+  'Electrical',
+  'Battery',
+  'Control'
+];
+
+export function getZoneCategory(zone: AlarmZoneDto): AlarmCategory {
+  switch (zone) {
+    case 'Facp':
+      return 'Fire';
+    case 'BreakerRelay':
+    case 'Meter':
+    case 'Transformer1':
+    case 'Transformer2':
+      return 'Electrical';
+    case 'Mp1a':
+    case 'Mp1b':
+    case 'Mp1c':
+    case 'Mp2a':
+    case 'Mp2b':
+    case 'Mp2c':
+    case 'TeslaSiteController':
+      return 'Battery';
+    case 'Site':
+    case 'Rtac':
+      return 'Control';
+  }
+}

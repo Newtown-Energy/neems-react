@@ -1,5 +1,5 @@
 import { apiRequestWithMapping } from './api';
-import type { ScheduleLibraryItem, ApplicationRule, CreateLibraryItemRequest, UpdateLibraryItemRequest, CloneLibraryItemRequest, CreateApplicationRuleRequest, EffectiveScheduleResponse, CalendarDaySchedule, CalendarDayScheduleMatches } from '@newtown-energy/types';
+import type { ScheduleLibraryItem, ApplicationRule, CreateLibraryItemRequest, UpdateLibraryItemRequest, CloneLibraryItemRequest, CreateApplicationRuleRequest, CreateFromSiteDefaultsRequest, SeasonFillRequest, SeasonFillResponse, EffectiveScheduleResponse, CalendarDaySchedule, CalendarDayScheduleMatches, EntityActivityWithUser } from '@newtown-energy/types';
 
 // ============================================================================
 // Library Items
@@ -63,6 +63,25 @@ export async function cloneLibraryItem(
   );
 }
 
+/**
+ * Build a library item from the site's stored off-peak / peak-revenue
+ * windows. Backend reads the window times directly from the site row, so
+ * callers must persist any user edits via [updateSite] before invoking
+ * this.
+ */
+export async function createLibraryItemFromSiteDefaults(
+  siteId: number,
+  request: CreateFromSiteDefaultsRequest
+): Promise<ScheduleLibraryItem> {
+  return await apiRequestWithMapping<ScheduleLibraryItem>(
+    `/api/1/Sites/${siteId}/ScheduleLibraryItems/FromSiteDefaults`,
+    {
+      method: 'POST',
+      body: JSON.stringify(request)
+    }
+  );
+}
+
 // ============================================================================
 // Application Rules
 // ============================================================================
@@ -92,10 +111,54 @@ export async function createApplicationRule(
   );
 }
 
-export async function deleteApplicationRule(ruleId: number): Promise<void> {
+export async function deleteApplicationRule(
+  ruleId: number,
+  changeReason?: string,
+): Promise<void> {
+  // S1c-3: optional change_reason lands on the entity_activity row
+  // for the delete so the change-history pane can show *why*.
+  const qs = changeReason && changeReason.trim().length > 0
+    ? `?change_reason=${encodeURIComponent(changeReason.trim())}`
+    : '';
   await apiRequestWithMapping(
-    `/api/1/ApplicationRules/${ruleId}`,
+    `/api/1/ApplicationRules/${ruleId}${qs}`,
     { method: 'DELETE' }
+  );
+}
+
+/**
+ * Read the audit-log rows for a single entity. The backend resolves
+ * the acting user's email for each row so the UI can render "edited
+ * by alice@example.com at 4:32 pm" without round-tripping per row.
+ */
+export async function getEntityActivity(
+  tableName: string,
+  entityId: number
+): Promise<EntityActivityWithUser[]> {
+  const params = new URLSearchParams({
+    table_name: tableName,
+    entity_id: String(entityId)
+  });
+  return await apiRequestWithMapping<EntityActivityWithUser[]>(
+    `/api/1/EntityActivity?${params.toString()}`
+  );
+}
+
+/**
+ * Apply a library item across a date range as a single specific-date
+ * rule. Returns both the created rule and the list of dates it actually
+ * covers (after weekday and federal-holiday filtering).
+ */
+export async function seasonFillApplicationRule(
+  libraryItemId: number,
+  request: SeasonFillRequest
+): Promise<SeasonFillResponse> {
+  return await apiRequestWithMapping<SeasonFillResponse>(
+    `/api/1/ScheduleLibraryItems/${libraryItemId}/ApplicationRules/SeasonFill`,
+    {
+      method: 'POST',
+      body: JSON.stringify(request)
+    }
   );
 }
 

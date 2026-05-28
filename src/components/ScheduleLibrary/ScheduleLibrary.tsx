@@ -89,12 +89,13 @@ const ScheduleLibrary: React.FC<ScheduleLibraryProps> = ({
 
   const handleSaveItem = async (
     itemId: number,
-    data: { name: string; description: string | null; commands: ScheduleCommandDto[] }
+    data: { name: string; description: string | null; commands: ScheduleCommandDto[] },
+    changeReason: string,
   ) => {
     setLoading(true);
     setError(null);
     try {
-      await updateLibraryItem(itemId, data);
+      await updateLibraryItem(itemId, { ...data, change_reason: changeReason });
       await loadLibraryItems();
       await loadAllRules();
     } catch (err) {
