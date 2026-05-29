@@ -373,7 +373,11 @@ const SiteDefaultsPanel: React.FC<SiteDefaultsPanelProps> = ({ onSavingChange, r
             />
             {!draft.closed_loop_enabled && (
               <Typography variant="caption" color="warning.main" display="block">
-                Schedules will be visualized but not enforced while closed-loop is off.
+                {`Schedules will be visualized but not enforced while closed-loop is off. Without it, the site may import or export more power than the site power limit${
+                  draft.power_kw.trim() && !Number.isNaN(Number(draft.power_kw))
+                    ? ` (${Number(draft.power_kw).toLocaleString()} kW)`
+                    : ''
+                }.`}
               </Typography>
             )}
           </Grid>

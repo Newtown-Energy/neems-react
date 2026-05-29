@@ -347,7 +347,11 @@ const PeakSeasonWizard: React.FC<PeakSeasonWizardProps> = ({ open, onClose, onCo
               />
               {!draft.closed_loop_enabled && (
                 <Alert severity="warning">
-                  Schedules will be visualized but not enforced while closed-loop is off.
+                  {`Schedules will be visualized but not enforced while closed-loop is off. Without it, the site may import or export more power than the site power limit${
+                    draft.power_kw.trim() && !Number.isNaN(Number(draft.power_kw))
+                      ? ` (${Number(draft.power_kw).toLocaleString()} kW)`
+                      : ''
+                  }.`}
                 </Alert>
               )}
             </Stack>
@@ -396,7 +400,6 @@ const PeakSeasonWizard: React.FC<PeakSeasonWizardProps> = ({ open, onClose, onCo
             <Stack spacing={2}>
               <Typography variant="body2" color="text.secondary">
                 Target State-of-Charge to hit by the end of the off-peak window.
-                The script's default is 100%.
               </Typography>
               <TextField
                 label="End-of-charge SoC"
