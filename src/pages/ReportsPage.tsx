@@ -87,6 +87,86 @@ function fromDateInput(s: string): Date | null {
   return new Date(y, m - 1, d);
 }
 
+// datetime-local round-trip (local time) for the finer-grained SoC window.
+function toDateTimeInput(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function fromDateTimeInput(s: string): Date | null {
+  if (!s) return null;
+  const d = new Date(s);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+// ---------------------------------------------------------------------------
+// SoC histogram bucketing
+//
+// Over a wide range, plotting every 6-minute sample is unreadable and slow,
+// so we average samples into fixed-width buckets and draw one bar per bucket.
+// The bucket width grows with the span so the bar count stays bounded (a week
+// collapses to roughly hourly bars, a month to a few hours, etc.).
+// ---------------------------------------------------------------------------
+
+// Candidate bucket widths in minutes, smallest first. 6 min matches the
+// collector cadence (effectively "raw"); the rest are round wall-clock steps.
+const SOC_BUCKET_MINUTES = [6, 15, 30, 60, 180, 360, 720, 1440];
+const SOC_TARGET_BARS = 240;
+
+function pickBucketMinutes(spanMs: number): number {
+  const spanMin = spanMs / 60_000;
+  for (const m of SOC_BUCKET_MINUTES) {
+    if (spanMin / m <= SOC_TARGET_BARS) return m;
+  }
+  return SOC_BUCKET_MINUTES[SOC_BUCKET_MINUTES.length - 1];
+}
+
+function bucketLabel(minutes: number): string {
+  if (minutes < 60) return `${minutes}-minute`;
+  const hours = minutes / 60;
+  if (hours < 24) return hours === 1 ? 'hourly' : `${hours}-hour`;
+  const days = hours / 24;
+  return days === 1 ? 'daily' : `${days}-day`;
+}
+
+// Average SoC into epoch-aligned buckets (so hourly buckets land on the hour
+// in UTC, matching the axis). Each bucket is plotted at its start.
+function bucketSocPoints(points: SocChartPoint[], bucketMs: number): SocChartPoint[] {
+  if (bucketMs <= 0 || points.length === 0) return points;
+  const agg = new Map<number, { sum: number; count: number }>();
+  for (const p of points) {
+    const key = Math.floor(p.t / bucketMs) * bucketMs;
+    const cur = agg.get(key);
+    if (cur) {
+      cur.sum += p.soc;
+      cur.count += 1;
+    } else {
+      agg.set(key, { sum: p.soc, count: 1 });
+    }
+  }
+  return [...agg.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([t, { sum, count }]) => ({ t, soc: sum / count }));
+}
+
+// Axis ticks: a round wall-clock step chosen so there are ~10 labels.
+const SOC_TICK_MINUTES = [60, 120, 180, 360, 720, 1440, 2880, 10080];
+const SOC_TARGET_TICKS = 10;
+
+function pickTickMinutes(spanMs: number): number {
+  const spanMin = spanMs / 60_000;
+  for (const m of SOC_TICK_MINUTES) {
+    if (spanMin / m <= SOC_TARGET_TICKS) return m;
+  }
+  return SOC_TICK_MINUTES[SOC_TICK_MINUTES.length - 1];
+}
+
+function generateTicks(from: number, to: number, stepMs: number): number[] {
+  const ticks: number[] = [];
+  for (let t = Math.ceil(from / stepMs) * stepMs; t <= to; t += stepMs) ticks.push(t);
+  return ticks;
+}
+
 function formatDayLabel(day: string): string {
   const parts = day.split('-');
   if (parts.length !== 3) return day;
@@ -100,13 +180,28 @@ function formatMinutes(value: number): string {
   return m === 0 ? `${h}h` : `${h}h ${m}m`;
 }
 
+// Times on the SoC axis are shown in UTC (see the caption under the chart).
+// At a midnight boundary we signal the calendar date instead of "00:00" so a
+// 24h window that spans two days makes the day change obvious.
 function formatHourLabel(epochMs: number): string {
   const d = new Date(epochMs);
-  return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+  if (d.getUTCHours() === 0) {
+    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' });
+  }
+  return `${d.getUTCHours().toString().padStart(2, '0')}:00`;
 }
 
 function formatTooltipLabel(epochMs: number): string {
-  return new Date(epochMs).toLocaleString();
+  return (
+    new Date(epochMs).toLocaleString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+      timeZone: 'UTC',
+    }) + ' UTC'
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -183,6 +278,12 @@ const ReportsPage: React.FC = () => {
   const [socPoints, setSocPoints] = useState<SocChartPoint[] | null>(null);
   const [socError, setSocError] = useState<string | null>(null);
   const [nowMs, setNowMs] = useState(Date.now());
+  const [socFrom, setSocFrom] = useState<Date>(() => new Date(Date.now() - SOC_WINDOW_HOURS * 3600_000));
+  const [socTo, setSocTo] = useState<Date>(() => new Date());
+  // When live, the 24h window auto-advances to "now" every refresh tick.
+  // Editing From/To pins a custom range and turns this off; "Last 24h"
+  // turns it back on.
+  const [socLive, setSocLive] = useState(true);
   const socChartRef = useRef<HTMLDivElement | null>(null);
 
   // -- Charge/discharge chart state --
@@ -194,27 +295,35 @@ const ReportsPage: React.FC = () => {
   const [cdLoading, setCdLoading] = useState(false);
   const cdChartRef = useRef<HTMLDivElement | null>(null);
 
-  // -- SoC data loading with auto-refresh --
+  // -- SoC data loading over the selected [socFrom, socTo] window --
   const loadSoc = useCallback(async () => {
     if (!selectedSite) return;
-    const now = new Date();
-    setNowMs(now.getTime());
-    const windowFrom = new Date(now.getTime() - SOC_WINDOW_HOURS * 3600_000);
+    setNowMs(Date.now());
     try {
-      const response = await fetchSocHistory(selectedSite.id, windowFrom, now);
+      const response = await fetchSocHistory(selectedSite.id, socFrom, socTo);
       setSocPoints(toSocChartPoints(response.points));
       setSocError(null);
     } catch (err) {
       errorLog('ReportsPage: SoC load failed', err);
       setSocError('Failed to load SoC history.');
     }
-  }, [selectedSite]);
+  }, [selectedSite, socFrom, socTo]);
 
   useEffect(() => {
     void loadSoc();
-    const interval = setInterval(() => { void loadSoc(); }, SOC_REFRESH_INTERVAL_MS);
-    return () => clearInterval(interval);
   }, [loadSoc]);
+
+  // While live, slide the 24h window to "now" every tick. Advancing the
+  // dates re-triggers loadSoc, so this also drives the periodic refresh.
+  useEffect(() => {
+    if (!socLive) return;
+    const id = setInterval(() => {
+      const now = new Date();
+      setSocTo(now);
+      setSocFrom(new Date(now.getTime() - SOC_WINDOW_HOURS * 3600_000));
+    }, SOC_REFRESH_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, [socLive]);
 
   // -- Charge/discharge data loading --
   const loadCd = useCallback(async () => {
@@ -242,9 +351,27 @@ const ReportsPage: React.FC = () => {
 
   // -- Derived --
   const socDomain: [number, number] = useMemo(
-    () => [nowMs - SOC_WINDOW_HOURS * 3600_000, nowMs],
-    [nowMs],
+    () => [socFrom.getTime(), socTo.getTime()],
+    [socFrom, socTo],
   );
+  const socSpanMs = socDomain[1] - socDomain[0];
+
+  // Bucket width grows with the span so a wide range averages into coarser
+  // bars (e.g. ~hourly over a week) instead of plotting every raw sample.
+  const bucketMs = useMemo(() => pickBucketMinutes(socSpanMs) * 60_000, [socSpanMs]);
+  const bucketedSocPoints = useMemo(
+    () => (socPoints ? bucketSocPoints(socPoints, bucketMs) : socPoints),
+    [socPoints, bucketMs],
+  );
+
+  // Axis ticks on round wall-clock steps sized to the span (~10 labels).
+  const socTicks = useMemo(
+    () => generateTicks(socDomain[0], socDomain[1], pickTickMinutes(socSpanMs) * 60_000),
+    [socDomain, socSpanMs],
+  );
+
+  // Only draw the "Now" marker when the window actually includes now.
+  const showNow = nowMs >= socDomain[0] && nowMs <= socDomain[1];
 
   const latestSoc = useMemo(() => {
     if (!socPoints || socPoints.length === 0) return null;
@@ -307,17 +434,60 @@ const ReportsPage: React.FC = () => {
           {/* ---- SoC chart ---- */}
           <Card sx={{ mb: 3 }}>
             <CardContent>
-              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
-                <Box>
-                  <Typography variant="h6">
-                    Available state of charge — last {SOC_WINDOW_HOURS} hours
+              <Stack
+                direction={{ xs: 'column', md: 'row' }}
+                spacing={2}
+                alignItems={{ xs: 'stretch', md: 'center' }}
+                sx={{ mb: 1 }}
+              >
+                <Box sx={{ flex: 1 }}>
+                  <Typography variant="h6">Available state of charge</Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {latestSoc !== null && `Latest: ${latestSoc.toFixed(1)}% · `}
+                    {bucketLabel(bucketMs / 60_000)} averages
+                    {socLive && ` · live, updates every ${SOC_REFRESH_INTERVAL_MS / 1000}s`}
                   </Typography>
-                  {latestSoc !== null && (
-                    <Typography variant="body2" color="text.secondary">
-                      Latest: {latestSoc.toFixed(1)}% · updates every {SOC_REFRESH_INTERVAL_MS / 1000}s
-                    </Typography>
-                  )}
                 </Box>
+                <TextField
+                  type="datetime-local"
+                  label="From"
+                  size="small"
+                  value={toDateTimeInput(socFrom)}
+                  onChange={e => {
+                    const d = fromDateTimeInput(e.target.value);
+                    if (d) {
+                      setSocLive(false);
+                      setSocFrom(d);
+                    }
+                  }}
+                  slotProps={{ inputLabel: { shrink: true } }}
+                />
+                <TextField
+                  type="datetime-local"
+                  label="To"
+                  size="small"
+                  value={toDateTimeInput(socTo)}
+                  onChange={e => {
+                    const d = fromDateTimeInput(e.target.value);
+                    if (d) {
+                      setSocLive(false);
+                      setSocTo(d);
+                    }
+                  }}
+                  slotProps={{ inputLabel: { shrink: true } }}
+                />
+                <Button
+                  size="small"
+                  variant={socLive ? 'contained' : 'outlined'}
+                  onClick={() => {
+                    const now = new Date();
+                    setSocTo(now);
+                    setSocFrom(new Date(now.getTime() - SOC_WINDOW_HOURS * 3600_000));
+                    setSocLive(true);
+                  }}
+                >
+                  Last 24h
+                </Button>
                 <ChartExportButtons
                   chartRef={socChartRef}
                   filePrefix={`soc-site-${selectedSite.id}`}
@@ -335,22 +505,25 @@ const ReportsPage: React.FC = () => {
                 </Box>
               ) : socPoints.length === 0 ? (
                 <Typography variant="body2" color="text.secondary">
-                  No SoC readings in the last {SOC_WINDOW_HOURS} hours. Seed history with{' '}
-                  <code>neems-data seed-soc-history --site-id {selectedSite.id}</code>.
+                  No SoC readings in this range. Seed history with{' '}
+                  <code>neems-data seed-soc-history --site-id {selectedSite.id}</code>{' '}
+                  or widen the window.
                 </Typography>
               ) : (
                 <Box ref={socChartRef}>
                   <ResponsiveContainer width="100%" height={280}>
-                    <BarChart data={socPoints} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+                    <BarChart data={bucketedSocPoints ?? []} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
                       <CartesianGrid stroke={theme.palette.divider} strokeDasharray="3 3" />
                       <XAxis
                         dataKey="t"
                         type="number"
                         domain={socDomain}
                         scale="time"
+                        ticks={socTicks}
                         tickFormatter={formatHourLabel}
                         stroke={theme.palette.text.secondary}
                         tick={{ fontSize: 12 }}
+                        minTickGap={16}
                       />
                       <YAxis
                         domain={[0, 100]}
@@ -364,12 +537,14 @@ const ReportsPage: React.FC = () => {
                         formatter={(value) => [`${(value as number).toFixed(1)}%`, 'SoC']}
                         cursor={{ fill: theme.palette.action.hover }}
                       />
-                      <ReferenceLine
-                        x={nowMs}
-                        stroke={theme.palette.error.main}
-                        strokeDasharray="4 4"
-                        label={{ value: 'Now', position: 'top', fill: theme.palette.error.main, fontSize: 11 }}
-                      />
+                      {showNow && (
+                        <ReferenceLine
+                          x={nowMs}
+                          stroke={theme.palette.error.main}
+                          strokeDasharray="4 4"
+                          label={{ value: 'Now', position: 'top', fill: theme.palette.error.main, fontSize: 11 }}
+                        />
+                      )}
                       <Bar
                         dataKey="soc"
                         fill={theme.palette.primary.main}
@@ -377,6 +552,13 @@ const ReportsPage: React.FC = () => {
                       />
                     </BarChart>
                   </ResponsiveContainer>
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ display: 'block', textAlign: 'right', mt: 0.5 }}
+                  >
+                    Times shown in UTC
+                  </Typography>
                 </Box>
               )}
             </CardContent>

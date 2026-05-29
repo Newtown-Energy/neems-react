@@ -305,12 +305,13 @@ const FDNYPage: React.FC = () => {
                             />
                           </TableCell>
                           <TableCell>
-                            <Chip
-                              label={entry.active ? 'Activated' : 'Cleared'}
-                              color={entry.active ? 'error' : 'default'}
-                              variant={entry.active ? 'filled' : 'outlined'}
-                              size="small"
-                            />
+                            <Typography
+                              variant="body2"
+                              color={entry.active ? 'error.main' : 'text.secondary'}
+                              sx={{ fontWeight: entry.active ? 600 : 400 }}
+                            >
+                              {entry.active ? 'Activated' : 'Cleared'}
+                            </Typography>
                           </TableCell>
                           <TableCell>
                             {current && (
