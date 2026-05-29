@@ -400,7 +400,6 @@ const PeakSeasonWizard: React.FC<PeakSeasonWizardProps> = ({ open, onClose, onCo
             <Stack spacing={2}>
               <Typography variant="body2" color="text.secondary">
                 Target State-of-Charge to hit by the end of the off-peak window.
-                The script's default is 100%.
               </Typography>
               <TextField
                 label="End-of-charge SoC"
