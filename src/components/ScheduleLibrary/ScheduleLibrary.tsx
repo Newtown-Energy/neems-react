@@ -106,15 +106,18 @@ const ScheduleLibrary: React.FC<ScheduleLibraryProps> = ({
     }
   };
 
-  const handleCreate = async (data: {
-    name: string;
-    description: string | null;
-    commands: ScheduleCommandDto[];
-  }) => {
+  const handleCreate = async (
+    data: {
+      name: string;
+      description: string | null;
+      commands: ScheduleCommandDto[];
+    },
+    changeReason: string,
+  ) => {
     setLoading(true);
     setError(null);
     try {
-      await createLibraryItem(siteId, data);
+      await createLibraryItem(siteId, { ...data, change_reason: changeReason });
       setCreateDialogOpen(false);
       await loadLibraryItems();
     } catch (err) {
