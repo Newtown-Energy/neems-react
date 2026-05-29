@@ -153,20 +153,33 @@ const FIELD_HELP: Record<string, string> = {
     'Determines hardware constraints. "No grid charge" means inverters cannot charge from the grid.',
 };
 
-const FieldHelp: React.FC<{ field: string }> = ({ field }) => {
+// Target on-screen size of the help icon, in px.
+const FIELD_HELP_ICON_PX = 20;
+
+/**
+ * Inline "?" help icon + tooltip.
+ *
+ * `plain` distinguishes the two contexts this renders in so the icon ends up
+ * the same visual size in both. A populated MUI floating input label is
+ * transformed with `scale(0.75)`, which also shrinks an icon inside it; we
+ * counter that by sizing the icon up. Section headers and the switch label
+ * are un-scaled, so they use the target size directly (`plain`).
+ */
+const FieldHelp: React.FC<{ field: string; plain?: boolean }> = ({ field, plain }) => {
   const tip = FIELD_HELP[field];
   if (!tip) return null;
+  const fontSize = plain ? FIELD_HELP_ICON_PX : Math.round(FIELD_HELP_ICON_PX / 0.75);
   return (
     <Tooltip
       title={tip}
       arrow
       placement="top"
       slotProps={{
-        tooltip: { sx: { fontSize: '0.8rem', lineHeight: 1.5, maxWidth: 320, p: 1 } },
+        tooltip: { sx: { fontSize: '0.95rem', lineHeight: 1.5, maxWidth: 340, p: 1.25 } },
       }}
     >
       <HelpOutline
-        sx={{ fontSize: 20, ml: 0.5, verticalAlign: 'text-bottom', color: 'action.active', cursor: 'help' }}
+        sx={{ fontSize, ml: 0.5, verticalAlign: 'text-bottom', color: 'action.active', cursor: 'help' }}
       />
     </Tooltip>
   );
@@ -356,7 +369,7 @@ const SiteDefaultsPanel: React.FC<SiteDefaultsPanelProps> = ({ onSavingChange, r
                   onChange={e => setField('closed_loop_enabled', e.target.checked)}
                 />
               }
-              label={<>Closed-loop control enabled<FieldHelp field="closed_loop_enabled" /></>}
+              label={<>Closed-loop control enabled<FieldHelp field="closed_loop_enabled" plain /></>}
             />
             {!draft.closed_loop_enabled && (
               <Typography variant="caption" color="warning.main" display="block">
@@ -406,7 +419,7 @@ const SiteDefaultsPanel: React.FC<SiteDefaultsPanelProps> = ({ onSavingChange, r
 
         <Divider />
 
-        <Typography variant="subtitle1">Off-peak charging window<FieldHelp field="off_peak_window" /></Typography>
+        <Typography variant="subtitle1">Off-peak charging window<FieldHelp field="off_peak_window" plain /></Typography>
         <Grid container spacing={2}>
           <Grid size={{ xs: 6 }}>
             <TextField
@@ -430,7 +443,7 @@ const SiteDefaultsPanel: React.FC<SiteDefaultsPanelProps> = ({ onSavingChange, r
           </Grid>
         </Grid>
 
-        <Typography variant="subtitle1">Peak-revenue discharge window<FieldHelp field="peak_revenue_window" /></Typography>
+        <Typography variant="subtitle1">Peak-revenue discharge window<FieldHelp field="peak_revenue_window" plain /></Typography>
         <Grid container spacing={2}>
           <Grid size={{ xs: 6 }}>
             <TextField
