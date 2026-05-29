@@ -347,7 +347,11 @@ const PeakSeasonWizard: React.FC<PeakSeasonWizardProps> = ({ open, onClose, onCo
               />
               {!draft.closed_loop_enabled && (
                 <Alert severity="warning">
-                  Schedules will be visualized but not enforced while closed-loop is off.
+                  {`Schedules will be visualized but not enforced while closed-loop is off. Without it, the site may import or export more power than the site power limit${
+                    draft.power_kw.trim() && !Number.isNaN(Number(draft.power_kw))
+                      ? ` (${Number(draft.power_kw).toLocaleString()} kW)`
+                      : ''
+                  }.`}
                 </Alert>
               )}
             </Stack>
