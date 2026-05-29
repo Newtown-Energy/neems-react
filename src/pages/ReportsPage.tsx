@@ -100,13 +100,28 @@ function formatMinutes(value: number): string {
   return m === 0 ? `${h}h` : `${h}h ${m}m`;
 }
 
+// Times on the SoC axis are shown in UTC (see the caption under the chart).
+// At a midnight boundary we signal the calendar date instead of "00:00" so a
+// 24h window that spans two days makes the day change obvious.
 function formatHourLabel(epochMs: number): string {
   const d = new Date(epochMs);
-  return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+  if (d.getUTCHours() === 0) {
+    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' });
+  }
+  return `${d.getUTCHours().toString().padStart(2, '0')}:00`;
 }
 
 function formatTooltipLabel(epochMs: number): string {
-  return new Date(epochMs).toLocaleString();
+  return (
+    new Date(epochMs).toLocaleString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+      timeZone: 'UTC',
+    }) + ' UTC'
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -246,6 +261,17 @@ const ReportsPage: React.FC = () => {
     [nowMs],
   );
 
+  // Explicit ticks on every whole hour across the window, so the axis reads
+  // hourly regardless of where the sample points happen to fall.
+  const socHourTicks = useMemo(() => {
+    const [start, end] = socDomain;
+    const ticks: number[] = [];
+    for (let t = Math.ceil(start / 3600_000) * 3600_000; t <= end; t += 3600_000) {
+      ticks.push(t);
+    }
+    return ticks;
+  }, [socDomain]);
+
   const latestSoc = useMemo(() => {
     if (!socPoints || socPoints.length === 0) return null;
     return socPoints[socPoints.length - 1].soc;
@@ -348,9 +374,11 @@ const ReportsPage: React.FC = () => {
                         type="number"
                         domain={socDomain}
                         scale="time"
+                        ticks={socHourTicks}
                         tickFormatter={formatHourLabel}
                         stroke={theme.palette.text.secondary}
                         tick={{ fontSize: 12 }}
+                        minTickGap={16}
                       />
                       <YAxis
                         domain={[0, 100]}
@@ -377,6 +405,13 @@ const ReportsPage: React.FC = () => {
                       />
                     </BarChart>
                   </ResponsiveContainer>
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ display: 'block', textAlign: 'right', mt: 0.5 }}
+                  >
+                    Times shown in UTC
+                  </Typography>
                 </Box>
               )}
             </CardContent>
