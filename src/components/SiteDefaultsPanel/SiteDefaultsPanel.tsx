@@ -498,7 +498,10 @@ const SiteDefaultsPanel: React.FC<SiteDefaultsPanelProps> = ({ onSavingChange, r
               <Select
                 labelId="site-variant-label"
                 value={draft.site_variant}
-                label="Site variant"
+                // Match the InputLabel content (incl. the help icon) so the
+                // notched outline reserves width for the icon; a plain-string
+                // label here makes the border cut through the "?".
+                label={<>Site variant<FieldHelp field="site_variant" /></>}
                 onChange={e => setField('site_variant', e.target.value as SiteVariant)}
               >
                 <MenuItem value="standard">Standard interconnect</MenuItem>
