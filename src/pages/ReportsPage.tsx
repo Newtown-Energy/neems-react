@@ -268,6 +268,7 @@ const ChartExportButtons: React.FC<ChartExportProps> = ({
 // ---------------------------------------------------------------------------
 
 const SOC_WINDOW_HOURS = 24;
+const SOC_REFRESH_INTERVAL_MS = 60_000;
 
 const ReportsPage: React.FC = () => {
   const theme = useTheme();
@@ -279,6 +280,10 @@ const ReportsPage: React.FC = () => {
   const [nowMs, setNowMs] = useState(Date.now());
   const [socFrom, setSocFrom] = useState<Date>(() => new Date(Date.now() - SOC_WINDOW_HOURS * 3600_000));
   const [socTo, setSocTo] = useState<Date>(() => new Date());
+  // When live, the 24h window auto-advances to "now" every refresh tick.
+  // Editing From/To pins a custom range and turns this off; "Last 24h"
+  // turns it back on.
+  const [socLive, setSocLive] = useState(true);
   const socChartRef = useRef<HTMLDivElement | null>(null);
 
   // -- Charge/discharge chart state --
@@ -307,6 +312,18 @@ const ReportsPage: React.FC = () => {
   useEffect(() => {
     void loadSoc();
   }, [loadSoc]);
+
+  // While live, slide the 24h window to "now" every tick. Advancing the
+  // dates re-triggers loadSoc, so this also drives the periodic refresh.
+  useEffect(() => {
+    if (!socLive) return;
+    const id = setInterval(() => {
+      const now = new Date();
+      setSocTo(now);
+      setSocFrom(new Date(now.getTime() - SOC_WINDOW_HOURS * 3600_000));
+    }, SOC_REFRESH_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, [socLive]);
 
   // -- Charge/discharge data loading --
   const loadCd = useCallback(async () => {
@@ -428,6 +445,7 @@ const ReportsPage: React.FC = () => {
                   <Typography variant="body2" color="text.secondary">
                     {latestSoc !== null && `Latest: ${latestSoc.toFixed(1)}% · `}
                     {bucketLabel(bucketMs / 60_000)} averages
+                    {socLive && ` · live, updates every ${SOC_REFRESH_INTERVAL_MS / 1000}s`}
                   </Typography>
                 </Box>
                 <TextField
@@ -437,7 +455,10 @@ const ReportsPage: React.FC = () => {
                   value={toDateTimeInput(socFrom)}
                   onChange={e => {
                     const d = fromDateTimeInput(e.target.value);
-                    if (d) setSocFrom(d);
+                    if (d) {
+                      setSocLive(false);
+                      setSocFrom(d);
+                    }
                   }}
                   slotProps={{ inputLabel: { shrink: true } }}
                 />
@@ -448,16 +469,21 @@ const ReportsPage: React.FC = () => {
                   value={toDateTimeInput(socTo)}
                   onChange={e => {
                     const d = fromDateTimeInput(e.target.value);
-                    if (d) setSocTo(d);
+                    if (d) {
+                      setSocLive(false);
+                      setSocTo(d);
+                    }
                   }}
                   slotProps={{ inputLabel: { shrink: true } }}
                 />
                 <Button
                   size="small"
+                  variant={socLive ? 'contained' : 'outlined'}
                   onClick={() => {
                     const now = new Date();
                     setSocTo(now);
                     setSocFrom(new Date(now.getTime() - SOC_WINDOW_HOURS * 3600_000));
+                    setSocLive(true);
                   }}
                 >
                   Last 24h
