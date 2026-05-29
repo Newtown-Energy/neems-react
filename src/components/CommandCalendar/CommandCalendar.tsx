@@ -36,6 +36,7 @@ import { toISODateString } from '../../utils/scheduleHelpers';
 import { debugLog, errorLog } from '../../utils/debug';
 import { useSiteContext } from '../../utils/SiteContext';
 import CalendarGrid, { getWeekCount, getWeekIndexForDate } from './CalendarGrid';
+import ScheduleLegend from './ScheduleLegend';
 import DayDetailsDialog from './DayDetailsDialog';
 import type { ApplicableLibraryItem } from './DayDetailsDialog';
 import OverrideReasonDialog from './OverrideReasonDialog';
@@ -427,6 +428,7 @@ const CommandCalendar: React.FC<CommandCalendarProps> = ({
           viewMode={viewMode}
           weekIndex={weekIndex}
         />
+        <ScheduleLegend />
       </Box>
 
       <DayDetailsDialog

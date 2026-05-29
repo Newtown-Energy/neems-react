@@ -8,7 +8,6 @@ import { CompanySelector } from '../CompanySelector/CompanySelector';
 import { useAuth } from '../../pages/LoginPage/useAuth';
 import { isAdmin } from '../../utils/auth';
 import { debugLog, errorLog } from '../../utils/debug';
-import { COMMAND_BAR_COLORS } from '../../utils/scheduleHelpers';
 
 interface SidebarProps {
   className?: string;
@@ -170,25 +169,6 @@ const Sidebar: React.FC<SidebarProps> = () => { // Removed unused className
         userRoles={userInfo?.roles || []}
         userCompanyName={userInfo?.company_name}
       />
-
-      <Divider />
-
-      <Box sx={{ px: collapsed ? 1 : 2, py: 1, display: 'flex', gap: collapsed ? 0.5 : 1.5, justifyContent: collapsed ? 'center' : 'flex-start', flexWrap: 'wrap' }}>
-        {([
-          { color: COMMAND_BAR_COLORS.charge, label: 'Charge' },
-          { color: COMMAND_BAR_COLORS.discharge, label: 'Discharge' },
-          { color: COMMAND_BAR_COLORS.trickle_charge, label: 'Trickle' },
-        ] as const).map(({ color, label }) => (
-          <Box key={label} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: color, flexShrink: 0 }} />
-            {!collapsed && (
-              <Typography variant="caption" color="text.secondary" noWrap>
-                {label}
-              </Typography>
-            )}
-          </Box>
-        ))}
-      </Box>
 
       <Divider />
 
