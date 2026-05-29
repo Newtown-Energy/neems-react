@@ -157,9 +157,16 @@ const FieldHelp: React.FC<{ field: string }> = ({ field }) => {
   const tip = FIELD_HELP[field];
   if (!tip) return null;
   return (
-    <Tooltip title={tip} arrow placement="top">
+    <Tooltip
+      title={tip}
+      arrow
+      placement="top"
+      slotProps={{
+        tooltip: { sx: { fontSize: '0.8rem', lineHeight: 1.5, maxWidth: 320, p: 1 } },
+      }}
+    >
       <HelpOutline
-        sx={{ fontSize: 16, ml: 0.5, verticalAlign: 'text-bottom', color: 'action.active', cursor: 'help' }}
+        sx={{ fontSize: 20, ml: 0.5, verticalAlign: 'text-bottom', color: 'action.active', cursor: 'help' }}
       />
     </Tooltip>
   );
