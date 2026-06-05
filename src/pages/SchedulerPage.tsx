@@ -14,14 +14,10 @@ import {
   DialogContent,
   DialogActions,
   Button,
-  IconButton,
   List,
   ListItem,
   ListItemButton,
-  ListItemIcon,
   ListItemText,
-  Menu,
-  MenuItem,
   Alert,
   TextField,
   Stack
@@ -29,8 +25,7 @@ import {
 import {
   AutoFixHigh as WizardIcon,
   CalendarMonth as CalendarIcon,
-  LibraryBooks as LibraryIcon,
-  MoreVert as MoreVertIcon
+  LibraryBooks as LibraryIcon
 } from '@mui/icons-material';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
@@ -81,9 +76,6 @@ const SchedulerPage: React.FC = () => {
 
   // Peak-season wizard
   const [wizardOpen, setWizardOpen] = useState(false);
-
-  // Toolbar overflow menu (Manage Library)
-  const [overflowAnchor, setOverflowAnchor] = useState<HTMLElement | null>(null);
 
   // Load library items for "apply different" dialog
   useEffect(() => {
@@ -208,29 +200,13 @@ const SchedulerPage: React.FC = () => {
           >
             Peak-season wizard
           </Button>
-          <IconButton
-            aria-label="More scheduler actions"
-            onClick={(e) => setOverflowAnchor(e.currentTarget)}
+          <Button
+            variant="outlined"
+            startIcon={<LibraryIcon />}
+            onClick={() => navigate('/library')}
           >
-            <MoreVertIcon />
-          </IconButton>
-          <Menu
-            anchorEl={overflowAnchor}
-            open={Boolean(overflowAnchor)}
-            onClose={() => setOverflowAnchor(null)}
-          >
-            <MenuItem
-              onClick={() => {
-                setOverflowAnchor(null);
-                navigate('/library');
-              }}
-            >
-              <ListItemIcon>
-                <LibraryIcon fontSize="small" />
-              </ListItemIcon>
-              <ListItemText>Manage Library</ListItemText>
-            </MenuItem>
-          </Menu>
+            Manage Library
+          </Button>
         </Stack>
       </Box>
 
