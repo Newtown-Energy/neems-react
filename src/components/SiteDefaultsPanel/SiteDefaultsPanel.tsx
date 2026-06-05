@@ -62,6 +62,7 @@ type DraftSiteDefaults = {
   site_variant: SiteVariant;
   charge_rate_percent: string;
   discharge_rate_percent: string;
+  trickle_charge_power_kw: string;
 };
 
 function minutesToTimeString(minutes: number | null | undefined): string {
@@ -137,6 +138,15 @@ function peakTargetError(value: string, sitePower: string): string | null {
   return null;
 }
 
+/**
+ * Trickle-charge power obeys the same bounds as the peak-discharge
+ * target: non-negative and capped at site power. Returns the message
+ * (or null when valid / empty).
+ */
+function trickleChargeError(value: string, sitePower: string): string | null {
+  return peakTargetError(value, sitePower);
+}
+
 function siteToDraft(site: Site): DraftSiteDefaults {
   return {
     power_kw: numericOrEmpty(site.power_kw),
@@ -153,7 +163,8 @@ function siteToDraft(site: Site): DraftSiteDefaults {
     closed_loop_enabled: site.closed_loop_enabled,
     site_variant: (site.site_variant as SiteVariant) ?? 'standard',
     charge_rate_percent: numericOrEmpty(site.charge_rate_percent),
-    discharge_rate_percent: numericOrEmpty(site.discharge_rate_percent)
+    discharge_rate_percent: numericOrEmpty(site.discharge_rate_percent),
+    trickle_charge_power_kw: numericOrEmpty(site.trickle_charge_power_kw ?? null),
   };
 }
 
@@ -204,6 +215,10 @@ const FIELD_HELP: Record<string, string> = {
     'State-of-charge at which discharge ramps to 0 kW to protect the battery from a deep-discharge rebound.',
   site_variant:
     'Determines hardware constraints. "No grid charge" means inverters cannot charge from the grid.',
+  trickle_charge_power_kw:
+    'Commanded charging power (kW) used whenever a schedule emits a trickle-charge command. ' +
+    'Lower than the main charging power — meant to top off without straining the cells. ' +
+    'Cannot exceed the site power limit and cannot be negative.',
 };
 
 // Target on-screen size of the help icon, in px.
@@ -301,6 +316,9 @@ const SiteDefaultsPanel: React.FC<SiteDefaultsPanelProps> = ({ onSavingChange, r
       const dischargeRate = draft.discharge_rate_percent === ''
         ? null
         : Number.parseFloat(draft.discharge_rate_percent);
+      const trickleCharge = draft.trickle_charge_power_kw === ''
+        ? null
+        : Number.parseFloat(draft.trickle_charge_power_kw);
 
       // Bail before the round-trip so the operator sees the problem
       // inline instead of as a backend 400.
@@ -318,8 +336,16 @@ const SiteDefaultsPanel: React.FC<SiteDefaultsPanelProps> = ({ onSavingChange, r
         setSaving(false);
         return false;
       }
-      if (negative(power) || negative(capacity) || negative(ramp) || negative(interconnection)) {
-        setError('Site power, capacity, ramp duration, and peak discharge target output must be 0 or greater.');
+      if (
+        negative(power) ||
+        negative(capacity) ||
+        negative(ramp) ||
+        negative(interconnection) ||
+        negative(trickleCharge)
+      ) {
+        setError(
+          'Site power, capacity, ramp duration, peak discharge target output, and trickle charge limit must be 0 or greater.'
+        );
         setSaving(false);
         return false;
       }
@@ -331,6 +357,17 @@ const SiteDefaultsPanel: React.FC<SiteDefaultsPanelProps> = ({ onSavingChange, r
         interconnection > power
       ) {
         setError(`Peak discharge target output cannot exceed site power (${power.toLocaleString()} kW).`);
+        setSaving(false);
+        return false;
+      }
+      if (
+        power !== null &&
+        trickleCharge !== null &&
+        Number.isFinite(power) &&
+        Number.isFinite(trickleCharge) &&
+        trickleCharge > power
+      ) {
+        setError(`Trickle charge limit cannot exceed site power (${power.toLocaleString()} kW).`);
         setSaving(false);
         return false;
       }
@@ -363,7 +400,8 @@ const SiteDefaultsPanel: React.FC<SiteDefaultsPanelProps> = ({ onSavingChange, r
         rebound_protection_soc_floor_percent: reboundFloor,
         site_variant: draft.site_variant,
         charge_rate_percent: chargeRate,
-        discharge_rate_percent: dischargeRate
+        discharge_rate_percent: dischargeRate,
+        trickle_charge_power_kw: trickleCharge,
       });
       await refresh();
       setSavedAt(Date.now());
@@ -544,6 +582,32 @@ const SiteDefaultsPanel: React.FC<SiteDefaultsPanelProps> = ({ onSavingChange, r
                   ? 'Must be between 0 and 100.'
                   : '100 = full power. Drives the calendar\'s blue bar height.'
               }
+            />
+          </Grid>
+          <Grid size={{ xs: 12, md: 6 }}>
+            <TextField
+              label="Trickle charge limit"
+              fullWidth
+              value={draft.trickle_charge_power_kw}
+              onChange={e => setField('trickle_charge_power_kw', e.target.value)}
+              slotProps={{
+                input: { endAdornment: (
+                  <InputAdornment position="end">
+                    kW
+                    <FieldHelp field="trickle_charge_power_kw" />
+                  </InputAdornment>
+                ) },
+                htmlInput: {
+                  min: 0,
+                  max: Number.isFinite(Number.parseFloat(draft.power_kw))
+                    ? Number.parseFloat(draft.power_kw)
+                    : undefined,
+                  step: 'any'
+                }
+              }}
+              type="number"
+              error={trickleChargeError(draft.trickle_charge_power_kw, draft.power_kw) !== null}
+              helperText={trickleChargeError(draft.trickle_charge_power_kw, draft.power_kw) ?? undefined}
             />
           </Grid>
         </Grid>

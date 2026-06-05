@@ -265,7 +265,8 @@ const PeakSeasonWizard: React.FC<PeakSeasonWizardProps> = ({ open, onClose, onCo
         ),
         site_variant: null,
         charge_rate_percent: null,
-        discharge_rate_percent: null
+        discharge_rate_percent: null,
+        trickle_charge_power_kw: null,
       });
       await refresh();
 
