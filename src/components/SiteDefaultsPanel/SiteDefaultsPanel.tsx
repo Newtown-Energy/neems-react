@@ -97,6 +97,22 @@ function isNegativeOrInvalid(value: string): boolean {
   return Number.isNaN(n) || n < 0;
 }
 
+/**
+ * Validate that the peak-discharge target is in [0, site_power_kw].
+ * Returns the user-facing error message or null when the field is valid
+ * (including empty — empty is "no value yet", not an error).
+ */
+function peakTargetError(value: string, sitePower: string): string | null {
+  if (value === '') return null;
+  const target = Number.parseFloat(value);
+  if (!Number.isFinite(target) || target < 0) return 'Must be 0 or greater.';
+  const power = Number.parseFloat(sitePower);
+  if (Number.isFinite(power) && target > power) {
+    return `Cannot exceed site power (${power.toLocaleString()} kW).`;
+  }
+  return null;
+}
+
 function siteToDraft(site: Site): DraftSiteDefaults {
   return {
     power_kw: numericOrEmpty(site.power_kw),
@@ -158,7 +174,8 @@ const FIELD_HELP: Record<string, string> = {
     'Used for scheduling guidance (not enforcement): discharge commands scheduled outside this window surface a warning. ' +
     'Discharge power commanded in this window cannot exceed the site power limit (or the interconnection cap) and cannot be negative.',
   interconnection_max_output_kw:
-    'Discharge cap from the interconnection agreement. Discharge commands will be clamped at this value.',
+    'During a normal peak-season output, this is what you would be discharging. Schedules can be configured to override this value at any specific time. ' +
+    'Used as a soft target (not a clamp): operators will see a warning if scheduled discharge runs above this level. Must be 0 ≤ value ≤ site power.',
   rebound_protection_soc_floor_percent:
     'State-of-charge at which discharge ramps to 0 kW to protect the battery from a deep-discharge rebound.',
   site_variant:
@@ -278,7 +295,18 @@ const SiteDefaultsPanel: React.FC<SiteDefaultsPanelProps> = ({ onSavingChange, r
         return false;
       }
       if (negative(power) || negative(capacity) || negative(ramp) || negative(interconnection)) {
-        setError('Site power, capacity, ramp duration, and interconnection cap must be 0 or greater.');
+        setError('Site power, capacity, ramp duration, and peak discharge target output must be 0 or greater.');
+        setSaving(false);
+        return false;
+      }
+      if (
+        power !== null &&
+        interconnection !== null &&
+        Number.isFinite(power) &&
+        Number.isFinite(interconnection) &&
+        interconnection > power
+      ) {
+        setError(`Peak discharge target output cannot exceed site power (${power.toLocaleString()} kW).`);
         setSaving(false);
         return false;
       }
@@ -543,7 +571,7 @@ const SiteDefaultsPanel: React.FC<SiteDefaultsPanelProps> = ({ onSavingChange, r
         <Grid container spacing={2}>
           <Grid size={{ xs: 12, md: 6 }}>
             <TextField
-              label="Interconnection max output"
+              label="Peak discharge target output"
               fullWidth
               value={draft.interconnection_max_output_kw}
               onChange={e => setField('interconnection_max_output_kw', e.target.value)}
@@ -554,14 +582,21 @@ const SiteDefaultsPanel: React.FC<SiteDefaultsPanelProps> = ({ onSavingChange, r
                     <FieldHelp field="interconnection_max_output_kw" />
                   </InputAdornment>
                 ) },
-                htmlInput: { min: 0, step: 'any' }
+                htmlInput: {
+                  min: 0,
+                  max: Number.isFinite(Number.parseFloat(draft.power_kw))
+                    ? Number.parseFloat(draft.power_kw)
+                    : undefined,
+                  step: 'any'
+                }
               }}
               type="number"
-              error={isNegativeOrInvalid(draft.interconnection_max_output_kw)}
+              error={peakTargetError(draft.interconnection_max_output_kw, draft.power_kw) !== null}
               helperText={
-                isNegativeOrInvalid(draft.interconnection_max_output_kw)
-                  ? 'Must be 0 or greater.'
-                  : undefined
+                peakTargetError(draft.interconnection_max_output_kw, draft.power_kw)
+                  ?? (draft.power_kw.trim() && !Number.isNaN(Number(draft.power_kw))
+                    ? `Site power is ${Number(draft.power_kw).toLocaleString()} kW.`
+                    : 'Set site power first to bound this value.')
               }
             />
           </Grid>

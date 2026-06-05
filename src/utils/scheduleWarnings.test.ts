@@ -120,7 +120,7 @@ describe('evaluateCommandWarnings — variant + interconnection', () => {
     expect(variant!.dismissible).toBe(false);
   });
 
-  test('site power above interconnection cap warns on discharge', () => {
+  test('site power above peak discharge target warns on discharge', () => {
     const cmd = makeCommand({
       command_type: 'discharge',
       execution_offset_seconds: 17 * 3600,
@@ -131,7 +131,7 @@ describe('evaluateCommandWarnings — variant + interconnection', () => {
       interconnection_max_output_kw: 5000,
     });
     const warnings = evaluateCommandWarnings(cmd, site);
-    expect(warnings.some(w => w.key.includes('interconnection-cap'))).toBe(true);
+    expect(warnings.some(w => w.key.includes('above-peak-discharge-target'))).toBe(true);
   });
 });
 

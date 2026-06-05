@@ -75,7 +75,7 @@ const STEP_LABELS = [
   'Off-peak charging',
   'End-of-charge SoC',
   'Peak revenue',
-  'Interconnection',
+  'Peak discharge target',
   'Rebound protection',
   'Season range',
   'Review'
@@ -189,9 +189,13 @@ const PeakSeasonWizard: React.FC<PeakSeasonWizardProps> = ({ open, onClose, onCo
           timeStringToMinutes(draft.peak_revenue_start) !== null &&
           timeStringToMinutes(draft.peak_revenue_end) !== null
         );
-      case 4:
-        return draft.interconnection_max_output_kw !== '' &&
-          Number.parseFloat(draft.interconnection_max_output_kw) > 0;
+      case 4: {
+        if (draft.interconnection_max_output_kw === '') return false;
+        const target = Number.parseFloat(draft.interconnection_max_output_kw);
+        if (!Number.isFinite(target) || target <= 0) return false;
+        const power = Number.parseFloat(draft.power_kw);
+        return !Number.isFinite(power) || target <= power;
+      }
       case 5: {
         const floor = Number.parseFloat(draft.rebound_protection_soc_floor_percent);
         return Number.isFinite(floor) && floor >= 0 && floor <= 100;
@@ -501,28 +505,46 @@ const PeakSeasonWizard: React.FC<PeakSeasonWizardProps> = ({ open, onClose, onCo
           {step === 4 && (
             <Stack spacing={2}>
               <Typography variant="body2" color="text.secondary">
-                Interconnection agreement cap. Discharge will be clamped at this
-                value during the peak-revenue window.
+                During a normal peak-season output, this is what you would be discharging.
+                Schedules can be configured to override this value at any specific time.
+                Used as a soft target — operators will see a warning if scheduled discharge
+                runs above this level.
               </Typography>
               <TextField
-                label="Interconnection max output"
+                label="Peak discharge target output"
                 value={draft.interconnection_max_output_kw}
                 onChange={e => setField('interconnection_max_output_kw', e.target.value)}
                 type="number"
                 slotProps={{
                   input: { endAdornment: <InputAdornment position="end">kW</InputAdornment> },
-                  htmlInput: { min: 0, step: 'any' }
+                  htmlInput: {
+                    min: 0,
+                    max: Number.isFinite(Number.parseFloat(draft.power_kw))
+                      ? Number.parseFloat(draft.power_kw)
+                      : undefined,
+                    step: 'any'
+                  }
                 }}
-                error={
-                  draft.interconnection_max_output_kw !== '' &&
-                  !(Number.parseFloat(draft.interconnection_max_output_kw) > 0)
-                }
-                helperText={
-                  draft.interconnection_max_output_kw !== '' &&
-                  !(Number.parseFloat(draft.interconnection_max_output_kw) > 0)
-                    ? 'Must be greater than 0.'
-                    : undefined
-                }
+                error={(() => {
+                  if (draft.interconnection_max_output_kw === '') return false;
+                  const target = Number.parseFloat(draft.interconnection_max_output_kw);
+                  const power = Number.parseFloat(draft.power_kw);
+                  if (!Number.isFinite(target) || target <= 0) return true;
+                  return Number.isFinite(power) && target > power;
+                })()}
+                helperText={(() => {
+                  const target = Number.parseFloat(draft.interconnection_max_output_kw);
+                  const power = Number.parseFloat(draft.power_kw);
+                  if (draft.interconnection_max_output_kw !== '') {
+                    if (!Number.isFinite(target) || target <= 0) return 'Must be greater than 0.';
+                    if (Number.isFinite(power) && target > power) {
+                      return `Cannot exceed site power (${power.toLocaleString()} kW).`;
+                    }
+                  }
+                  return Number.isFinite(power)
+                    ? `Site power is ${power.toLocaleString()} kW.`
+                    : undefined;
+                })()}
               />
             </Stack>
           )}
@@ -629,7 +651,7 @@ const PeakSeasonWizard: React.FC<PeakSeasonWizardProps> = ({ open, onClose, onCo
                 <Grid size={{ xs: 6 }}><Typography variant="body2"><strong>Charge power:</strong> {draft.charge_power_kw} kW</Typography></Grid>
                 <Grid size={{ xs: 6 }}><Typography variant="body2"><strong>End-of-charge SoC:</strong> {draft.end_of_charge_soc}%</Typography></Grid>
                 <Grid size={{ xs: 6 }}><Typography variant="body2"><strong>Peak revenue:</strong> {draft.peak_revenue_start} – {draft.peak_revenue_end}</Typography></Grid>
-                <Grid size={{ xs: 6 }}><Typography variant="body2"><strong>Interconnection cap:</strong> {draft.interconnection_max_output_kw} kW</Typography></Grid>
+                <Grid size={{ xs: 6 }}><Typography variant="body2"><strong>Peak discharge target:</strong> {draft.interconnection_max_output_kw} kW</Typography></Grid>
                 <Grid size={{ xs: 6 }}><Typography variant="body2"><strong>Rebound floor:</strong> {draft.rebound_protection_soc_floor_percent}%</Typography></Grid>
                 <Grid size={{ xs: 12 }}>
                   <Typography variant="body2">
