@@ -27,13 +27,14 @@ const Sidebar: React.FC<SidebarProps> = () => { // Removed unused className
     if (path === '/fdny') return 'fdny';
     if (path === '/reports') return 'reports';
     if (path === '/scheduler' || path.startsWith('/library')) return 'scheduler';
+    if (path === '/site-settings') return 'site-settings';
     if (path === '/admin') return 'admin';
     return 'sld';
   };
 
   const showAdminPanel = isAdmin(userInfo?.roles);
 
-  const enabledPageIds = ['sld', 'scheduler', 'alarms', 'reports', 'fdny'];
+  const enabledPageIds = ['sld', 'scheduler', 'alarms', 'reports', 'fdny', 'site-settings'];
   
   const navItems = enabledPageIds.map(pageId => {
     const config = getPageConfig(pageId);

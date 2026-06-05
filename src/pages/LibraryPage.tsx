@@ -5,28 +5,21 @@
  * Create, edit, and delete schedules. Configure application rules.
  */
 
-import React, { useRef, useState } from 'react';
+import React, { useState } from 'react';
 import {
   Alert,
   Box,
   Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  Stack,
   Typography
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
-  LibraryBooks as LibraryIcon,
-  Settings as SettingsIcon
+  LibraryBooks as LibraryIcon
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 
 import ScheduleLibrary from '../components/ScheduleLibrary';
 import ApplicationRuleDialog from '../components/ApplicationRuleDialog';
-import SiteDefaultsPanel, { type SiteDefaultsPanelHandle } from '../components/SiteDefaultsPanel/SiteDefaultsPanel';
 
 import { useSiteContext } from '../utils/SiteContext';
 
@@ -43,9 +36,6 @@ const LibraryPage: React.FC = () => {
   const { selectedSiteId, selectedSite } = useSiteContext();
 
   const [rulesDialogItem, setRulesDialogItem] = useState<ScheduleLibraryItem | null>(null);
-  const [defaultsDialogOpen, setDefaultsDialogOpen] = useState(false);
-  const [defaultsSaving, setDefaultsSaving] = useState(false);
-  const defaultsPanelRef = useRef<SiteDefaultsPanelHandle>(null);
 
   const handleManageRules = (item: ScheduleLibraryItem) => {
     setRulesDialogItem(item);
@@ -69,25 +59,13 @@ const LibraryPage: React.FC = () => {
         </Button>
       </Box>
 
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-        <Box>
-          <Typography variant="h4" gutterBottom>
-            Schedule Library
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Create and manage reusable schedules. Configure when each schedule is applied using rules.
-          </Typography>
-        </Box>
-        <Stack direction="row" spacing={2} alignItems="center">
-          <Button
-            variant="outlined"
-            startIcon={<SettingsIcon />}
-            onClick={() => setDefaultsDialogOpen(true)}
-            disabled={!selectedSite}
-          >
-            Site defaults
-          </Button>
-        </Stack>
+      <Box sx={{ mb: 2 }}>
+        <Typography variant="h4" gutterBottom>
+          Schedule Library
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          Create and manage reusable schedules. Configure when each schedule is applied using rules.
+        </Typography>
       </Box>
 
       {closedLoopOff && (
@@ -113,35 +91,6 @@ const LibraryPage: React.FC = () => {
         libraryItem={rulesDialogItem}
         onClose={handleRulesDialogClose}
       />
-
-      <Dialog
-        open={defaultsDialogOpen}
-        onClose={() => setDefaultsDialogOpen(false)}
-        maxWidth="md"
-        fullWidth
-      >
-        <DialogTitle>
-          Site defaults{selectedSite ? ` — ${selectedSite.name}` : ''}
-        </DialogTitle>
-        <DialogContent dividers>
-          <SiteDefaultsPanel ref={defaultsPanelRef} onSavingChange={setDefaultsSaving} />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDefaultsDialogOpen(false)} disabled={defaultsSaving}>
-            Cancel
-          </Button>
-          <Button
-            variant="contained"
-            disabled={defaultsSaving || !selectedSite}
-            onClick={async () => {
-              const ok = await defaultsPanelRef.current?.save();
-              if (ok) setDefaultsDialogOpen(false);
-            }}
-          >
-            {defaultsSaving ? 'Saving…' : 'Save defaults'}
-          </Button>
-        </DialogActions>
-      </Dialog>
     </Box>
   );
 };
