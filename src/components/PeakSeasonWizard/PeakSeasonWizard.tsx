@@ -169,16 +169,20 @@ const PeakSeasonWizard: React.FC<PeakSeasonWizardProps> = ({ open, onClose, onCo
     switch (step) {
       case 0:
         return draft.power_kw !== '' && Number.parseFloat(draft.power_kw) > 0;
-      case 1:
+      case 1: {
+        const chargePower = Number.parseFloat(draft.charge_power_kw);
+        const sitePower = Number.parseFloat(draft.power_kw);
         return (
           timeStringToMinutes(draft.off_peak_start) !== null &&
           timeStringToMinutes(draft.off_peak_end) !== null &&
           draft.charge_power_kw !== '' &&
-          Number.parseFloat(draft.charge_power_kw) > 0
+          chargePower > 0 &&
+          (!Number.isFinite(sitePower) || chargePower <= sitePower)
         );
+      }
       case 2: {
-        const soc = Number.parseInt(draft.end_of_charge_soc, 10);
-        return Number.isFinite(soc) && soc > 0 && soc <= 100;
+        const soc = Number.parseFloat(draft.end_of_charge_soc);
+        return Number.isFinite(soc) && soc >= 0 && soc <= 100;
       }
       case 3:
         return (
@@ -334,7 +338,16 @@ const PeakSeasonWizard: React.FC<PeakSeasonWizardProps> = ({ open, onClose, onCo
                 value={draft.power_kw}
                 onChange={e => setField('power_kw', e.target.value)}
                 type="number"
-                slotProps={{ input: { endAdornment: <InputAdornment position="end">kW</InputAdornment> } }}
+                slotProps={{
+                  input: { endAdornment: <InputAdornment position="end">kW</InputAdornment> },
+                  htmlInput: { min: 0, step: 'any' }
+                }}
+                error={draft.power_kw !== '' && !(Number.parseFloat(draft.power_kw) > 0)}
+                helperText={
+                  draft.power_kw !== '' && !(Number.parseFloat(draft.power_kw) > 0)
+                    ? 'Must be greater than 0.'
+                    : undefined
+                }
               />
               <FormControlLabel
                 control={
@@ -390,8 +403,35 @@ const PeakSeasonWizard: React.FC<PeakSeasonWizardProps> = ({ open, onClose, onCo
                 value={draft.charge_power_kw}
                 onChange={e => setField('charge_power_kw', e.target.value)}
                 type="number"
-                slotProps={{ input: { endAdornment: <InputAdornment position="end">kW</InputAdornment> } }}
-                helperText="Charging command power for the off-peak window."
+                slotProps={{
+                  input: { endAdornment: <InputAdornment position="end">kW</InputAdornment> },
+                  htmlInput: {
+                    min: 0,
+                    max: Number.isFinite(Number.parseFloat(draft.power_kw))
+                      ? Number.parseFloat(draft.power_kw)
+                      : undefined,
+                    step: 'any'
+                  }
+                }}
+                error={(() => {
+                  if (draft.charge_power_kw === '') return false;
+                  const chargePower = Number.parseFloat(draft.charge_power_kw);
+                  const sitePower = Number.parseFloat(draft.power_kw);
+                  if (!(chargePower > 0)) return true;
+                  return Number.isFinite(sitePower) && chargePower > sitePower;
+                })()}
+                helperText={(() => {
+                  if (draft.charge_power_kw === '') {
+                    return 'Charging command power for the off-peak window.';
+                  }
+                  const chargePower = Number.parseFloat(draft.charge_power_kw);
+                  const sitePower = Number.parseFloat(draft.power_kw);
+                  if (!(chargePower > 0)) return 'Must be greater than 0.';
+                  if (Number.isFinite(sitePower) && chargePower > sitePower) {
+                    return `Cannot exceed site power (${sitePower.toLocaleString()} kW).`;
+                  }
+                  return 'Charging command power for the off-peak window.';
+                })()}
               />
             </Stack>
           )}
@@ -406,7 +446,23 @@ const PeakSeasonWizard: React.FC<PeakSeasonWizardProps> = ({ open, onClose, onCo
                 value={draft.end_of_charge_soc}
                 onChange={e => setField('end_of_charge_soc', e.target.value)}
                 type="number"
-                slotProps={{ input: { endAdornment: <InputAdornment position="end">%</InputAdornment> } }}
+                slotProps={{
+                  input: { endAdornment: <InputAdornment position="end">%</InputAdornment> },
+                  htmlInput: { min: 0, max: 100, step: 1 }
+                }}
+                error={(() => {
+                  if (draft.end_of_charge_soc === '') return false;
+                  const soc = Number.parseFloat(draft.end_of_charge_soc);
+                  return !Number.isFinite(soc) || soc < 0 || soc > 100;
+                })()}
+                helperText={(() => {
+                  if (draft.end_of_charge_soc === '') return undefined;
+                  const soc = Number.parseFloat(draft.end_of_charge_soc);
+                  if (!Number.isFinite(soc) || soc < 0 || soc > 100) {
+                    return 'Must be between 0 and 100.';
+                  }
+                  return undefined;
+                })()}
               />
             </Stack>
           )}
@@ -453,7 +509,20 @@ const PeakSeasonWizard: React.FC<PeakSeasonWizardProps> = ({ open, onClose, onCo
                 value={draft.interconnection_max_output_kw}
                 onChange={e => setField('interconnection_max_output_kw', e.target.value)}
                 type="number"
-                slotProps={{ input: { endAdornment: <InputAdornment position="end">kW</InputAdornment> } }}
+                slotProps={{
+                  input: { endAdornment: <InputAdornment position="end">kW</InputAdornment> },
+                  htmlInput: { min: 0, step: 'any' }
+                }}
+                error={
+                  draft.interconnection_max_output_kw !== '' &&
+                  !(Number.parseFloat(draft.interconnection_max_output_kw) > 0)
+                }
+                helperText={
+                  draft.interconnection_max_output_kw !== '' &&
+                  !(Number.parseFloat(draft.interconnection_max_output_kw) > 0)
+                    ? 'Must be greater than 0.'
+                    : undefined
+                }
               />
             </Stack>
           )}
@@ -471,7 +540,23 @@ const PeakSeasonWizard: React.FC<PeakSeasonWizardProps> = ({ open, onClose, onCo
                   setField('rebound_protection_soc_floor_percent', e.target.value)
                 }
                 type="number"
-                slotProps={{ input: { endAdornment: <InputAdornment position="end">%</InputAdornment> } }}
+                slotProps={{
+                  input: { endAdornment: <InputAdornment position="end">%</InputAdornment> },
+                  htmlInput: { min: 0, max: 100, step: 1 }
+                }}
+                error={(() => {
+                  if (draft.rebound_protection_soc_floor_percent === '') return false;
+                  const v = Number.parseFloat(draft.rebound_protection_soc_floor_percent);
+                  return !Number.isFinite(v) || v < 0 || v > 100;
+                })()}
+                helperText={(() => {
+                  if (draft.rebound_protection_soc_floor_percent === '') return undefined;
+                  const v = Number.parseFloat(draft.rebound_protection_soc_floor_percent);
+                  if (!Number.isFinite(v) || v < 0 || v > 100) {
+                    return 'Must be between 0 and 100.';
+                  }
+                  return undefined;
+                })()}
               />
             </Stack>
           )}

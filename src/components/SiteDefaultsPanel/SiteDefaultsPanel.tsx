@@ -85,10 +85,16 @@ function numericOrEmpty(value: number | null | undefined): string {
   return value === null || value === undefined ? '' : String(value);
 }
 
-function isRateOutOfRange(value: string): boolean {
+function isPercentOutOfRange(value: string): boolean {
   if (value === '') return false;
   const n = Number.parseFloat(value);
   return Number.isNaN(n) || n < 0 || n > 100;
+}
+
+function isNegativeOrInvalid(value: string): boolean {
+  if (value === '') return false;
+  const n = Number.parseFloat(value);
+  return Number.isNaN(n) || n < 0;
 }
 
 function siteToDraft(site: Site): DraftSiteDefaults {
@@ -255,12 +261,24 @@ const SiteDefaultsPanel: React.FC<SiteDefaultsPanelProps> = ({ onSavingChange, r
         ? null
         : Number.parseFloat(draft.discharge_rate_percent);
 
-      // Rates are bounded percentages: bail before the round-trip so the
-      // operator sees the problem inline instead of as a backend 400.
-      const outOfRange = (v: number | null) =>
+      // Bail before the round-trip so the operator sees the problem
+      // inline instead of as a backend 400.
+      const outOfPercent = (v: number | null) =>
         v !== null && (Number.isNaN(v) || v < 0 || v > 100);
-      if (outOfRange(chargeRate) || outOfRange(dischargeRate)) {
+      const negative = (v: number | null) =>
+        v !== null && (Number.isNaN(v) || v < 0);
+      if (outOfPercent(chargeRate) || outOfPercent(dischargeRate)) {
         setError('Charge and discharge rate must be between 0 and 100%.');
+        setSaving(false);
+        return false;
+      }
+      if (outOfPercent(reboundFloor)) {
+        setError('Rebound protection SoC floor must be between 0 and 100%.');
+        setSaving(false);
+        return false;
+      }
+      if (negative(power) || negative(capacity) || negative(ramp) || negative(interconnection)) {
+        setError('Site power, capacity, ramp duration, and interconnection cap must be 0 or greater.');
         setSaving(false);
         return false;
       }
@@ -338,13 +356,18 @@ const SiteDefaultsPanel: React.FC<SiteDefaultsPanelProps> = ({ onSavingChange, r
               fullWidth
               value={draft.power_kw}
               onChange={e => setField('power_kw', e.target.value)}
-              slotProps={{ input: { endAdornment: (
-                <InputAdornment position="end">
-                  kW
-                  <FieldHelp field="power_kw" />
-                </InputAdornment>
-              ) } }}
+              slotProps={{
+                input: { endAdornment: (
+                  <InputAdornment position="end">
+                    kW
+                    <FieldHelp field="power_kw" />
+                  </InputAdornment>
+                ) },
+                htmlInput: { min: 0, step: 'any' }
+              }}
               type="number"
+              error={isNegativeOrInvalid(draft.power_kw)}
+              helperText={isNegativeOrInvalid(draft.power_kw) ? 'Must be 0 or greater.' : undefined}
             />
           </Grid>
           <Grid size={{ xs: 12, md: 6 }}>
@@ -353,13 +376,18 @@ const SiteDefaultsPanel: React.FC<SiteDefaultsPanelProps> = ({ onSavingChange, r
               fullWidth
               value={draft.capacity_kwh}
               onChange={e => setField('capacity_kwh', e.target.value)}
-              slotProps={{ input: { endAdornment: (
-                <InputAdornment position="end">
-                  kWh
-                  <FieldHelp field="capacity_kwh" />
-                </InputAdornment>
-              ) } }}
+              slotProps={{
+                input: { endAdornment: (
+                  <InputAdornment position="end">
+                    kWh
+                    <FieldHelp field="capacity_kwh" />
+                  </InputAdornment>
+                ) },
+                htmlInput: { min: 0, step: 'any' }
+              }}
               type="number"
+              error={isNegativeOrInvalid(draft.capacity_kwh)}
+              helperText={isNegativeOrInvalid(draft.capacity_kwh) ? 'Must be 0 or greater.' : undefined}
             />
           </Grid>
           <Grid size={{ xs: 12, md: 6 }}>
@@ -368,19 +396,25 @@ const SiteDefaultsPanel: React.FC<SiteDefaultsPanelProps> = ({ onSavingChange, r
               fullWidth
               value={draft.ramp_duration_seconds}
               onChange={e => setField('ramp_duration_seconds', e.target.value)}
-              slotProps={{ input: { endAdornment: (
-                <InputAdornment position="end">
-                  s
-                  <FieldHelp field="ramp_duration_seconds" />
-                </InputAdornment>
-              ) } }}
+              slotProps={{
+                input: { endAdornment: (
+                  <InputAdornment position="end">
+                    s
+                    <FieldHelp field="ramp_duration_seconds" />
+                  </InputAdornment>
+                ) },
+                htmlInput: { min: 0, step: 1 }
+              }}
               type="number"
+              error={isNegativeOrInvalid(draft.ramp_duration_seconds)}
               helperText={
-                rampRateKwPerMin != null
-                  ? `≈ ${Math.round(rampRateKwPerMin).toLocaleString()} kW/min ramp rate at current power.`
-                  : autoRampDurationSeconds
-                    ? `Auto-suggested: ${autoRampDurationSeconds}s (matches ConEd 2-min full-power ramp).`
-                    : 'Time to ramp from 0 to full power. Default is 120s.'
+                isNegativeOrInvalid(draft.ramp_duration_seconds)
+                  ? 'Must be 0 or greater.'
+                  : rampRateKwPerMin != null
+                    ? `≈ ${Math.round(rampRateKwPerMin).toLocaleString()} kW/min ramp rate at current power.`
+                    : autoRampDurationSeconds
+                      ? `Auto-suggested: ${autoRampDurationSeconds}s (matches ConEd 2-min full-power ramp).`
+                      : 'Time to ramp from 0 to full power. Default is 120s.'
               }
             />
           </Grid>
@@ -420,9 +454,9 @@ const SiteDefaultsPanel: React.FC<SiteDefaultsPanelProps> = ({ onSavingChange, r
                 htmlInput: { min: 0, max: 100, step: 1 }
               }}
               type="number"
-              error={isRateOutOfRange(draft.charge_rate_percent)}
+              error={isPercentOutOfRange(draft.charge_rate_percent)}
               helperText={
-                isRateOutOfRange(draft.charge_rate_percent)
+                isPercentOutOfRange(draft.charge_rate_percent)
                   ? 'Must be between 0 and 100.'
                   : '100 = full power. Drives the calendar\'s orange bar height.'
               }
@@ -444,9 +478,9 @@ const SiteDefaultsPanel: React.FC<SiteDefaultsPanelProps> = ({ onSavingChange, r
                 htmlInput: { min: 0, max: 100, step: 1 }
               }}
               type="number"
-              error={isRateOutOfRange(draft.discharge_rate_percent)}
+              error={isPercentOutOfRange(draft.discharge_rate_percent)}
               helperText={
-                isRateOutOfRange(draft.discharge_rate_percent)
+                isPercentOutOfRange(draft.discharge_rate_percent)
                   ? 'Must be between 0 and 100.'
                   : '100 = full power. Drives the calendar\'s blue bar height.'
               }
@@ -513,13 +547,22 @@ const SiteDefaultsPanel: React.FC<SiteDefaultsPanelProps> = ({ onSavingChange, r
               fullWidth
               value={draft.interconnection_max_output_kw}
               onChange={e => setField('interconnection_max_output_kw', e.target.value)}
-              slotProps={{ input: { endAdornment: (
-                <InputAdornment position="end">
-                  kW
-                  <FieldHelp field="interconnection_max_output_kw" />
-                </InputAdornment>
-              ) } }}
+              slotProps={{
+                input: { endAdornment: (
+                  <InputAdornment position="end">
+                    kW
+                    <FieldHelp field="interconnection_max_output_kw" />
+                  </InputAdornment>
+                ) },
+                htmlInput: { min: 0, step: 'any' }
+              }}
               type="number"
+              error={isNegativeOrInvalid(draft.interconnection_max_output_kw)}
+              helperText={
+                isNegativeOrInvalid(draft.interconnection_max_output_kw)
+                  ? 'Must be 0 or greater.'
+                  : undefined
+              }
             />
           </Grid>
           <Grid size={{ xs: 12, md: 6 }}>
@@ -530,13 +573,22 @@ const SiteDefaultsPanel: React.FC<SiteDefaultsPanelProps> = ({ onSavingChange, r
               onChange={e =>
                 setField('rebound_protection_soc_floor_percent', e.target.value)
               }
-              slotProps={{ input: { endAdornment: (
-                <InputAdornment position="end">
-                  %
-                  <FieldHelp field="rebound_protection_soc_floor_percent" />
-                </InputAdornment>
-              ) } }}
+              slotProps={{
+                input: { endAdornment: (
+                  <InputAdornment position="end">
+                    %
+                    <FieldHelp field="rebound_protection_soc_floor_percent" />
+                  </InputAdornment>
+                ) },
+                htmlInput: { min: 0, max: 100, step: 1 }
+              }}
               type="number"
+              error={isPercentOutOfRange(draft.rebound_protection_soc_floor_percent)}
+              helperText={
+                isPercentOutOfRange(draft.rebound_protection_soc_floor_percent)
+                  ? 'Must be between 0 and 100.'
+                  : undefined
+              }
             />
           </Grid>
           <Grid size={{ xs: 12, md: 6 }}>
