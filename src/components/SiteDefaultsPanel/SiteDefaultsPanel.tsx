@@ -143,9 +143,14 @@ const FIELD_HELP: Record<string, string> = {
   discharge_rate_percent:
     'Percentage of nameplate power used for discharge commands. 100% = full power. Drives the calendar bar height.',
   off_peak_window:
-    'Off-peak charging window — when the battery may draw from the grid at the lower tariff.',
+    'Window when the battery is allowed to charge from the grid at the lower tariff. ' +
+    'Used for scheduling guidance (not enforcement): charge or trickle-charge commands scheduled outside this window surface a warning, ' +
+    'and discharge commands scheduled inside it surface a warning (they fight the charging plan). ' +
+    'Charge power commanded in this window cannot exceed the site power limit and cannot be negative.',
   peak_revenue_window:
-    'Peak-revenue discharge window — when the battery should be paying back to the grid at the higher tariff.',
+    'Window when the battery should discharge back to the grid at the higher tariff. ' +
+    'Used for scheduling guidance (not enforcement): discharge commands scheduled outside this window surface a warning. ' +
+    'Discharge power commanded in this window cannot exceed the site power limit (or the interconnection cap) and cannot be negative.',
   interconnection_max_output_kw:
     'Discharge cap from the interconnection agreement. Discharge commands will be clamped at this value.',
   rebound_protection_soc_floor_percent:
