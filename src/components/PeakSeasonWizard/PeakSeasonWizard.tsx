@@ -601,10 +601,24 @@ const PeakSeasonWizard: React.FC<PeakSeasonWizardProps> = ({ open, onClose, onCo
                   return !Number.isFinite(v) || v < 0 || v > 100;
                 })()}
                 helperText={(() => {
-                  if (draft.rebound_protection_soc_floor_percent === '') return undefined;
                   const v = Number.parseFloat(draft.rebound_protection_soc_floor_percent);
+                  if (draft.rebound_protection_soc_floor_percent === '') return undefined;
                   if (!Number.isFinite(v) || v < 0 || v > 100) {
                     return 'Must be between 0 and 100.';
+                  }
+                  if (v > 20) {
+                    return 'Are you sure? The site will stop discharging when a battery reaches this value.';
+                  }
+                  return undefined;
+                })()}
+                FormHelperTextProps={(() => {
+                  const v = Number.parseFloat(draft.rebound_protection_soc_floor_percent);
+                  if (
+                    Number.isFinite(v) &&
+                    v > 20 &&
+                    v <= 100
+                  ) {
+                    return { sx: { color: 'warning.main' } };
                   }
                   return undefined;
                 })()}

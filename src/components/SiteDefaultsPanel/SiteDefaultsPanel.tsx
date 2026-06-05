@@ -98,6 +98,17 @@ function isNegativeOrInvalid(value: string): boolean {
 }
 
 /**
+ * A rebound-protection floor above 20% means discharge stops while the
+ * battery still has meaningful state-of-charge. Likely an operator
+ * mistake — surface as a soft warning, not a hard error.
+ */
+function isReboundFloorHigh(value: string): boolean {
+  if (value === '') return false;
+  const n = Number.parseFloat(value);
+  return Number.isFinite(n) && n > 20 && n <= 100;
+}
+
+/**
  * Time windows must be strictly start < end (no midnight wrap). Empty
  * strings are treated as "not yet entered" and pass — they're caught by
  * other required-field validation if/when needed.
@@ -657,6 +668,14 @@ const SiteDefaultsPanel: React.FC<SiteDefaultsPanelProps> = ({ onSavingChange, r
               helperText={
                 isPercentOutOfRange(draft.rebound_protection_soc_floor_percent)
                   ? 'Must be between 0 and 100.'
+                  : isReboundFloorHigh(draft.rebound_protection_soc_floor_percent)
+                    ? 'Are you sure? The site will stop discharging when a battery reaches this value.'
+                    : undefined
+              }
+              FormHelperTextProps={
+                isReboundFloorHigh(draft.rebound_protection_soc_floor_percent) &&
+                !isPercentOutOfRange(draft.rebound_protection_soc_floor_percent)
+                  ? { sx: { color: 'warning.main' } }
                   : undefined
               }
             />
