@@ -88,6 +88,18 @@ function minutesToTimeString(minutes: number | null | undefined): string {
   return `${h}:${m}`;
 }
 
+/**
+ * Strict start < end check; empty strings pass (treated as "not yet
+ * entered" — `stepValid` enforces non-empty separately).
+ */
+function isWizardTimeRangeValid(start: string, end: string): boolean {
+  if (start === '' || end === '') return true;
+  const s = timeStringToMinutes(start);
+  const e = timeStringToMinutes(end);
+  if (s === null || e === null) return true;
+  return s < e;
+}
+
 function timeStringToMinutes(value: string): number | null {
   if (!value) return null;
   const m = /^(\d{1,2}):(\d{2})$/.exec(value);
@@ -172,9 +184,12 @@ const PeakSeasonWizard: React.FC<PeakSeasonWizardProps> = ({ open, onClose, onCo
       case 1: {
         const chargePower = Number.parseFloat(draft.charge_power_kw);
         const sitePower = Number.parseFloat(draft.power_kw);
+        const startMin = timeStringToMinutes(draft.off_peak_start);
+        const endMin = timeStringToMinutes(draft.off_peak_end);
         return (
-          timeStringToMinutes(draft.off_peak_start) !== null &&
-          timeStringToMinutes(draft.off_peak_end) !== null &&
+          startMin !== null &&
+          endMin !== null &&
+          startMin < endMin &&
           draft.charge_power_kw !== '' &&
           chargePower > 0 &&
           (!Number.isFinite(sitePower) || chargePower <= sitePower)
@@ -184,11 +199,11 @@ const PeakSeasonWizard: React.FC<PeakSeasonWizardProps> = ({ open, onClose, onCo
         const soc = Number.parseFloat(draft.end_of_charge_soc);
         return Number.isFinite(soc) && soc >= 0 && soc <= 100;
       }
-      case 3:
-        return (
-          timeStringToMinutes(draft.peak_revenue_start) !== null &&
-          timeStringToMinutes(draft.peak_revenue_end) !== null
-        );
+      case 3: {
+        const startMin = timeStringToMinutes(draft.peak_revenue_start);
+        const endMin = timeStringToMinutes(draft.peak_revenue_end);
+        return startMin !== null && endMin !== null && startMin < endMin;
+      }
       case 4: {
         if (draft.interconnection_max_output_kw === '') return false;
         const target = Number.parseFloat(draft.interconnection_max_output_kw);
@@ -389,6 +404,7 @@ const PeakSeasonWizard: React.FC<PeakSeasonWizardProps> = ({ open, onClose, onCo
                     onChange={e => setField('off_peak_start', e.target.value)}
                     type="time"
                     slotProps={{ inputLabel: { shrink: true } }}
+                    error={!isWizardTimeRangeValid(draft.off_peak_start, draft.off_peak_end)}
                   />
                 </Grid>
                 <Grid size={{ xs: 6 }}>
@@ -399,6 +415,12 @@ const PeakSeasonWizard: React.FC<PeakSeasonWizardProps> = ({ open, onClose, onCo
                     onChange={e => setField('off_peak_end', e.target.value)}
                     type="time"
                     slotProps={{ inputLabel: { shrink: true } }}
+                    error={!isWizardTimeRangeValid(draft.off_peak_start, draft.off_peak_end)}
+                    helperText={
+                      !isWizardTimeRangeValid(draft.off_peak_start, draft.off_peak_end)
+                        ? 'End must be after start.'
+                        : undefined
+                    }
                   />
                 </Grid>
               </Grid>
@@ -486,6 +508,7 @@ const PeakSeasonWizard: React.FC<PeakSeasonWizardProps> = ({ open, onClose, onCo
                     onChange={e => setField('peak_revenue_start', e.target.value)}
                     type="time"
                     slotProps={{ inputLabel: { shrink: true } }}
+                    error={!isWizardTimeRangeValid(draft.peak_revenue_start, draft.peak_revenue_end)}
                   />
                 </Grid>
                 <Grid size={{ xs: 6 }}>
@@ -496,6 +519,12 @@ const PeakSeasonWizard: React.FC<PeakSeasonWizardProps> = ({ open, onClose, onCo
                     onChange={e => setField('peak_revenue_end', e.target.value)}
                     type="time"
                     slotProps={{ inputLabel: { shrink: true } }}
+                    error={!isWizardTimeRangeValid(draft.peak_revenue_start, draft.peak_revenue_end)}
+                    helperText={
+                      !isWizardTimeRangeValid(draft.peak_revenue_start, draft.peak_revenue_end)
+                        ? 'End must be after start.'
+                        : undefined
+                    }
                   />
                 </Grid>
               </Grid>
@@ -602,6 +631,11 @@ const PeakSeasonWizard: React.FC<PeakSeasonWizardProps> = ({ open, onClose, onCo
                     onChange={e => setField('start_date', e.target.value)}
                     type="date"
                     slotProps={{ inputLabel: { shrink: true } }}
+                    error={
+                      draft.start_date !== '' &&
+                      draft.end_date !== '' &&
+                      draft.start_date > draft.end_date
+                    }
                   />
                 </Grid>
                 <Grid size={{ xs: 6 }}>
@@ -612,6 +646,18 @@ const PeakSeasonWizard: React.FC<PeakSeasonWizardProps> = ({ open, onClose, onCo
                     onChange={e => setField('end_date', e.target.value)}
                     type="date"
                     slotProps={{ inputLabel: { shrink: true } }}
+                    error={
+                      draft.start_date !== '' &&
+                      draft.end_date !== '' &&
+                      draft.start_date > draft.end_date
+                    }
+                    helperText={
+                      draft.start_date !== '' &&
+                      draft.end_date !== '' &&
+                      draft.start_date > draft.end_date
+                        ? 'End date must be on or after start date.'
+                        : undefined
+                    }
                   />
                 </Grid>
               </Grid>

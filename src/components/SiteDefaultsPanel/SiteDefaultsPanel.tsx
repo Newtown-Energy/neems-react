@@ -98,6 +98,19 @@ function isNegativeOrInvalid(value: string): boolean {
 }
 
 /**
+ * Time windows must be strictly start < end (no midnight wrap). Empty
+ * strings are treated as "not yet entered" and pass — they're caught by
+ * other required-field validation if/when needed.
+ */
+function isTimeRangeValid(start: string, end: string): boolean {
+  if (start === '' || end === '') return true;
+  const s = timeStringToMinutes(start);
+  const e = timeStringToMinutes(end);
+  if (s === null || e === null) return true;
+  return s < e;
+}
+
+/**
  * Validate that the peak-discharge target is in [0, site_power_kw].
  * Returns the user-facing error message or null when the field is valid
  * (including empty — empty is "no value yet", not an error).
@@ -307,6 +320,14 @@ const SiteDefaultsPanel: React.FC<SiteDefaultsPanelProps> = ({ onSavingChange, r
         interconnection > power
       ) {
         setError(`Peak discharge target output cannot exceed site power (${power.toLocaleString()} kW).`);
+        setSaving(false);
+        return false;
+      }
+      if (
+        !isTimeRangeValid(draft.off_peak_start, draft.off_peak_end) ||
+        !isTimeRangeValid(draft.peak_revenue_start, draft.peak_revenue_end)
+      ) {
+        setError('Each time window must have an End that is after its Start.');
         setSaving(false);
         return false;
       }
@@ -528,6 +549,7 @@ const SiteDefaultsPanel: React.FC<SiteDefaultsPanelProps> = ({ onSavingChange, r
               onChange={e => setField('off_peak_start', e.target.value)}
               type="time"
               slotProps={{ inputLabel: { shrink: true } }}
+              error={!isTimeRangeValid(draft.off_peak_start, draft.off_peak_end)}
             />
           </Grid>
           <Grid size={{ xs: 6 }}>
@@ -538,6 +560,12 @@ const SiteDefaultsPanel: React.FC<SiteDefaultsPanelProps> = ({ onSavingChange, r
               onChange={e => setField('off_peak_end', e.target.value)}
               type="time"
               slotProps={{ inputLabel: { shrink: true } }}
+              error={!isTimeRangeValid(draft.off_peak_start, draft.off_peak_end)}
+              helperText={
+                !isTimeRangeValid(draft.off_peak_start, draft.off_peak_end)
+                  ? 'End must be after start.'
+                  : undefined
+              }
             />
           </Grid>
         </Grid>
@@ -552,6 +580,7 @@ const SiteDefaultsPanel: React.FC<SiteDefaultsPanelProps> = ({ onSavingChange, r
               onChange={e => setField('peak_revenue_start', e.target.value)}
               type="time"
               slotProps={{ inputLabel: { shrink: true } }}
+              error={!isTimeRangeValid(draft.peak_revenue_start, draft.peak_revenue_end)}
             />
           </Grid>
           <Grid size={{ xs: 6 }}>
@@ -562,6 +591,12 @@ const SiteDefaultsPanel: React.FC<SiteDefaultsPanelProps> = ({ onSavingChange, r
               onChange={e => setField('peak_revenue_end', e.target.value)}
               type="time"
               slotProps={{ inputLabel: { shrink: true } }}
+              error={!isTimeRangeValid(draft.peak_revenue_start, draft.peak_revenue_end)}
+              helperText={
+                !isTimeRangeValid(draft.peak_revenue_start, draft.peak_revenue_end)
+                  ? 'End must be after start.'
+                  : undefined
+              }
             />
           </Grid>
         </Grid>
