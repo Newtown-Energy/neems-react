@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Drawer, List, Typography, Box, Divider, IconButton } from '@mui/material';
-import { ChevronLeft, ChevronRight, Logout, ArrowForward, Help, AdminPanelSettings } from '@mui/icons-material';
+import { ChevronLeft, ChevronRight, Logout, ArrowForward, Help, AdminPanelSettings, Settings as SettingsIcon } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { SidebarItem } from './SidebarItem';
 import { getPageConfig } from '../../config/pageRegistry';
@@ -34,7 +34,7 @@ const Sidebar: React.FC<SidebarProps> = () => { // Removed unused className
 
   const showAdminPanel = isAdmin(userInfo?.roles);
 
-  const enabledPageIds = ['sld', 'scheduler', 'alarms', 'reports', 'fdny', 'site-settings'];
+  const enabledPageIds = ['sld', 'scheduler', 'alarms', 'reports', 'fdny'];
   
   const navItems = enabledPageIds.map(pageId => {
     const config = getPageConfig(pageId);
@@ -49,6 +49,7 @@ const Sidebar: React.FC<SidebarProps> = () => { // Removed unused className
   }).filter((item): item is NonNullable<typeof item> => item !== null);
 
   const bottomItems = [
+    { id: 'site-settings', icon: SettingsIcon, text: 'Site Settings' },
     ...(showAdminPanel ? [{ id: 'admin', icon: AdminPanelSettings, text: 'Admin Panel' }] : []),
     { id: 'help', icon: Help, text: 'Ask for help' },
     { id: 'logout', icon: Logout, text: 'Logout' }
