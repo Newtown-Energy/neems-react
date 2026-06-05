@@ -37,7 +37,6 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import CommandCalendar from '../components/CommandCalendar';
 import EditConfirmationDialog from '../components/EditConfirmationDialog';
-import SiteSelector from '../components/SiteSelector/SiteSelector';
 import SiteDefaultsPanel, { type SiteDefaultsPanelHandle } from '../components/SiteDefaultsPanel/SiteDefaultsPanel';
 import PeakSeasonWizard from '../components/PeakSeasonWizard/PeakSeasonWizard';
 // DemoControlsDrawer is now mounted at the app level and self-gates
@@ -208,7 +207,6 @@ const SchedulerPage: React.FC = () => {
           </Typography>
         </Box>
         <Stack direction="row" spacing={2} alignItems="center">
-          <SiteSelector />
           <Button
             variant="contained"
             startIcon={<WizardIcon />}

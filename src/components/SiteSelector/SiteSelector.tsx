@@ -1,75 +1,80 @@
 import React from 'react';
 import {
   FormControl,
-  InputLabel,
   Select,
   MenuItem,
-  CircularProgress,
-  Alert,
-  type SelectChangeEvent
+  Typography,
+  Box,
 } from '@mui/material';
+import type { SelectChangeEvent } from '@mui/material';
+import { LocationOn } from '@mui/icons-material';
 
 import { useSiteContext } from '../../utils/SiteContext';
 
 interface SiteSelectorProps {
-  label?: string;
-  disabled?: boolean;
-  size?: 'small' | 'medium';
-  /** Override the maxWidth applied to the dropdown — defaults to 320px. */
-  maxWidth?: number;
+  collapsed: boolean;
 }
 
 /**
- * Site selector dropdown. Reads from the shared [SiteContext] so a
- * selection made on any page is reflected everywhere the selector is
- * rendered. The list of sites is whatever the current user can see.
+ * Sidebar site selector. Reads from [SiteContext] so a selection
+ * change here is reflected on every page that uses `useSiteContext`.
+ * With a single site available, the name is rendered as static text
+ * instead of a dropdown.
  */
-const SiteSelector: React.FC<SiteSelectorProps> = ({
-  label = 'Site',
-  disabled = false,
-  size = 'small',
-  maxWidth = 320
-}) => {
-  const { sites, selectedSiteId, setSelectedSiteId, loading, error } = useSiteContext();
+export const SiteSelector: React.FC<SiteSelectorProps> = ({ collapsed }) => {
+  const { sites, selectedSiteId, setSelectedSiteId, loading } = useSiteContext();
 
-  if (error) {
+  if (!loading && sites.length === 0) {
+    return null;
+  }
+
+  if (collapsed) {
     return (
-      <Alert severity="error" sx={{ mb: 2 }}>
-        {error}
-      </Alert>
+      <Box sx={{ display: 'flex', justifyContent: 'center', p: 1 }} title="Current site">
+        <LocationOn sx={{ color: 'text.secondary' }} />
+      </Box>
     );
   }
 
   const handleChange = (event: SelectChangeEvent<number>) => {
-    const id = event.target.value as number;
+    const id = Number(event.target.value);
     if (Number.isFinite(id)) {
       setSelectedSiteId(id);
     }
   };
 
   return (
-    <FormControl size={size} sx={{ minWidth: 200, maxWidth }} disabled={disabled || loading}>
-      <InputLabel id="site-selector-label">{label}</InputLabel>
-      <Select
-        labelId="site-selector-label"
-        id="site-selector"
-        value={selectedSiteId ?? ''}
-        label={label}
-        onChange={handleChange}
-        endAdornment={loading ? <CircularProgress size={16} sx={{ mr: 3 }} /> : null}
-      >
-        {sites.length === 0 && !loading && (
-          <MenuItem value="" disabled>
-            No sites available
-          </MenuItem>
-        )}
-        {sites.map((site) => (
-          <MenuItem key={site.id} value={site.id}>
-            {site.name}
-          </MenuItem>
-        ))}
-      </Select>
-    </FormControl>
+    <Box sx={{ p: 2, pt: 1 }}>
+      <Typography variant="caption" sx={{ color: 'text.secondary', mb: 0.5, display: 'block' }}>
+        SITE
+      </Typography>
+      {sites.length === 1 ? (
+        <Typography variant="body2" sx={{ py: 1 }} noWrap>
+          {sites[0].name}
+        </Typography>
+      ) : (
+        <FormControl fullWidth size="small">
+          <Select
+            id="site-selector-sidebar"
+            value={selectedSiteId ?? ''}
+            onChange={handleChange}
+            disabled={loading}
+            sx={{
+              fontSize: '0.875rem',
+              '& .MuiSelect-select': {
+                py: 1,
+              },
+            }}
+          >
+            {sites.map((site) => (
+              <MenuItem key={site.id} value={site.id}>
+                {site.name}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      )}
+    </Box>
   );
 };
 

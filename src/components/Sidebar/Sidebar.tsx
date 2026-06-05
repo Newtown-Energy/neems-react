@@ -5,6 +5,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { SidebarItem } from './SidebarItem';
 import { getPageConfig } from '../../config/pageRegistry';
 import { CompanySelector } from '../CompanySelector/CompanySelector';
+import { SiteSelector } from '../SiteSelector/SiteSelector';
 import { useAuth } from '../../pages/LoginPage/useAuth';
 import { isAdmin } from '../../utils/auth';
 import { debugLog, errorLog } from '../../utils/debug';
@@ -169,6 +170,8 @@ const Sidebar: React.FC<SidebarProps> = () => { // Removed unused className
         userRoles={userInfo?.roles || []}
         userCompanyName={userInfo?.company_name}
       />
+
+      <SiteSelector collapsed={collapsed} />
 
       <Divider />
 

@@ -26,7 +26,6 @@ import { useNavigate } from 'react-router-dom';
 
 import ScheduleLibrary from '../components/ScheduleLibrary';
 import ApplicationRuleDialog from '../components/ApplicationRuleDialog';
-import SiteSelector from '../components/SiteSelector/SiteSelector';
 import SiteDefaultsPanel, { type SiteDefaultsPanelHandle } from '../components/SiteDefaultsPanel/SiteDefaultsPanel';
 
 import { useSiteContext } from '../utils/SiteContext';
@@ -80,7 +79,6 @@ const LibraryPage: React.FC = () => {
           </Typography>
         </Box>
         <Stack direction="row" spacing={2} alignItems="center">
-          <SiteSelector />
           <Button
             variant="outlined"
             startIcon={<SettingsIcon />}
