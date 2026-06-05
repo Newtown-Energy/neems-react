@@ -198,7 +198,7 @@ const SchedulerPage: React.FC = () => {
             onClick={() => setWizardOpen(true)}
             disabled={!selectedSite}
           >
-            Peak-season wizard
+            Site configuration wizard
           </Button>
           <Button
             variant="outlined"

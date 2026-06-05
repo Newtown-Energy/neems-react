@@ -398,7 +398,7 @@ const SiteDefaultsPanel: React.FC<SiteDefaultsPanelProps> = ({ onSavingChange, r
   return (
     <Stack spacing={3}>
       <Typography variant="body2" color="text.secondary">
-        These values drive the peak-season wizard, scheduling warnings, and the
+        These values drive the site configuration wizard, scheduling warnings, and the
         calendar's bar visualization. Edits persist on save.
       </Typography>
 
