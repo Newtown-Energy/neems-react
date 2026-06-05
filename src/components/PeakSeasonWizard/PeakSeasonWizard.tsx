@@ -479,8 +479,7 @@ const PeakSeasonWizard: React.FC<PeakSeasonWizardProps> = ({ open, onClose, onCo
           {step === 6 && (
             <Stack spacing={2}>
               <Typography variant="body2" color="text.secondary">
-                Pick the season's start and end dates. Weekdays-only and the
-                federal-holiday skip are on by default to match the script.
+                Pick the season's start and end dates.
               </Typography>
               <TextField
                 label="Schedule name"
