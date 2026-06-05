@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Drawer, List, Typography, Box, Divider, IconButton } from '@mui/material';
-import { ChevronLeft, ChevronRight, Logout, ArrowForward, Help, AdminPanelSettings } from '@mui/icons-material';
+import { ChevronLeft, ChevronRight, Logout, ArrowForward, Help, AdminPanelSettings, Settings as SettingsIcon } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { SidebarItem } from './SidebarItem';
 import { getPageConfig } from '../../config/pageRegistry';
 import { CompanySelector } from '../CompanySelector/CompanySelector';
+import { SiteSelector } from '../SiteSelector/SiteSelector';
 import { useAuth } from '../../pages/LoginPage/useAuth';
 import { isAdmin } from '../../utils/auth';
 import { debugLog, errorLog } from '../../utils/debug';
@@ -26,6 +27,7 @@ const Sidebar: React.FC<SidebarProps> = () => { // Removed unused className
     if (path === '/fdny') return 'fdny';
     if (path === '/reports') return 'reports';
     if (path === '/scheduler' || path.startsWith('/library')) return 'scheduler';
+    if (path === '/site-settings') return 'site-settings';
     if (path === '/admin') return 'admin';
     return 'sld';
   };
@@ -47,6 +49,7 @@ const Sidebar: React.FC<SidebarProps> = () => { // Removed unused className
   }).filter((item): item is NonNullable<typeof item> => item !== null);
 
   const bottomItems = [
+    { id: 'site-settings', icon: SettingsIcon, text: 'Site Settings' },
     ...(showAdminPanel ? [{ id: 'admin', icon: AdminPanelSettings, text: 'Admin Panel' }] : []),
     { id: 'help', icon: Help, text: 'Ask for help' },
     { id: 'logout', icon: Logout, text: 'Logout' }
@@ -169,6 +172,8 @@ const Sidebar: React.FC<SidebarProps> = () => { // Removed unused className
         userRoles={userInfo?.roles || []}
         userCompanyName={userInfo?.company_name}
       />
+
+      <SiteSelector collapsed={collapsed} />
 
       <Divider />
 

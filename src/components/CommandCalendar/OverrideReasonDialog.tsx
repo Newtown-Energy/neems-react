@@ -41,7 +41,7 @@ const OverrideReasonDialog: React.FC<OverrideReasonDialogProps> = ({
       <DialogContent>
         <Box sx={{ pt: 2 }}>
           <Typography variant="body2" gutterBottom>
-            You are switching to: <strong>{pendingScheduleSwitch?.name}</strong>
+            You are applying: <strong>{pendingScheduleSwitch?.name}</strong>
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             Please provide a reason for this override. The reason appears

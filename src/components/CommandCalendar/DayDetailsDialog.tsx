@@ -339,7 +339,7 @@ const DayDetailsDialog: React.FC<DayDetailsDialogProps> = ({
 
             <DayChangeHistoryPane
               ruleId={prevailingRuleId}
-              libraryItemId={libraryItem?.id ?? null}
+              libraryItem={libraryItem ? { id: libraryItem.id, name: libraryItem.name } : null}
               overrideReason={overrideReason}
             />
 
@@ -388,7 +388,7 @@ const DayDetailsDialog: React.FC<DayDetailsDialogProps> = ({
                           variant="outlined"
                           onClick={() => onSwitchToSchedule(entry.item)}
                         >
-                          Switch
+                          Apply
                         </Button>
                       </Box>
                     ))}

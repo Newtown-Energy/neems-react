@@ -9,6 +9,7 @@ import ReportsPage from './pages/ReportsPage';
 import SchedulerPage from './pages/SchedulerPage';
 import LibraryPage from './pages/LibraryPage';
 import ScheduleAuditPage from './pages/ScheduleAuditPage';
+import SiteSettingsPage from './pages/SiteSettingsPage';
 import SldPage from './pages/SldPage';
 import SiteStatePanel from './components/SiteStatePanel/SiteStatePanel';
 import DemoControlsDrawer from './components/DemoControlsDrawer/DemoControlsDrawer';
@@ -73,6 +74,7 @@ const AppContent: React.FC = () => {
             <Route path="/scheduler" element={<SchedulerPage />} />
             <Route path="/library" element={<LibraryPage />} />
             <Route path="/library/:itemId/audit" element={<ScheduleAuditPage />} />
+            <Route path="/site-settings" element={<SiteSettingsPage />} />
             <Route path="/sld" element={<SldPage />} />
             <Route path="/admin" element={<AdminPage />} />
           </Routes>

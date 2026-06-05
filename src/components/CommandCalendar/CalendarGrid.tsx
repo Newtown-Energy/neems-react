@@ -68,23 +68,41 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
   const lastDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
   const startDayOfWeek = firstDay.getDay();
 
-  const days: (Date | null)[] = [];
-  for (let i = 0; i < startDayOfWeek; i += 1) {
-    days.push(null);
-  }
-  for (let d = 1; d <= lastDay.getDate(); d += 1) {
-    days.push(new Date(currentMonth.getFullYear(), currentMonth.getMonth(), d));
-  }
-  const allWeeks: (Date | null)[][] = [];
-  for (let i = 0; i < days.length; i += 7) {
-    allWeeks.push(days.slice(i, i + 7));
-  }
-
-  const weeks = viewMode === 'week'
-    ? [allWeeks[Math.min(weekIndex, allWeeks.length - 1)] ?? allWeeks[0]]
-    : allWeeks;
-
   const isWeekView = viewMode === 'week';
+
+  // Week view always shows 7 real dates — including any that fall into
+  // the previous or next month — so the operator never sees a blank
+  // half-week. Month view keeps the standard padded grid (nulls outside
+  // the current month) so the date numbers line up with the month label.
+  let weeks: (Date | null)[][];
+  if (isWeekView) {
+    const weekStartDay = weekIndex * 7 - startDayOfWeek + 1;
+    const weekStart = new Date(
+      currentMonth.getFullYear(),
+      currentMonth.getMonth(),
+      weekStartDay
+    );
+    const week: Date[] = [];
+    for (let i = 0; i < 7; i += 1) {
+      const d = new Date(weekStart);
+      d.setDate(weekStart.getDate() + i);
+      week.push(d);
+    }
+    weeks = [week];
+  } else {
+    const days: (Date | null)[] = [];
+    for (let i = 0; i < startDayOfWeek; i += 1) {
+      days.push(null);
+    }
+    for (let d = 1; d <= lastDay.getDate(); d += 1) {
+      days.push(new Date(currentMonth.getFullYear(), currentMonth.getMonth(), d));
+    }
+    weeks = [];
+    for (let i = 0; i < days.length; i += 7) {
+      weeks.push(days.slice(i, i + 7));
+    }
+  }
+
   const cellMinHeight = isWeekView ? 200 : 110;
 
   return (

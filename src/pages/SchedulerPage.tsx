@@ -5,7 +5,7 @@
  * Allows applying schedules to specific dates and editing schedules.
  */
 
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -14,14 +14,10 @@ import {
   DialogContent,
   DialogActions,
   Button,
-  IconButton,
   List,
   ListItem,
   ListItemButton,
-  ListItemIcon,
   ListItemText,
-  Menu,
-  MenuItem,
   Alert,
   TextField,
   Stack
@@ -29,16 +25,12 @@ import {
 import {
   AutoFixHigh as WizardIcon,
   CalendarMonth as CalendarIcon,
-  LibraryBooks as LibraryIcon,
-  MoreVert as MoreVertIcon,
-  Settings as SettingsIcon
+  LibraryBooks as LibraryIcon
 } from '@mui/icons-material';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import CommandCalendar from '../components/CommandCalendar';
 import EditConfirmationDialog from '../components/EditConfirmationDialog';
-import SiteSelector from '../components/SiteSelector/SiteSelector';
-import SiteDefaultsPanel, { type SiteDefaultsPanelHandle } from '../components/SiteDefaultsPanel/SiteDefaultsPanel';
 import PeakSeasonWizard from '../components/PeakSeasonWizard/PeakSeasonWizard';
 // DemoControlsDrawer is now mounted at the app level and self-gates
 // to admin roles — no per-page wiring needed.
@@ -82,16 +74,8 @@ const SchedulerPage: React.FC = () => {
   // Refresh trigger for calendar
   const [calendarRefreshKey, setCalendarRefreshKey] = useState(0);
 
-  // Site defaults dialog
-  const [defaultsDialogOpen, setDefaultsDialogOpen] = useState(false);
-  const [defaultsSaving, setDefaultsSaving] = useState(false);
-  const defaultsPanelRef = useRef<SiteDefaultsPanelHandle>(null);
-
   // Peak-season wizard
   const [wizardOpen, setWizardOpen] = useState(false);
-
-  // Toolbar overflow menu (Site defaults, Manage Library)
-  const [overflowAnchor, setOverflowAnchor] = useState<HTMLElement | null>(null);
 
   // Load library items for "apply different" dialog
   useEffect(() => {
@@ -208,50 +192,21 @@ const SchedulerPage: React.FC = () => {
           </Typography>
         </Box>
         <Stack direction="row" spacing={2} alignItems="center">
-          <SiteSelector />
           <Button
             variant="contained"
             startIcon={<WizardIcon />}
             onClick={() => setWizardOpen(true)}
             disabled={!selectedSite}
           >
-            Peak-season wizard
+            Site configuration wizard
           </Button>
-          <IconButton
-            aria-label="More scheduler actions"
-            onClick={(e) => setOverflowAnchor(e.currentTarget)}
+          <Button
+            variant="outlined"
+            startIcon={<LibraryIcon />}
+            onClick={() => navigate('/library')}
           >
-            <MoreVertIcon />
-          </IconButton>
-          <Menu
-            anchorEl={overflowAnchor}
-            open={Boolean(overflowAnchor)}
-            onClose={() => setOverflowAnchor(null)}
-          >
-            <MenuItem
-              disabled={!selectedSite}
-              onClick={() => {
-                setOverflowAnchor(null);
-                setDefaultsDialogOpen(true);
-              }}
-            >
-              <ListItemIcon>
-                <SettingsIcon fontSize="small" />
-              </ListItemIcon>
-              <ListItemText>Site defaults</ListItemText>
-            </MenuItem>
-            <MenuItem
-              onClick={() => {
-                setOverflowAnchor(null);
-                navigate('/library');
-              }}
-            >
-              <ListItemIcon>
-                <LibraryIcon fontSize="small" />
-              </ListItemIcon>
-              <ListItemText>Manage Library</ListItemText>
-            </MenuItem>
-          </Menu>
+            Manage Library
+          </Button>
         </Stack>
       </Box>
 
@@ -279,35 +234,6 @@ const SchedulerPage: React.FC = () => {
           />
         )}
       </Box>
-
-      <Dialog
-        open={defaultsDialogOpen}
-        onClose={() => setDefaultsDialogOpen(false)}
-        maxWidth="md"
-        fullWidth
-      >
-        <DialogTitle>
-          Site defaults{selectedSite ? ` — ${selectedSite.name}` : ''}
-        </DialogTitle>
-        <DialogContent dividers>
-          <SiteDefaultsPanel ref={defaultsPanelRef} onSavingChange={setDefaultsSaving} />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDefaultsDialogOpen(false)} disabled={defaultsSaving}>
-            Cancel
-          </Button>
-          <Button
-            variant="contained"
-            disabled={defaultsSaving || !selectedSite}
-            onClick={async () => {
-              const ok = await defaultsPanelRef.current?.save();
-              if (ok) setDefaultsDialogOpen(false);
-            }}
-          >
-            {defaultsSaving ? 'Saving…' : 'Save defaults'}
-          </Button>
-        </DialogActions>
-      </Dialog>
 
       <PeakSeasonWizard
         open={wizardOpen}

@@ -17,12 +17,14 @@ import React, { useEffect, useState } from 'react';
 import {
   Box,
   CircularProgress,
+  Link,
   List,
   ListItem,
   ListItemText,
   Stack,
   Typography
 } from '@mui/material';
+import { Link as RouterLink } from 'react-router-dom';
 import type { EntityActivityWithUser } from '@newtown-energy/types';
 
 import { getEntityActivity } from '../../utils/scheduleApi';
@@ -33,7 +35,7 @@ interface DayChangeHistoryPaneProps {
   /** Library item backing this day. Inline command edits (S1b) write
    *  to `schedule_templates` activity rather than `application_rules`,
    *  so we fetch both streams and merge them by timestamp. */
-  libraryItemId: number | null;
+  libraryItem: { id: number; name: string } | null;
   /** Surfaced inline so the operator sees the reason next to the
    *  "applied by" rows. May be null when the rule has no recorded
    *  reason (e.g. legacy default rule, day-of-week toggle). */
@@ -46,7 +48,15 @@ function formatTimestamp(iso: string): string {
   return d.toLocaleString();
 }
 
-function formatRow(row: EntityActivityWithUser): string {
+interface RowParts {
+  verb: string;
+  /** Verb is followed by the schedule reference (when known) so the user
+   *  can see exactly which schedule was applied / edited. */
+  showScheduleLink: boolean;
+  actor: string;
+}
+
+function formatRow(row: EntityActivityWithUser): RowParts {
   const actor = row.user_email ?? (row.user_id !== null ? `user #${row.user_id}` : 'system');
   const isTemplate = row.table_name === 'schedule_templates';
   const verb = row.operation_type === 'create'
@@ -56,16 +66,21 @@ function formatRow(row: EntityActivityWithUser): string {
       : row.operation_type === 'delete'
         ? 'Removed'
         : row.operation_type;
-  return `${verb} by ${actor}`;
+  return {
+    verb,
+    showScheduleLink: row.operation_type !== 'delete',
+    actor,
+  };
 }
 
 const DayChangeHistoryPane: React.FC<DayChangeHistoryPaneProps> = ({
   ruleId,
-  libraryItemId,
+  libraryItem,
   overrideReason
 }) => {
   const [activity, setActivity] = useState<EntityActivityWithUser[] | null>(null);
   const [loading, setLoading] = useState(false);
+  const libraryItemId = libraryItem?.id ?? null;
 
   useEffect(() => {
     if (ruleId == null && libraryItemId == null) {
@@ -135,10 +150,28 @@ const DayChangeHistoryPane: React.FC<DayChangeHistoryPaneProps> = ({
               ?? ((row.operation_type === 'create' && row.table_name === 'application_rules')
                 ? overrideReason
                 : null);
+            const { verb, showScheduleLink, actor } = formatRow(row);
             return (
               <ListItem key={`${row.table_name}-${row.id}`} disableGutters sx={{ py: 0.25 }}>
                 <ListItemText
-                  primary={formatRow(row)}
+                  primary={
+                    <Typography variant="body2" component="span">
+                      {verb}
+                      {showScheduleLink && libraryItem && (
+                        <>
+                          {' '}
+                          <Link
+                            component={RouterLink}
+                            to={`/library/${libraryItem.id}/audit`}
+                            underline="hover"
+                          >
+                            {libraryItem.name}
+                          </Link>
+                        </>
+                      )}
+                      {' '}by {actor}
+                    </Typography>
+                  }
                   secondary={
                     <>
                       {formatTimestamp(row.timestamp)}
@@ -152,7 +185,6 @@ const DayChangeHistoryPane: React.FC<DayChangeHistoryPaneProps> = ({
                       )}
                     </>
                   }
-                  primaryTypographyProps={{ variant: 'body2' }}
                   secondaryTypographyProps={{ variant: 'caption', component: 'div' }}
                 />
               </ListItem>

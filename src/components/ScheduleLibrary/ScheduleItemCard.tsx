@@ -310,7 +310,7 @@ const ScheduleItemCard: React.FC<ScheduleItemCardProps> = ({
               <Box sx={{ mt: 3 }}>
                 <DayChangeHistoryPane
                   ruleId={null}
-                  libraryItemId={item.id}
+                  libraryItem={{ id: item.id, name: item.name }}
                   overrideReason={null}
                 />
               </Box>

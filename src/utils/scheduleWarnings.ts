@@ -185,7 +185,11 @@ export function evaluateCommandWarnings(
     });
   }
 
-  // --- Interconnection cap (static site property) ---------------------
+  // --- Peak discharge target (static site property) -------------------
+  // The target is a soft suggestion (not a backend clamp). Flag when the
+  // site is capable of discharging above the configured target so the
+  // operator knows that headroom exists and may need per-schedule
+  // overrides.
 
   if (
     command.command_type === 'discharge' &&
@@ -194,10 +198,10 @@ export function evaluateCommandWarnings(
     site.power_kw > site.interconnection_max_output_kw
   ) {
     warnings.push({
-      key: `${command.id}:interconnection-cap`,
+      key: `${command.id}:above-peak-discharge-target`,
       severity: 'warning',
-      message: `Site power (${site.power_kw} kW) exceeds the interconnection cap (${site.interconnection_max_output_kw} kW). Discharge will be clamped.`,
-      dismissible: false
+      message: `Site power (${site.power_kw} kW) exceeds the peak discharge target (${site.interconnection_max_output_kw} kW). Discharge will run at the site default unless this schedule overrides it.`,
+      dismissible: true
     });
   }
 
