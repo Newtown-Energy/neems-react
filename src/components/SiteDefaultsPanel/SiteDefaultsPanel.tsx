@@ -25,6 +25,7 @@ import React, {
 } from 'react';
 import {
   Alert,
+  Box,
   Divider,
   FormControl,
   FormControlLabel,
@@ -157,18 +158,14 @@ const FIELD_HELP: Record<string, string> = {
 const FIELD_HELP_ICON_PX = 20;
 
 /**
- * Inline "?" help icon + tooltip.
- *
- * `plain` distinguishes the two contexts this renders in so the icon ends up
- * the same visual size in both. A populated MUI floating input label is
- * transformed with `scale(0.75)`, which also shrinks an icon inside it; we
- * counter that by sizing the icon up. Section headers and the switch label
- * are un-scaled, so they use the target size directly (`plain`).
+ * Inline "?" help icon + tooltip. Always rendered outside MUI's
+ * `InputLabel` (which has `pointer-events: none` and visually doubles
+ * as the input's placeholder when empty) — see callers, which place
+ * it in `endAdornment` or as a sibling of the FormControl.
  */
-const FieldHelp: React.FC<{ field: string; plain?: boolean }> = ({ field, plain }) => {
+const FieldHelp: React.FC<{ field: string }> = ({ field }) => {
   const tip = FIELD_HELP[field];
   if (!tip) return null;
-  const fontSize = plain ? FIELD_HELP_ICON_PX : Math.round(FIELD_HELP_ICON_PX / 0.75);
   return (
     <Tooltip
       title={tip}
@@ -179,7 +176,13 @@ const FieldHelp: React.FC<{ field: string; plain?: boolean }> = ({ field, plain 
       }}
     >
       <HelpOutline
-        sx={{ fontSize, ml: 0.5, verticalAlign: 'text-bottom', color: 'action.active', cursor: 'help' }}
+        sx={{
+          fontSize: FIELD_HELP_ICON_PX,
+          ml: 0.5,
+          verticalAlign: 'text-bottom',
+          color: 'action.active',
+          cursor: 'help',
+        }}
       />
     </Tooltip>
   );
@@ -326,31 +329,46 @@ const SiteDefaultsPanel: React.FC<SiteDefaultsPanelProps> = ({ onSavingChange, r
         <Grid container spacing={2}>
           <Grid size={{ xs: 12, md: 6 }}>
             <TextField
-              label={<>Site power<FieldHelp field="power_kw" /></>}
+              label="Site power"
               fullWidth
               value={draft.power_kw}
               onChange={e => setField('power_kw', e.target.value)}
-              slotProps={{ input: { endAdornment: <InputAdornment position="end">kW</InputAdornment> } }}
+              slotProps={{ input: { endAdornment: (
+                <InputAdornment position="end">
+                  kW
+                  <FieldHelp field="power_kw" />
+                </InputAdornment>
+              ) } }}
               type="number"
             />
           </Grid>
           <Grid size={{ xs: 12, md: 6 }}>
             <TextField
-              label={<>Site capacity<FieldHelp field="capacity_kwh" /></>}
+              label="Site capacity"
               fullWidth
               value={draft.capacity_kwh}
               onChange={e => setField('capacity_kwh', e.target.value)}
-              slotProps={{ input: { endAdornment: <InputAdornment position="end">kWh</InputAdornment> } }}
+              slotProps={{ input: { endAdornment: (
+                <InputAdornment position="end">
+                  kWh
+                  <FieldHelp field="capacity_kwh" />
+                </InputAdornment>
+              ) } }}
               type="number"
             />
           </Grid>
           <Grid size={{ xs: 12, md: 6 }}>
             <TextField
-              label={<>Max ramp duration<FieldHelp field="ramp_duration_seconds" /></>}
+              label="Max ramp duration"
               fullWidth
               value={draft.ramp_duration_seconds}
               onChange={e => setField('ramp_duration_seconds', e.target.value)}
-              slotProps={{ input: { endAdornment: <InputAdornment position="end">s</InputAdornment> } }}
+              slotProps={{ input: { endAdornment: (
+                <InputAdornment position="end">
+                  s
+                  <FieldHelp field="ramp_duration_seconds" />
+                </InputAdornment>
+              ) } }}
               type="number"
               helperText={
                 rampRateKwPerMin != null
@@ -369,7 +387,7 @@ const SiteDefaultsPanel: React.FC<SiteDefaultsPanelProps> = ({ onSavingChange, r
                   onChange={e => setField('closed_loop_enabled', e.target.checked)}
                 />
               }
-              label={<>Closed-loop control enabled<FieldHelp field="closed_loop_enabled" plain /></>}
+              label={<>Closed-loop control enabled<FieldHelp field="closed_loop_enabled" /></>}
             />
             {!draft.closed_loop_enabled && (
               <Typography variant="caption" color="warning.main" display="block">
@@ -383,12 +401,17 @@ const SiteDefaultsPanel: React.FC<SiteDefaultsPanelProps> = ({ onSavingChange, r
           </Grid>
           <Grid size={{ xs: 12, md: 6 }}>
             <TextField
-              label={<>Charge rate<FieldHelp field="charge_rate_percent" /></>}
+              label="Charge rate"
               fullWidth
               value={draft.charge_rate_percent}
               onChange={e => setField('charge_rate_percent', e.target.value)}
               slotProps={{
-                input: { endAdornment: <InputAdornment position="end">% of power</InputAdornment> },
+                input: { endAdornment: (
+                  <InputAdornment position="end">
+                    % of power
+                    <FieldHelp field="charge_rate_percent" />
+                  </InputAdornment>
+                ) },
                 htmlInput: { min: 0, max: 100, step: 1 }
               }}
               type="number"
@@ -402,12 +425,17 @@ const SiteDefaultsPanel: React.FC<SiteDefaultsPanelProps> = ({ onSavingChange, r
           </Grid>
           <Grid size={{ xs: 12, md: 6 }}>
             <TextField
-              label={<>Discharge rate<FieldHelp field="discharge_rate_percent" /></>}
+              label="Discharge rate"
               fullWidth
               value={draft.discharge_rate_percent}
               onChange={e => setField('discharge_rate_percent', e.target.value)}
               slotProps={{
-                input: { endAdornment: <InputAdornment position="end">% of power</InputAdornment> },
+                input: { endAdornment: (
+                  <InputAdornment position="end">
+                    % of power
+                    <FieldHelp field="discharge_rate_percent" />
+                  </InputAdornment>
+                ) },
                 htmlInput: { min: 0, max: 100, step: 1 }
               }}
               type="number"
@@ -423,7 +451,7 @@ const SiteDefaultsPanel: React.FC<SiteDefaultsPanelProps> = ({ onSavingChange, r
 
         <Divider />
 
-        <Typography variant="subtitle1">Off-peak charging window<FieldHelp field="off_peak_window" plain /></Typography>
+        <Typography variant="subtitle1">Off-peak charging window<FieldHelp field="off_peak_window" /></Typography>
         <Grid container spacing={2}>
           <Grid size={{ xs: 6 }}>
             <TextField
@@ -447,7 +475,7 @@ const SiteDefaultsPanel: React.FC<SiteDefaultsPanelProps> = ({ onSavingChange, r
           </Grid>
         </Grid>
 
-        <Typography variant="subtitle1">Peak-revenue discharge window<FieldHelp field="peak_revenue_window" plain /></Typography>
+        <Typography variant="subtitle1">Peak-revenue discharge window<FieldHelp field="peak_revenue_window" /></Typography>
         <Grid container spacing={2}>
           <Grid size={{ xs: 6 }}>
             <TextField
@@ -476,42 +504,52 @@ const SiteDefaultsPanel: React.FC<SiteDefaultsPanelProps> = ({ onSavingChange, r
         <Grid container spacing={2}>
           <Grid size={{ xs: 12, md: 6 }}>
             <TextField
-              label={<>Interconnection max output<FieldHelp field="interconnection_max_output_kw" /></>}
+              label="Interconnection max output"
               fullWidth
               value={draft.interconnection_max_output_kw}
               onChange={e => setField('interconnection_max_output_kw', e.target.value)}
-              slotProps={{ input: { endAdornment: <InputAdornment position="end">kW</InputAdornment> } }}
+              slotProps={{ input: { endAdornment: (
+                <InputAdornment position="end">
+                  kW
+                  <FieldHelp field="interconnection_max_output_kw" />
+                </InputAdornment>
+              ) } }}
               type="number"
             />
           </Grid>
           <Grid size={{ xs: 12, md: 6 }}>
             <TextField
-              label={<>Rebound protection SoC floor<FieldHelp field="rebound_protection_soc_floor_percent" /></>}
+              label="Rebound protection SoC floor"
               fullWidth
               value={draft.rebound_protection_soc_floor_percent}
               onChange={e =>
                 setField('rebound_protection_soc_floor_percent', e.target.value)
               }
-              slotProps={{ input: { endAdornment: <InputAdornment position="end">%</InputAdornment> } }}
+              slotProps={{ input: { endAdornment: (
+                <InputAdornment position="end">
+                  %
+                  <FieldHelp field="rebound_protection_soc_floor_percent" />
+                </InputAdornment>
+              ) } }}
               type="number"
             />
           </Grid>
           <Grid size={{ xs: 12, md: 6 }}>
-            <FormControl fullWidth>
-              <InputLabel id="site-variant-label">Site variant<FieldHelp field="site_variant" /></InputLabel>
-              <Select
-                labelId="site-variant-label"
-                value={draft.site_variant}
-                // Match the InputLabel content (incl. the help icon) so the
-                // notched outline reserves width for the icon; a plain-string
-                // label here makes the border cut through the "?".
-                label={<>Site variant<FieldHelp field="site_variant" /></>}
-                onChange={e => setField('site_variant', e.target.value as SiteVariant)}
-              >
-                <MenuItem value="standard">Standard interconnect</MenuItem>
-                <MenuItem value="no_grid_charge">No grid charge (inverters cannot charge from grid)</MenuItem>
-              </Select>
-            </FormControl>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <FormControl fullWidth>
+                <InputLabel id="site-variant-label">Site variant</InputLabel>
+                <Select
+                  labelId="site-variant-label"
+                  value={draft.site_variant}
+                  label="Site variant"
+                  onChange={e => setField('site_variant', e.target.value as SiteVariant)}
+                >
+                  <MenuItem value="standard">Standard interconnect</MenuItem>
+                  <MenuItem value="no_grid_charge">No grid charge (inverters cannot charge from grid)</MenuItem>
+                </Select>
+              </FormControl>
+              <FieldHelp field="site_variant" />
+            </Box>
           </Grid>
         </Grid>
 
