@@ -388,7 +388,7 @@ const DayDetailsDialog: React.FC<DayDetailsDialogProps> = ({
                           variant="outlined"
                           onClick={() => onSwitchToSchedule(entry.item)}
                         >
-                          Switch
+                          Apply
                         </Button>
                       </Box>
                     ))}
