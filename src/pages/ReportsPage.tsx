@@ -177,9 +177,12 @@ function findSocGaps(
   return gaps;
 }
 
-// Small, consistent pixel gap between bars across the report charts (a plain
-// number is interpreted by Recharts as pixels rather than a percentage).
-const BAR_CATEGORY_GAP_PX = 2;
+// Small, consistent pixel gap between bars across the report charts. Recharts
+// insets each bar by `barCategoryGap` on BOTH sides, so the visible gap between
+// adjacent bars is 2x that value — pass half the desired gap. (A plain number
+// is interpreted as pixels rather than a percentage.)
+const BAR_GAP_PX = 2;
+const BAR_CATEGORY_GAP_PX = BAR_GAP_PX / 2;
 
 // Axis ticks: a round wall-clock step chosen so there are ~10 labels.
 const SOC_TICK_MINUTES = [60, 120, 180, 360, 720, 1440, 2880, 10080];
