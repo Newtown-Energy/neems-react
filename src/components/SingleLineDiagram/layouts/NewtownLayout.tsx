@@ -76,10 +76,12 @@ const FEEDER_Y = 550;
 const MEGA_Y = 660;
 const SEL451_X = 630;
 const SEL451_Y = 360;
-// Lockout relay — between SEL-451 and FACP, off the power path so the dashed
-// control line from the SEL-451 reads clearly.
-const LOCKOUT_X = 870;
-const LOCKOUT_Y = 400;
+// Lockout relay — directly below the SEL-451 relay, in the clear gap between
+// the two 480V buses, so it stays off the power path and the dashed control
+// line from the SEL-451 drops straight down to it. (Previously sat at x=870,
+// overlapping the right line switch / transformer T2.)
+const LOCKOUT_X = 630;
+const LOCKOUT_Y = 420;
 const FACP_X = 1130;
 const FACP_Y = 440;
 const ESTOP_X = 1110;
@@ -253,15 +255,14 @@ const NewtownLayout: React.FC<NewtownLayoutProps> = ({
         control
       />
 
-      {/* SEL-451 → lockout relay (dashed control) */}
+      {/* SEL-451 → lockout relay (dashed control, straight drop below the relay) */}
       {siteConfig.sld.showLockoutRelay && (
         <Wire
-          x1={SEL451_X + 55}
-          y1={SEL451_Y}
+          x1={SEL451_X}
+          y1={SEL451_Y + 26}
           x2={LOCKOUT_X}
           y2={LOCKOUT_Y - 20}
           state={wire('wire-sel-lockout')}
-          waypoints={[{ x: LOCKOUT_X, y: SEL451_Y }]}
           control
         />
       )}
