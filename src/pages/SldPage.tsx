@@ -21,13 +21,16 @@ export const pageConfig = {
 
 const STALE_THRESHOLD_SECONDS = 60;
 
+// Site identity is intentionally abstracted with placeholder values so the SLD
+// can be shown/demoed without revealing the real site, address, or the
+// utility/developer involved. Replace with real values only in a private build.
 const PROJECT_INFO = {
-  name: 'Brigis 1A',
-  address: '53-05 46 St, Maspeth, NY 11378',
+  name: 'Demo BESS 1A',
+  address: '123 Example St, Anytown, NY 10001',
   codDate: 'June 2026',
   bessRating: '5 MW / 23.5 MWh',
-  conEdProjectCode: '—',
-  soltageProjectNumber: '—',
+  utilityProjectCode: '—',
+  developerProjectNumber: '—',
 };
 
 const ProjectInfoCard: React.FC = () => (
@@ -42,8 +45,8 @@ const ProjectInfoCard: React.FC = () => (
       <InfoLine label="Address" value={PROJECT_INFO.address} />
       <InfoLine label="COD Date" value={PROJECT_INFO.codDate} />
       <InfoLine label="BESS Rating" value={PROJECT_INFO.bessRating} />
-      <InfoLine label="ConEd Project Code" value={PROJECT_INFO.conEdProjectCode} />
-      <InfoLine label="Soltage Project #" value={PROJECT_INFO.soltageProjectNumber} />
+      <InfoLine label="Utility Project Code" value={PROJECT_INFO.utilityProjectCode} />
+      <InfoLine label="Developer Project #" value={PROJECT_INFO.developerProjectNumber} />
     </Stack>
   </Paper>
 );
