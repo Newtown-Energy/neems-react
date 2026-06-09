@@ -653,10 +653,13 @@ const ReportsPage: React.FC = () => {
                         />
                       )}
                       {/* Transparent full-height bars give gap buckets a hover
-                          target so the tooltip can report "No data". */}
-                      <Bar dataKey="gap" fill="transparent" isAnimationActive={false} />
+                          target so the tooltip can report "No data". Both share
+                          a stackId so each bucket renders one full-width bar
+                          (soc or gap) rather than two half-width bars. */}
+                      <Bar dataKey="gap" stackId="soc" fill="transparent" isAnimationActive={false} />
                       <Bar
                         dataKey="soc"
+                        stackId="soc"
                         fill={theme.palette.primary.main}
                         isAnimationActive={false}
                       />
