@@ -28,7 +28,7 @@ const LockoutRelay: React.FC<SldElementProps> = ({
   const faceColor = theme.palette.background.paper;
 
   const w = 48;
-  const h = 40;
+  const h = 30;
 
   // Handle pivots around the bottom-center of the face.
   // TRIP = handle rotated down-left, CLOSE = handle down-right.
@@ -64,28 +64,6 @@ const LockoutRelay: React.FC<SldElementProps> = ({
         strokeWidth={0.5}
         rx={1}
       />
-      {/* TRIP / CLOSE labels flanking the handle */}
-      <text
-        x={-w / 2 + 4}
-        y={2}
-        fontSize={8}
-        fontFamily="monospace"
-        fontWeight="bold"
-        fill={lineColor}
-      >
-        TRIP
-      </text>
-      <text
-        x={w / 2 - 4}
-        y={2}
-        textAnchor="end"
-        fontSize={8}
-        fontFamily="monospace"
-        fontWeight="bold"
-        fill={lineColor}
-      >
-        CLOSE
-      </text>
       {/* Handle — rotates around the pivot at the bottom-center of the face */}
       <g transform={`translate(0, ${h / 2 - 4}) rotate(${handleAngle})`}>
         <circle cx={0} cy={0} r={2.5} fill={lineColor} />
