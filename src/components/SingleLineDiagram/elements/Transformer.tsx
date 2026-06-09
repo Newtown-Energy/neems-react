@@ -79,9 +79,9 @@ const Transformer: React.FC<SldElementProps> = ({ x, y, state, label }) => {
       <line x1={0} y1={secondaryBaseline} x2={0} y2={stubBottomY} stroke={lineColor} strokeWidth={2} />
       <circle cx={0} cy={stubBottomY} r={2} fill={lineColor} />
 
-      {/* Wye (star) marks, side by side beside the windings */}
-      <WyeSymbol x={halfW + 6} y={0} color={lineColor} scale={0.55} />
-      <WyeSymbol x={halfW + 16} y={0} color={lineColor} scale={0.55} />
+      {/* Wye (star) + down-arrow marks, side by side beside the windings */}
+      <WyeSymbol x={halfW + 7} y={-2} color={lineColor} scale={0.55} />
+      <WyeSymbol x={halfW + 18} y={-2} color={lineColor} scale={0.55} />
 
       {/* Label */}
       {label && (

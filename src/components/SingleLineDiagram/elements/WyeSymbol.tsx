@@ -8,19 +8,28 @@ interface WyeSymbolProps {
 }
 
 /**
- * Wye (star) winding symbol: three spokes meeting at a point, 120° apart (one
- * up, two down). Used to annotate transformer winding topology — the wye
- * counterpart to a delta (triangle).
+ * Wye (star) winding mark with a downward lead arrow: three spokes meeting at a
+ * point (one up, two down at 120°) with the lead continuing down to a
+ * downward-pointing arrowhead. Used to annotate transformer winding topology —
+ * the wye counterpart to a delta (triangle).
  */
 const WyeSymbol: React.FC<WyeSymbolProps> = ({ x, y, color, scale = 1 }) => {
-  const len = 9 * scale;
-  const dx = 0.866 * len; // sin(60°)
-  const dy = 0.5 * len; // cos(60°)
+  const arm = 9 * scale; // up spoke + diagonal arms
+  const dx = 0.866 * arm; // sin(60°)
+  const dy = 0.5 * arm; // cos(60°)
+  const stem = 16 * scale; // lead length from the junction to the arrow tip
+  const head = 3.6 * scale; // arrowhead size
+  const sw = 1.4;
   return (
     <g transform={`translate(${x}, ${y})`}>
-      <line x1={0} y1={0} x2={0} y2={-len} stroke={color} strokeWidth={1.4} strokeLinecap="round" />
-      <line x1={0} y1={0} x2={-dx} y2={dy} stroke={color} strokeWidth={1.4} strokeLinecap="round" />
-      <line x1={0} y1={0} x2={dx} y2={dy} stroke={color} strokeWidth={1.4} strokeLinecap="round" />
+      {/* Wye: up spoke + two down-diagonal spokes */}
+      <line x1={0} y1={0} x2={0} y2={-arm} stroke={color} strokeWidth={sw} strokeLinecap="round" />
+      <line x1={0} y1={0} x2={-dx} y2={dy} stroke={color} strokeWidth={sw} strokeLinecap="round" />
+      <line x1={0} y1={0} x2={dx} y2={dy} stroke={color} strokeWidth={sw} strokeLinecap="round" />
+      {/* Lead continuing down to a downward arrowhead */}
+      <line x1={0} y1={0} x2={0} y2={stem} stroke={color} strokeWidth={sw} strokeLinecap="round" />
+      <line x1={0} y1={stem} x2={-head} y2={stem - head} stroke={color} strokeWidth={sw} strokeLinecap="round" />
+      <line x1={0} y1={stem} x2={head} y2={stem - head} stroke={color} strokeWidth={sw} strokeLinecap="round" />
     </g>
   );
 };
