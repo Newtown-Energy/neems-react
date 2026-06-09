@@ -10,8 +10,8 @@ import { SLD_FONT } from '../sldTypography';
 /**
  * Build a transformer winding: a horizontal row of `loops` semicircular lobes
  * bulging in Y by `dir` (-1 = up, +1 = down), centered on x=0. Consecutive
- * lobes meet at cusps on the baseline `y0`; with an odd loop count the middle
- * lobe's apex sits at x=0, where the vertical conductor connects.
+ * lobes meet at cusps on the baseline `y0`; with an even loop count a cusp sits
+ * at x=0, where the vertical conductor connects.
  */
 function windingPath(y0: number, loops: number, r: number, dir: number): string {
   const w = 2 * r;
@@ -27,25 +27,26 @@ function windingPath(y0: number, loops: number, r: number, dir: number): string 
 
 /**
  * Transformer: the conventional two-winding symbol — two rows of semicircular
- * coil lobes (primary above, secondary below) bulging away from each other,
- * cusps facing the gap between them, with the vertical conductor entering each
- * winding at its middle lobe. A wye-ground topology mark sits beside each
- * winding to indicate the site's Y/Y-ground configuration.
+ * coil lobes (primary above, secondary below) whose convex faces meet across
+ * the central gap, with the open side of each lobe facing outward. The vertical
+ * conductor connects to each winding's baseline. Two wye-ground topology marks
+ * sit side by side beside the windings to indicate the site's Y/Y-ground
+ * configuration (high side and low side).
  */
 const Transformer: React.FC<SldElementProps> = ({ x, y, state, label }) => {
   const theme = useTheme();
   const { stroke, strokeWidth } = useStatusColors(state);
   const lineColor = state.status === 'normal' ? theme.palette.text.primary : stroke;
 
-  const loops = 3;
-  const r = 5; // lobe radius
-  const halfW = (loops * 2 * r) / 2; // 15
-  const gap = 3; // half the spacing between the two windings' cusps
+  const loops = 4;
+  const r = 4; // lobe radius
+  const halfW = (loops * 2 * r) / 2; // 16
+  const gap = 3; // spacing between the two windings' convex faces
 
-  const primaryBaseline = -gap; // top winding cusps (face the gap)
-  const secondaryBaseline = gap; // bottom winding cusps
-  const primaryApex = primaryBaseline - r; // where the top conductor meets the winding
-  const secondaryApex = secondaryBaseline + r;
+  // Outer baselines (cusps) — where the conductor connects. Lobes bulge inward
+  // toward the gap, so the open side of each half-circle faces outward.
+  const primaryBaseline = -(r + gap / 2);
+  const secondaryBaseline = r + gap / 2;
 
   const stubTopY = -24;
   const stubBottomY = 24;
@@ -53,34 +54,34 @@ const Transformer: React.FC<SldElementProps> = ({ x, y, state, label }) => {
   return (
     <g transform={`translate(${x}, ${y})`}>
       {/* Pulsing severity glow — bounding box around both windings */}
-      <AlarmGlow state={state} halfW={halfW + 2} halfH={r + gap + 2} />
+      <AlarmGlow state={state} halfW={halfW + 2} halfH={r + gap / 2 + 2} />
 
-      {/* Top stub — meets the primary winding at its middle lobe apex */}
-      <line x1={0} y1={stubTopY} x2={0} y2={primaryApex} stroke={lineColor} strokeWidth={2} />
+      {/* Top stub — meets the primary winding at its center cusp */}
+      <line x1={0} y1={stubTopY} x2={0} y2={primaryBaseline} stroke={lineColor} strokeWidth={2} />
       <circle cx={0} cy={stubTopY} r={2} fill={lineColor} />
 
-      {/* Primary winding (lobes bulge up) */}
+      {/* Primary winding (lobes bulge down toward the gap; open side faces up) */}
       <path
-        d={windingPath(primaryBaseline, loops, r, -1)}
+        d={windingPath(primaryBaseline, loops, r, 1)}
         fill="none"
         stroke={lineColor}
         strokeWidth={strokeWidth}
       />
-      {/* Secondary winding (lobes bulge down) */}
+      {/* Secondary winding (lobes bulge up toward the gap; open side faces down) */}
       <path
-        d={windingPath(secondaryBaseline, loops, r, 1)}
+        d={windingPath(secondaryBaseline, loops, r, -1)}
         fill="none"
         stroke={lineColor}
         strokeWidth={strokeWidth}
       />
 
       {/* Bottom stub */}
-      <line x1={0} y1={secondaryApex} x2={0} y2={stubBottomY} stroke={lineColor} strokeWidth={2} />
+      <line x1={0} y1={secondaryBaseline} x2={0} y2={stubBottomY} stroke={lineColor} strokeWidth={2} />
       <circle cx={0} cy={stubBottomY} r={2} fill={lineColor} />
 
-      {/* Wye-ground topology marks beside each winding */}
-      <WyeGroundSymbol x={24} y={primaryBaseline - r / 2} color={lineColor} scale={0.55} />
-      <WyeGroundSymbol x={24} y={secondaryBaseline + r / 2} color={lineColor} scale={0.55} />
+      {/* Wye-ground topology marks, side by side beside the windings */}
+      <WyeGroundSymbol x={halfW + 8} y={0} color={lineColor} scale={0.55} />
+      <WyeGroundSymbol x={halfW + 18} y={0} color={lineColor} scale={0.55} />
 
       {/* Label */}
       {label && (
@@ -96,7 +97,7 @@ const Transformer: React.FC<SldElementProps> = ({ x, y, state, label }) => {
           {label}
         </text>
       )}
-      <AlarmIndicator state={state} offsetX={40} offsetY={stubTopY - 4} />
+      <AlarmIndicator state={state} offsetX={halfW + 30} offsetY={stubTopY - 4} />
     </g>
   );
 };
