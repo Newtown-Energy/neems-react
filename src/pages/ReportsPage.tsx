@@ -605,7 +605,7 @@ const ReportsPage: React.FC = () => {
               ) : (
                 <Box ref={socChartRef}>
                   <ResponsiveContainer width="100%" height={280}>
-                    <BarChart data={socChartData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+                    <BarChart data={socChartData} barCategoryGap={0} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
                       <CartesianGrid stroke={theme.palette.divider} strokeDasharray="3 3" />
                       {/* Shade ranges with no readings so gaps don't read as 0% */}
                       {socGaps.map((g) => (
