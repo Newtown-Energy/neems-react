@@ -26,10 +26,10 @@ function windingPath(y0: number, loops: number, loopW: number, amp: number): str
 }
 
 /**
- * Transformer: the conventional two-winding symbol — two horizontal coils of
- * coupled loops, one above the other, facing each other across a two-line iron
- * core. A wye-ground topology mark sits beside each winding to indicate the
- * site's Y/Y-ground configuration.
+ * Transformer: the conventional two-winding symbol — two rows of upward coil
+ * humps (primary above, secondary below) coupled across a two-line iron core.
+ * A wye-ground topology mark sits beside each winding to indicate the site's
+ * Y/Y-ground configuration.
  */
 const Transformer: React.FC<SldElementProps> = ({ x, y, state, label }) => {
   const theme = useTheme();
@@ -38,14 +38,15 @@ const Transformer: React.FC<SldElementProps> = ({ x, y, state, label }) => {
 
   const loops = 4;
   const loopW = 6;
-  const amp = 7;
+  const amp = 6;
   const halfW = (loops * loopW) / 2; // 12
 
-  // Outer baselines connect to the conductor; loops bulge inward toward the
-  // shared core so the two windings face each other.
-  const primaryBaseline = -12; // top winding, loops bulge down (+amp)
-  const secondaryBaseline = 12; // bottom winding, loops bulge up (-amp)
-  const coreGap = 2; // half-spacing between the two iron-core lines
+  // Both windings are drawn as a row of upward humps with the two iron-core
+  // lines between them. Each winding's baseline (where the path returns between
+  // humps) is its connection point; the vertical conductor meets it at center.
+  const primaryBaseline = -8; // top winding
+  const secondaryBaseline = 14; // bottom winding
+  const coreGap = 4; // spacing between the two iron-core lines
 
   const stubTopY = -24;
   const stubBottomY = 24;
@@ -59,14 +60,14 @@ const Transformer: React.FC<SldElementProps> = ({ x, y, state, label }) => {
       <line x1={0} y1={stubTopY} x2={0} y2={primaryBaseline} stroke={lineColor} strokeWidth={2} />
       <circle cx={0} cy={stubTopY} r={2} fill={lineColor} />
 
-      {/* Primary winding (loops bulge down toward the core) */}
+      {/* Primary winding (row of upward humps) */}
       <path
-        d={windingPath(primaryBaseline, loops, loopW, amp)}
+        d={windingPath(primaryBaseline, loops, loopW, -amp)}
         fill="none"
         stroke={lineColor}
         strokeWidth={strokeWidth}
       />
-      {/* Secondary winding (loops bulge up toward the core) */}
+      {/* Secondary winding (row of upward humps) */}
       <path
         d={windingPath(secondaryBaseline, loops, loopW, -amp)}
         fill="none"
@@ -97,8 +98,8 @@ const Transformer: React.FC<SldElementProps> = ({ x, y, state, label }) => {
       <circle cx={0} cy={stubBottomY} r={2} fill={lineColor} />
 
       {/* Wye-ground topology marks beside each winding */}
-      <WyeGroundSymbol x={24} y={primaryBaseline} color={lineColor} scale={0.55} />
-      <WyeGroundSymbol x={24} y={secondaryBaseline} color={lineColor} scale={0.55} />
+      <WyeGroundSymbol x={24} y={primaryBaseline - 3} color={lineColor} scale={0.55} />
+      <WyeGroundSymbol x={24} y={secondaryBaseline - 3} color={lineColor} scale={0.55} />
 
       {/* Label */}
       {label && (
