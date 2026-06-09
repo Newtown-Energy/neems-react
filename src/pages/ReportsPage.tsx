@@ -35,6 +35,7 @@ import {
   BarChart,
   CartesianGrid,
   Legend,
+  ReferenceArea,
   ReferenceLine,
   ResponsiveContainer,
   Tooltip,
@@ -147,6 +148,33 @@ function bucketSocPoints(points: SocChartPoint[], bucketMs: number): SocChartPoi
   return [...agg.entries()]
     .sort((a, b) => a[0] - b[0])
     .map(([t, { sum, count }]) => ({ t, soc: sum / count }));
+}
+
+// Find contiguous time ranges within the window that have no SoC bucket, so
+// they can be shaded as "no data" rather than reading as a real 0% value.
+// Operates on the same epoch-aligned buckets that `bucketSocPoints` produces.
+function findSocGaps(
+  points: SocChartPoint[],
+  domain: [number, number],
+  bucketMs: number,
+): Array<{ x1: number; x2: number }> {
+  if (bucketMs <= 0 || points.length === 0) return [];
+  const present = new Set(points.map(p => Math.floor(p.t / bucketMs) * bucketMs));
+  const firstBucket = Math.ceil(domain[0] / bucketMs) * bucketMs;
+  const gaps: Array<{ x1: number; x2: number }> = [];
+  let runStart: number | null = null;
+  let lastMissing = 0;
+  for (let t = firstBucket; t <= domain[1]; t += bucketMs) {
+    if (!present.has(t)) {
+      if (runStart === null) runStart = t;
+      lastMissing = t;
+    } else if (runStart !== null) {
+      gaps.push({ x1: runStart, x2: lastMissing + bucketMs });
+      runStart = null;
+    }
+  }
+  if (runStart !== null) gaps.push({ x1: runStart, x2: lastMissing + bucketMs });
+  return gaps;
 }
 
 // Axis ticks: a round wall-clock step chosen so there are ~10 labels.
@@ -364,6 +392,13 @@ const ReportsPage: React.FC = () => {
     [socPoints, bucketMs],
   );
 
+  // Time ranges within the window with no readings — shaded gray so missing
+  // data is visually distinct from a genuine low SoC.
+  const socGaps = useMemo(
+    () => (bucketedSocPoints ? findSocGaps(bucketedSocPoints, socDomain, bucketMs) : []),
+    [bucketedSocPoints, socDomain, bucketMs],
+  );
+
   // Axis ticks on round wall-clock steps sized to the span (~10 labels).
   const socTicks = useMemo(
     () => generateTicks(socDomain[0], socDomain[1], pickTickMinutes(socSpanMs) * 60_000),
@@ -514,6 +549,20 @@ const ReportsPage: React.FC = () => {
                   <ResponsiveContainer width="100%" height={280}>
                     <BarChart data={bucketedSocPoints ?? []} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
                       <CartesianGrid stroke={theme.palette.divider} strokeDasharray="3 3" />
+                      {/* Shade ranges with no readings so gaps don't read as 0% */}
+                      {socGaps.map((g) => (
+                        <ReferenceArea
+                          key={g.x1}
+                          x1={g.x1}
+                          x2={g.x2}
+                          y1={0}
+                          y2={100}
+                          fill={theme.palette.action.disabled}
+                          fillOpacity={0.18}
+                          stroke="none"
+                          ifOverflow="hidden"
+                        />
+                      ))}
                       <XAxis
                         dataKey="t"
                         type="number"
