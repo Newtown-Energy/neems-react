@@ -8,100 +8,97 @@ import WyeGroundSymbol from './WyeGroundSymbol';
 import { SLD_FONT } from '../sldTypography';
 
 /**
- * Build a vertical coil path with `humpCount` humps bulging to the right
- * (positive X). The path starts at (0, yStart) and ends at (0, yStart + height).
+ * Build a horizontal winding: a row of `loops` semicircular humps along the
+ * X axis, centered on x=0, each bulging by `amp` in Y (negative = up). The
+ * path returns to the baseline (`y0`) at every loop boundary, and with an even
+ * loop count x=0 is a boundary — so the vertical conductor meets the winding
+ * cleanly on the baseline at its center.
  */
-function coilPath(yStart: number, humpCount: number, humpHeight: number): string {
-  let d = `M 0 ${yStart}`;
-  for (let i = 0; i < humpCount; i += 1) {
-    const yMid = yStart + i * humpHeight + humpHeight / 2;
-    const yEnd = yStart + (i + 1) * humpHeight;
-    d += ` Q 8 ${yMid}, 0 ${yEnd}`;
+function windingPath(y0: number, loops: number, loopW: number, amp: number): string {
+  const half = (loops * loopW) / 2;
+  let d = `M ${-half} ${y0}`;
+  for (let i = 0; i < loops; i += 1) {
+    const xMid = -half + i * loopW + loopW / 2;
+    const xEnd = -half + (i + 1) * loopW;
+    d += ` Q ${xMid} ${y0 + amp}, ${xEnd} ${y0}`;
   }
   return d;
 }
 
 /**
- * Transformer: two vertically-stacked squiggly coils (primary above,
- * secondary below) with a wye-ground topology mark beside each winding to
- * indicate the Y/Y-ground configuration used at Brigis 1A.
+ * Transformer: the conventional two-winding symbol — two horizontal coils of
+ * coupled loops, one above the other, facing each other across a two-line iron
+ * core. A wye-ground topology mark sits beside each winding to indicate the
+ * site's Y/Y-ground configuration.
  */
 const Transformer: React.FC<SldElementProps> = ({ x, y, state, label }) => {
   const theme = useTheme();
   const { stroke, strokeWidth } = useStatusColors(state);
   const lineColor = state.status === 'normal' ? theme.palette.text.primary : stroke;
 
-  const humpHeight = 5;
-  const humpCount = 3;
-  const coilHeight = humpHeight * humpCount; // 15
-  const gap = 4; // vertical gap between primary and secondary coils
+  const loops = 4;
+  const loopW = 6;
+  const amp = 7;
+  const halfW = (loops * loopW) / 2; // 12
 
-  const primaryTop = -coilHeight - gap / 2;
-  const primaryBottom = primaryTop + coilHeight;
-  const secondaryTop = primaryBottom + gap;
-  const secondaryBottom = secondaryTop + coilHeight;
+  // Outer baselines connect to the conductor; loops bulge inward toward the
+  // shared core so the two windings face each other.
+  const primaryBaseline = -12; // top winding, loops bulge down (+amp)
+  const secondaryBaseline = 12; // bottom winding, loops bulge up (-amp)
+  const coreGap = 2; // half-spacing between the two iron-core lines
 
-  // Short stub connectors into/out of the coils
-  const stubTopY = primaryTop - 6;
+  const stubTopY = -24;
+  const stubBottomY = 24;
 
   return (
     <g transform={`translate(${x}, ${y})`}>
       {/* Pulsing severity glow — bounding rect around both windings for Emergency/Critical */}
-      <AlarmGlow state={state} halfW={14} halfH={coilHeight + gap / 2 + 2} />
+      <AlarmGlow state={state} halfW={halfW + 2} halfH={14} />
+
       {/* Top stub */}
-      <line x1={0} y1={-24} x2={0} y2={primaryTop} stroke={lineColor} strokeWidth={2} />
-      <circle cx={0} cy={-24} r={2} fill={lineColor} />
+      <line x1={0} y1={stubTopY} x2={0} y2={primaryBaseline} stroke={lineColor} strokeWidth={2} />
+      <circle cx={0} cy={stubTopY} r={2} fill={lineColor} />
 
-      {/* Primary winding */}
+      {/* Primary winding (loops bulge down toward the core) */}
       <path
-        d={coilPath(primaryTop, humpCount, humpHeight)}
+        d={windingPath(primaryBaseline, loops, loopW, amp)}
         fill="none"
         stroke={lineColor}
         strokeWidth={strokeWidth}
       />
-      {/* Secondary winding */}
+      {/* Secondary winding (loops bulge up toward the core) */}
       <path
-        d={coilPath(secondaryTop, humpCount, humpHeight)}
+        d={windingPath(secondaryBaseline, loops, loopW, -amp)}
         fill="none"
         stroke={lineColor}
         strokeWidth={strokeWidth}
       />
 
-      {/* Iron-core indicator (two short parallel lines between coils) */}
+      {/* Iron core: two parallel horizontal lines between the windings */}
       <line
-        x1={-6}
-        y1={primaryBottom + gap / 2 - 1}
-        x2={10}
-        y2={primaryBottom + gap / 2 - 1}
+        x1={-halfW}
+        y1={-coreGap / 2}
+        x2={halfW}
+        y2={-coreGap / 2}
         stroke={lineColor}
-        strokeWidth={0.8}
+        strokeWidth={1}
       />
       <line
-        x1={-6}
-        y1={primaryBottom + gap / 2 + 1}
-        x2={10}
-        y2={primaryBottom + gap / 2 + 1}
+        x1={-halfW}
+        y1={coreGap / 2}
+        x2={halfW}
+        y2={coreGap / 2}
         stroke={lineColor}
-        strokeWidth={0.8}
+        strokeWidth={1}
       />
 
       {/* Bottom stub */}
-      <line x1={0} y1={secondaryBottom} x2={0} y2={24} stroke={lineColor} strokeWidth={2} />
-      <circle cx={0} cy={24} r={2} fill={lineColor} />
+      <line x1={0} y1={secondaryBaseline} x2={0} y2={stubBottomY} stroke={lineColor} strokeWidth={2} />
+      <circle cx={0} cy={stubBottomY} r={2} fill={lineColor} />
 
       {/* Wye-ground topology marks beside each winding */}
-      <WyeGroundSymbol
-        x={24}
-        y={primaryTop + coilHeight / 2}
-        color={lineColor}
-        scale={0.55}
-      />
-      <WyeGroundSymbol
-        x={24}
-        y={secondaryTop + coilHeight / 2}
-        color={lineColor}
-        scale={0.55}
-      />
+      <WyeGroundSymbol x={24} y={primaryBaseline} color={lineColor} scale={0.55} />
+      <WyeGroundSymbol x={24} y={secondaryBaseline} color={lineColor} scale={0.55} />
 
       {/* Label */}
       {label && (
