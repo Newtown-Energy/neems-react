@@ -4,7 +4,7 @@ import type { SldElementProps } from '../types';
 import { useStatusColors } from './useStatusColors';
 import AlarmIndicator from './AlarmIndicator';
 import AlarmGlow from './AlarmGlow';
-import WyeGroundSymbol from './WyeGroundSymbol';
+import WyeSymbol from './WyeSymbol';
 import { SLD_FONT } from '../sldTypography';
 
 /**
@@ -29,9 +29,9 @@ function windingPath(y0: number, loops: number, r: number, dir: number): string 
  * Transformer: the conventional two-winding symbol — two rows of semicircular
  * coil lobes (primary above, secondary below) whose convex faces meet across
  * the central gap, with the open side of each lobe facing outward. The vertical
- * conductor connects to each winding's baseline. Two wye-ground topology marks
- * sit side by side beside the windings to indicate the site's Y/Y-ground
- * configuration (high side and low side).
+ * conductor connects to each winding's baseline. Two wye (star) marks sit side
+ * by side beside the windings to indicate the site's Y/Y winding configuration
+ * (high side and low side).
  */
 const Transformer: React.FC<SldElementProps> = ({ x, y, state, label }) => {
   const theme = useTheme();
@@ -79,9 +79,9 @@ const Transformer: React.FC<SldElementProps> = ({ x, y, state, label }) => {
       <line x1={0} y1={secondaryBaseline} x2={0} y2={stubBottomY} stroke={lineColor} strokeWidth={2} />
       <circle cx={0} cy={stubBottomY} r={2} fill={lineColor} />
 
-      {/* Wye-ground topology marks, side by side beside the windings */}
-      <WyeGroundSymbol x={halfW + 8} y={0} color={lineColor} scale={0.55} />
-      <WyeGroundSymbol x={halfW + 18} y={0} color={lineColor} scale={0.55} />
+      {/* Wye (star) marks, side by side beside the windings */}
+      <WyeSymbol x={halfW + 6} y={0} color={lineColor} scale={0.55} />
+      <WyeSymbol x={halfW + 16} y={0} color={lineColor} scale={0.55} />
 
       {/* Label */}
       {label && (
