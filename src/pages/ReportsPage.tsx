@@ -536,6 +536,7 @@ const ReportsPage: React.FC = () => {
                         labelFormatter={(label) => formatTooltipLabel(label as number)}
                         formatter={(value) => [`${(value as number).toFixed(1)}%`, 'SoC']}
                         cursor={{ fill: theme.palette.action.hover }}
+                        isAnimationActive={false}
                       />
                       {showNow && (
                         <ReferenceLine
@@ -637,6 +638,7 @@ const ReportsPage: React.FC = () => {
                         />
                         <Tooltip
                           formatter={(value, name) => [formatMinutes(value as number), name]}
+                          isAnimationActive={false}
                         />
                         <Legend />
                         <Bar
