@@ -232,6 +232,46 @@ function formatTooltipLabel(epochMs: number): string {
   );
 }
 
+// Custom tooltip for the SoC chart: reports the SoC% for a real bucket, or an
+// explicit "No data" for a gap bucket (where only the `gap` sentinel is set),
+// rather than letting the tooltip snap to the nearest real bar.
+function SocChartTooltip({
+  active,
+  payload,
+  label,
+}: {
+  active?: boolean;
+  payload?: Array<{ dataKey?: string | number; value?: number | null }>;
+  label?: number;
+}) {
+  if (!active || !payload || payload.length === 0 || label == null) return null;
+  const soc = payload.find(p => p.dataKey === 'soc' && p.value != null);
+  return (
+    <Box
+      sx={{
+        bgcolor: 'background.paper',
+        border: 1,
+        borderColor: 'divider',
+        borderRadius: 1,
+        px: 1.5,
+        py: 1,
+        boxShadow: 2,
+      }}
+    >
+      <Typography variant="caption" color="text.secondary" display="block">
+        {formatTooltipLabel(label)}
+      </Typography>
+      {soc ? (
+        <Typography variant="body2">SoC: {soc.value!.toFixed(1)}%</Typography>
+      ) : (
+        <Typography variant="body2" color="text.secondary">
+          No data
+        </Typography>
+      )}
+    </Box>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // SoC chart types
 // ---------------------------------------------------------------------------
@@ -399,6 +439,24 @@ const ReportsPage: React.FC = () => {
     [bucketedSocPoints, socDomain, bucketMs],
   );
 
+  // Continuous bucket series across the whole window: `soc` is null in gaps and
+  // `gap` is a full-height (100) sentinel there. The gap sentinel gives every
+  // missing bucket a hover target so the tooltip can report "No data" instead
+  // of snapping to the nearest real bar.
+  const socChartData = useMemo(() => {
+    if (!bucketedSocPoints) return [];
+    const present = new Map(
+      bucketedSocPoints.map(p => [Math.floor(p.t / bucketMs) * bucketMs, p.soc]),
+    );
+    const first = Math.ceil(socDomain[0] / bucketMs) * bucketMs;
+    const out: Array<{ t: number; soc: number | null; gap: number | null }> = [];
+    for (let t = first; t <= socDomain[1]; t += bucketMs) {
+      const v = present.get(t);
+      out.push({ t, soc: v ?? null, gap: v == null ? 100 : null });
+    }
+    return out;
+  }, [bucketedSocPoints, socDomain, bucketMs]);
+
   // Axis ticks on round wall-clock steps sized to the span (~10 labels).
   const socTicks = useMemo(
     () => generateTicks(socDomain[0], socDomain[1], pickTickMinutes(socSpanMs) * 60_000),
@@ -547,7 +605,7 @@ const ReportsPage: React.FC = () => {
               ) : (
                 <Box ref={socChartRef}>
                   <ResponsiveContainer width="100%" height={280}>
-                    <BarChart data={bucketedSocPoints ?? []} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+                    <BarChart data={socChartData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
                       <CartesianGrid stroke={theme.palette.divider} strokeDasharray="3 3" />
                       {/* Shade ranges with no readings so gaps don't read as 0% */}
                       {socGaps.map((g) => (
@@ -582,8 +640,7 @@ const ReportsPage: React.FC = () => {
                         width={48}
                       />
                       <Tooltip
-                        labelFormatter={(label) => formatTooltipLabel(label as number)}
-                        formatter={(value) => [`${(value as number).toFixed(1)}%`, 'SoC']}
+                        content={<SocChartTooltip />}
                         cursor={{ fill: theme.palette.action.hover }}
                         isAnimationActive={false}
                       />
@@ -595,6 +652,9 @@ const ReportsPage: React.FC = () => {
                           label={{ value: 'Now', position: 'top', fill: theme.palette.error.main, fontSize: 11 }}
                         />
                       )}
+                      {/* Transparent full-height bars give gap buckets a hover
+                          target so the tooltip can report "No data". */}
+                      <Bar dataKey="gap" fill="transparent" isAnimationActive={false} />
                       <Bar
                         dataKey="soc"
                         fill={theme.palette.primary.main}
