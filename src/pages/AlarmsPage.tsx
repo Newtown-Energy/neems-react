@@ -64,7 +64,6 @@ const SEVERITY_OPTIONS: AlarmSeverityDto[] = ['Emergency', 'Critical', 'Warning'
 const ZONE_OPTIONS: AlarmZoneDto[] = Object.keys(ZONE_DISPLAY_NAMES) as AlarmZoneDto[];
 
 const POLL_INTERVAL_MS = 10_000;
-const STALE_THRESHOLD_SECONDS = 60;
 
 /** A row in the alarm table — either active or inactive */
 interface AlarmRow {
@@ -269,9 +268,6 @@ const AlarmsPage: React.FC = () => {
     }
   }
 
-  const isStale =
-    data?.data_age_seconds != null && data.data_age_seconds > STALE_THRESHOLD_SECONDS;
-
   const toggleSeverityFilter = (severity: AlarmSeverityDto) => {
     setSeverityFilter((prev) =>
       prev.includes(severity) ? prev.filter((s) => s !== severity) : [...prev, severity],
@@ -310,24 +306,9 @@ const AlarmsPage: React.FC = () => {
         </Alert>
       )}
 
-      {/* Stale data warning */}
-      {isStale && (
-        <Alert severity="warning" sx={{ mb: 2 }}>
-          Alarm data is {data!.data_age_seconds} seconds old. The RTAC connection may be down.
-        </Alert>
-      )}
-
-      {/* Emergency/Critical banner */}
-      {data?.has_emergency && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          EMERGENCY alarms are active — immediate action required.
-        </Alert>
-      )}
-      {data?.has_critical && !data?.has_emergency && (
-        <Alert severity="warning" sx={{ mb: 2 }}>
-          Critical alarms are active — attention required.
-        </Alert>
-      )}
+      {/* Stale-data and emergency/critical banners now render once,
+          app-wide, via SiteStatePanel (the global status banner), so they
+          appear on every page instead of only here. */}
 
       {/* Summary chips */}
       <Box sx={{ display: 'flex', gap: 1, mb: 3, flexWrap: 'wrap' }}>
