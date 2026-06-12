@@ -93,14 +93,8 @@ const SldPage: React.FC = () => {
         </Alert>
       )}
 
-      {/* The age-based "alarm data is N seconds old" warning now renders
-          once, app-wide, via SiteStatePanel. Keep only the fetch-failure
-          case here, which that global banner doesn't track. */}
-      {diagramState?.dataStale && (
-        <Alert severity="warning" sx={{ mb: 2 }}>
-          Unable to reach the alarm service. Displayed state may be outdated.
-        </Alert>
-      )}
+      {/* Stale-data and unreachable-service warnings now render once,
+          app-wide, via SiteStatePanel, so they're not duplicated here. */}
 
       {noData && (
         <Alert severity="info" sx={{ mb: 2 }}>

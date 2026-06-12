@@ -35,7 +35,7 @@ interface BannerAlert {
 const SiteStatePanel: React.FC = () => {
   const { selectedSite } = useSiteContext();
   const { overrides } = useDemoOverrides();
-  const alarmStatus = useActiveAlarmStatus(!!selectedSite);
+  const { status: alarmStatus, unreachable } = useActiveAlarmStatus(!!selectedSite);
 
   const issues = useMemo(() => {
     if (!selectedSite) return [];
@@ -50,10 +50,18 @@ const SiteStatePanel: React.FC = () => {
   // Live alarm-feed warnings. These mirror the per-page banners on the SLD
   // and Alarms pages but live here so they appear on every view.
   const alarmAlerts = useMemo<BannerAlert[]>(() => {
-    if (!alarmStatus) return [];
     const out: BannerAlert[] = [];
-    if (
-      alarmStatus.data_age_seconds != null &&
+    // Can't reach the service at all — supersedes the age-based warning,
+    // since the age is unknown / growing while we're offline.
+    if (unreachable) {
+      out.push({
+        key: 'alarm-service-unreachable',
+        severity: 'warning',
+        title: 'Alarm service unreachable',
+        message: 'Unable to reach the alarm service. Displayed alarm state may be outdated.'
+      });
+    } else if (
+      alarmStatus?.data_age_seconds != null &&
       alarmStatus.data_age_seconds > STALE_THRESHOLD_SECONDS
     ) {
       out.push({
@@ -63,14 +71,16 @@ const SiteStatePanel: React.FC = () => {
         message: `Alarm data is ${alarmStatus.data_age_seconds} seconds old. The RTAC connection may be down.`
       });
     }
-    if (alarmStatus.has_emergency) {
+    // Surface a known emergency/critical even while unreachable — it was
+    // real as of the last successful poll.
+    if (alarmStatus?.has_emergency) {
       out.push({
         key: 'emergency-alarms',
         severity: 'error',
         title: 'Emergency alarms active',
         message: 'EMERGENCY alarms are active — immediate action required.'
       });
-    } else if (alarmStatus.has_critical) {
+    } else if (alarmStatus?.has_critical) {
       out.push({
         key: 'critical-alarms',
         severity: 'warning',
@@ -79,7 +89,7 @@ const SiteStatePanel: React.FC = () => {
       });
     }
     return out;
-  }, [alarmStatus]);
+  }, [alarmStatus, unreachable]);
 
   if (issues.length === 0 && alarmAlerts.length === 0) return null;
 
