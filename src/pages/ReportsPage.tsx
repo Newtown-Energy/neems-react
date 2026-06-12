@@ -170,13 +170,18 @@ function SocChartTooltip({
   active,
   payload,
   label,
+  bucketMs,
 }: {
   active?: boolean;
   payload?: Array<{ dataKey?: string | number; value?: number | null }>;
   label?: number;
+  // Width of one bucket, so the tooltip can show the range a bar covers
+  // (its start `label` through `label + bucketMs`).
+  bucketMs?: number;
 }) {
   if (!active || !payload || payload.length === 0 || label == null) return null;
   const soc = payload.find(p => p.dataKey === 'soc' && p.value != null);
+  const end = bucketMs ? label + bucketMs : null;
   return (
     <Box
       sx={{
@@ -190,7 +195,9 @@ function SocChartTooltip({
       }}
     >
       <Typography variant="caption" color="text.secondary" display="block">
-        {formatTooltipLabel(label)}
+        {end != null
+          ? `${formatTooltipLabel(label)} – ${formatTooltipLabel(end)}`
+          : formatTooltipLabel(label)}
       </Typography>
       {soc ? (
         <Typography variant="body2">SoC: {soc.value!.toFixed(1)}%</Typography>
@@ -524,7 +531,7 @@ const ReportsPage: React.FC = () => {
                         width={48}
                       />
                       <Tooltip
-                        content={<SocChartTooltip />}
+                        content={<SocChartTooltip bucketMs={bucketMs} />}
                         cursor={{ fill: theme.palette.action.hover }}
                         isAnimationActive={false}
                       />
@@ -540,18 +547,34 @@ const ReportsPage: React.FC = () => {
                           category gap → a continuous strip). A data bucket
                           shows `soc` (blue) under `rest` (white); a no-data
                           bucket shows `gap` (gray) and doubles as the hover
-                          target so the tooltip can report "No data". */}
-                      <Bar dataKey="gap" stackId="soc" fill={theme.palette.grey[300]} isAnimationActive={false} />
+                          target so the tooltip can report "No data".
+
+                          Each bar is stroked with its own fill so sub-pixel
+                          rounding between adjacent zero-gap bars doesn't leave
+                          thin white slivers of the card background showing
+                          through. */}
+                      <Bar
+                        dataKey="gap"
+                        stackId="soc"
+                        fill={theme.palette.grey[300]}
+                        stroke={theme.palette.grey[300]}
+                        strokeWidth={1}
+                        isAnimationActive={false}
+                      />
                       <Bar
                         dataKey="soc"
                         stackId="soc"
                         fill={theme.palette.primary.main}
+                        stroke={theme.palette.primary.main}
+                        strokeWidth={1}
                         isAnimationActive={false}
                       />
                       <Bar
                         dataKey="rest"
                         stackId="soc"
                         fill={theme.palette.common.white}
+                        stroke={theme.palette.common.white}
+                        strokeWidth={1}
                         isAnimationActive={false}
                       />
                     </BarChart>
