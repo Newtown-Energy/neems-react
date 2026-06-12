@@ -32,7 +32,6 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  ReferenceArea,
   ReferenceLine,
   ResponsiveContainer,
   Tooltip,
@@ -122,40 +121,6 @@ function bucketSocPoints(points: SocChartPoint[], bucketMs: number): SocChartPoi
     .sort((a, b) => a[0] - b[0])
     .map(([t, { sum, count }]) => ({ t, soc: sum / count }));
 }
-
-// Find contiguous time ranges within the window that have no SoC bucket, so
-// they can be shaded as "no data" rather than reading as a real 0% value.
-// Operates on the same epoch-aligned buckets that `bucketSocPoints` produces.
-function findSocGaps(
-  points: SocChartPoint[],
-  domain: [number, number],
-  bucketMs: number,
-): Array<{ x1: number; x2: number }> {
-  if (bucketMs <= 0 || points.length === 0) return [];
-  const present = new Set(points.map(p => Math.floor(p.t / bucketMs) * bucketMs));
-  const firstBucket = Math.ceil(domain[0] / bucketMs) * bucketMs;
-  const gaps: Array<{ x1: number; x2: number }> = [];
-  let runStart: number | null = null;
-  let lastMissing = 0;
-  for (let t = firstBucket; t <= domain[1]; t += bucketMs) {
-    if (!present.has(t)) {
-      if (runStart === null) runStart = t;
-      lastMissing = t;
-    } else if (runStart !== null) {
-      gaps.push({ x1: runStart, x2: lastMissing + bucketMs });
-      runStart = null;
-    }
-  }
-  if (runStart !== null) gaps.push({ x1: runStart, x2: lastMissing + bucketMs });
-  return gaps;
-}
-
-// Small, consistent pixel gap between bars across the report charts. Recharts
-// insets each bar by `barCategoryGap` on BOTH sides, so the visible gap between
-// adjacent bars is 2x that value — pass half the desired gap. (A plain number
-// is interpreted as pixels rather than a percentage.)
-const BAR_GAP_PX = 2;
-const BAR_CATEGORY_GAP_PX = BAR_GAP_PX / 2;
 
 // Axis ticks: a round wall-clock step chosen so there are ~10 labels.
 const SOC_TICK_MINUTES = [60, 120, 180, 360, 720, 1440, 2880, 10080];
@@ -387,27 +352,34 @@ const ReportsPage: React.FC = () => {
     [socPoints, bucketMs],
   );
 
-  // Time ranges within the window with no readings — shaded gray so missing
-  // data is visually distinct from a genuine low SoC.
-  const socGaps = useMemo(
-    () => (bucketedSocPoints ? findSocGaps(bucketedSocPoints, socDomain, bucketMs) : []),
-    [bucketedSocPoints, socDomain, bucketMs],
-  );
-
-  // Continuous bucket series across the whole window: `soc` is null in gaps and
-  // `gap` is a full-height (100) sentinel there. The gap sentinel gives every
-  // missing bucket a hover target so the tooltip can report "No data" instead
-  // of snapping to the nearest real bar.
+  // Continuous, gapless bucket series across the whole window. Each bucket
+  // fills the full height so the chart reads as a solid strip:
+  //   - a bucket WITH data draws `soc` (blue) from 0 and `rest` (white) on top,
+  //   - a bucket with NO data draws `gap` (gray) full-height.
+  // `soc`/`rest` are null in gaps and `gap` is null where there's data, so
+  // exactly one of the two stacks renders per bucket. The gray gap bar also
+  // gives every missing bucket a hover target so the tooltip can report
+  // "No data" instead of snapping to the nearest real bar.
   const socChartData = useMemo(() => {
     if (!bucketedSocPoints) return [];
     const present = new Map(
       bucketedSocPoints.map(p => [Math.floor(p.t / bucketMs) * bucketMs, p.soc]),
     );
     const first = Math.ceil(socDomain[0] / bucketMs) * bucketMs;
-    const out: Array<{ t: number; soc: number | null; gap: number | null }> = [];
+    const out: Array<{
+      t: number;
+      soc: number | null;
+      rest: number | null;
+      gap: number | null;
+    }> = [];
     for (let t = first; t <= socDomain[1]; t += bucketMs) {
       const v = present.get(t);
-      out.push({ t, soc: v ?? null, gap: v == null ? 100 : null });
+      out.push({
+        t,
+        soc: v ?? null,
+        rest: v == null ? null : 100 - v,
+        gap: v == null ? 100 : null,
+      });
     }
     return out;
   }, [bucketedSocPoints, socDomain, bucketMs]);
@@ -533,22 +505,8 @@ const ReportsPage: React.FC = () => {
               ) : (
                 <Box ref={socChartRef}>
                   <ResponsiveContainer width="100%" height={280}>
-                    <BarChart data={socChartData} barCategoryGap={BAR_CATEGORY_GAP_PX} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+                    <BarChart data={socChartData} barCategoryGap={0} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
                       <CartesianGrid stroke={theme.palette.divider} strokeDasharray="3 3" />
-                      {/* Shade ranges with no readings so gaps don't read as 0% */}
-                      {socGaps.map((g) => (
-                        <ReferenceArea
-                          key={g.x1}
-                          x1={g.x1}
-                          x2={g.x2}
-                          y1={0}
-                          y2={100}
-                          fill={theme.palette.action.disabled}
-                          fillOpacity={0.18}
-                          stroke="none"
-                          ifOverflow="hidden"
-                        />
-                      ))}
                       <XAxis
                         dataKey="t"
                         type="number"
@@ -580,15 +538,22 @@ const ReportsPage: React.FC = () => {
                           label={{ value: 'Now', position: 'top', fill: theme.palette.error.main, fontSize: 11 }}
                         />
                       )}
-                      {/* Transparent full-height bars give gap buckets a hover
-                          target so the tooltip can report "No data". Both share
-                          a stackId so each bucket renders one full-width bar
-                          (soc or gap) rather than two half-width bars. */}
-                      <Bar dataKey="gap" stackId="soc" fill="transparent" isAnimationActive={false} />
+                      {/* One full-height stack per bucket (shared stackId, no
+                          category gap → a continuous strip). A data bucket
+                          shows `soc` (blue) under `rest` (white); a no-data
+                          bucket shows `gap` (gray) and doubles as the hover
+                          target so the tooltip can report "No data". */}
+                      <Bar dataKey="gap" stackId="soc" fill={theme.palette.grey[300]} isAnimationActive={false} />
                       <Bar
                         dataKey="soc"
                         stackId="soc"
                         fill={theme.palette.primary.main}
+                        isAnimationActive={false}
+                      />
+                      <Bar
+                        dataKey="rest"
+                        stackId="soc"
+                        fill={theme.palette.common.white}
                         isAnimationActive={false}
                       />
                     </BarChart>
