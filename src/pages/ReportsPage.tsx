@@ -1,15 +1,13 @@
 /**
  * Operations Reports page.
  *
- * Two chart sections:
+ * One chart section:
  * 1. Available state of charge — sliding 24h window anchored to "now",
  *    auto-refreshes every 60s so the right edge tracks the current time.
- * 2. Charge / discharge / hold time per day — stacked bar for a
- *    user-chosen date range.
  *
- * Both charts support PNG, PDF, and CSV export.
+ * The chart supports PNG, PDF, and CSV export.
  *
- * Below the charts: a "Recent schedule changes" activity feed.
+ * Below the chart: a "Recent schedule changes" activity feed.
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -34,7 +32,6 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  Legend,
   ReferenceArea,
   ReferenceLine,
   ResponsiveContainer,
@@ -43,18 +40,13 @@ import {
   YAxis,
 } from 'recharts';
 import type {
-  ChargeDischargeBucket,
   RecentScheduleActivityEntry,
   SocHistoryPoint,
 } from '@newtown-energy/types';
 
-import {
-  fetchChargeDischargeSummary,
-  fetchRecentScheduleActivity,
-} from '../utils/reportsApi';
+import { fetchRecentScheduleActivity } from '../utils/reportsApi';
 import { fetchSocHistory } from '../utils/socApi';
 import { useSiteContext } from '../utils/SiteContext';
-import { COMMAND_BAR_COLORS } from '../utils/scheduleHelpers';
 import { downloadCsv, toCsv } from '../utils/csv';
 import { exportChartPng, exportChartPdf } from '../utils/chartExport';
 import { errorLog } from '../utils/debug';
@@ -69,26 +61,7 @@ export const pageConfig = {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function startOfDaysAgo(days: number): Date {
-  const d = new Date();
-  d.setDate(d.getDate() - days);
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
-
-function toDateInput(d: Date): string {
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
-
-function fromDateInput(s: string): Date | null {
-  if (!s) return null;
-  const [y, m, d] = s.split('-').map(Number);
-  if (!y || !m || !d) return null;
-  return new Date(y, m - 1, d);
-}
-
-// datetime-local round-trip (local time) for the finer-grained SoC window.
+// datetime-local round-trip (local time) for the SoC window.
 function toDateTimeInput(d: Date): string {
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
@@ -200,19 +173,6 @@ function generateTicks(from: number, to: number, stepMs: number): number[] {
   const ticks: number[] = [];
   for (let t = Math.ceil(from / stepMs) * stepMs; t <= to; t += stepMs) ticks.push(t);
   return ticks;
-}
-
-function formatDayLabel(day: string): string {
-  const parts = day.split('-');
-  if (parts.length !== 3) return day;
-  return `${parts[1]}/${parts[2]}`;
-}
-
-function formatMinutes(value: number): string {
-  if (value < 60) return `${value.toFixed(0)} min`;
-  const h = Math.floor(value / 60);
-  const m = Math.round(value - h * 60);
-  return m === 0 ? `${h}h` : `${h}h ${m}m`;
 }
 
 // Times on the SoC axis are shown in UTC (see the caption under the chart).
@@ -361,14 +321,9 @@ const ReportsPage: React.FC = () => {
   const [socLive, setSocLive] = useState(true);
   const socChartRef = useRef<HTMLDivElement | null>(null);
 
-  // -- Charge/discharge chart state --
-  const [from, setFrom] = useState<Date>(() => startOfDaysAgo(7));
-  const [to, setTo] = useState<Date>(() => new Date());
-  const [buckets, setBuckets] = useState<ChargeDischargeBucket[] | null>(null);
+  // -- Recent schedule changes feed --
   const [activity, setActivity] = useState<RecentScheduleActivityEntry[] | null>(null);
-  const [cdError, setCdError] = useState<string | null>(null);
-  const [cdLoading, setCdLoading] = useState(false);
-  const cdChartRef = useRef<HTMLDivElement | null>(null);
+  const [activityError, setActivityError] = useState<string | null>(null);
 
   // -- SoC data loading over the selected [socFrom, socTo] window --
   const loadSoc = useCallback(async () => {
@@ -400,29 +355,22 @@ const ReportsPage: React.FC = () => {
     return () => clearInterval(id);
   }, [socLive]);
 
-  // -- Charge/discharge data loading --
-  const loadCd = useCallback(async () => {
+  // -- Recent schedule changes loading --
+  const loadActivity = useCallback(async () => {
     if (!selectedSite) return;
-    setCdLoading(true);
-    setCdError(null);
+    setActivityError(null);
     try {
-      const [summary, activityResponse] = await Promise.all([
-        fetchChargeDischargeSummary(selectedSite.id, from, to),
-        fetchRecentScheduleActivity(selectedSite.id, 25),
-      ]);
-      setBuckets(summary.buckets);
-      setActivity(activityResponse.entries);
+      const response = await fetchRecentScheduleActivity(selectedSite.id, 25);
+      setActivity(response.entries);
     } catch (err) {
-      errorLog('ReportsPage: charge/discharge load failed', err);
-      setCdError('Failed to load report data.');
-    } finally {
-      setCdLoading(false);
+      errorLog('ReportsPage: schedule activity load failed', err);
+      setActivityError('Failed to load schedule changes.');
     }
-  }, [selectedSite, from, to]);
+  }, [selectedSite]);
 
   useEffect(() => {
-    void loadCd();
-  }, [loadCd]);
+    void loadActivity();
+  }, [loadActivity]);
 
   // -- Derived --
   const socDomain: [number, number] = useMemo(
@@ -478,18 +426,6 @@ const ReportsPage: React.FC = () => {
     return socPoints[socPoints.length - 1].soc;
   }, [socPoints]);
 
-  const totals = useMemo(() => {
-    if (!buckets || buckets.length === 0) return null;
-    return buckets.reduce(
-      (acc, b) => ({
-        charging: acc.charging + b.charging_minutes,
-        discharging: acc.discharging + b.discharging_minutes,
-        hold: acc.hold + b.hold_minutes,
-      }),
-      { charging: 0, discharging: 0, hold: 0 },
-    );
-  }, [buckets]);
-
   // -- CSV exports --
   const handleSocCsv = () => {
     if (!socPoints || !selectedSite) return;
@@ -500,21 +436,6 @@ const ReportsPage: React.FC = () => {
     ]);
     downloadCsv(
       `soc-site-${selectedSite.id}-${new Date().toISOString().slice(0, 10)}.csv`,
-      toCsv(headers, rows),
-    );
-  };
-
-  const handleCdCsv = () => {
-    if (!buckets || !selectedSite) return;
-    const headers = ['Day', 'Charging (min)', 'Discharging (min)', 'Hold (min)'];
-    const rows = buckets.map(b => [
-      b.day,
-      b.charging_minutes.toFixed(1),
-      b.discharging_minutes.toFixed(1),
-      b.hold_minutes.toFixed(1),
-    ]);
-    downloadCsv(
-      `charge-discharge-site-${selectedSite.id}-${toDateInput(from)}_to_${toDateInput(to)}.csv`,
       toCsv(headers, rows),
     );
   };
@@ -684,122 +605,6 @@ const ReportsPage: React.FC = () => {
             </CardContent>
           </Card>
 
-          {/* ---- Charge / discharge chart ---- */}
-          <Card sx={{ mb: 3 }}>
-            <CardContent>
-              <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="center" sx={{ mb: 2 }}>
-                <Typography variant="h6" sx={{ flex: 1 }}>
-                  Time per day in each state
-                </Typography>
-                <TextField
-                  type="date"
-                  label="From"
-                  size="small"
-                  value={toDateInput(from)}
-                  onChange={e => {
-                    const d = fromDateInput(e.target.value);
-                    if (d) setFrom(d);
-                  }}
-                  slotProps={{ inputLabel: { shrink: true } }}
-                />
-                <TextField
-                  type="date"
-                  label="To"
-                  size="small"
-                  value={toDateInput(to)}
-                  onChange={e => {
-                    const d = fromDateInput(e.target.value);
-                    if (d) setTo(d);
-                  }}
-                  slotProps={{ inputLabel: { shrink: true } }}
-                />
-                <ChartExportButtons
-                  chartRef={cdChartRef}
-                  filePrefix={`charge-discharge-site-${selectedSite.id}`}
-                  pdfTitle={`Charge/Discharge Summary — ${selectedSite.name}`}
-                  onCsvExport={handleCdCsv}
-                  disabled={!buckets || buckets.length === 0}
-                />
-              </Stack>
-
-              {cdError && <Alert severity="error" sx={{ mb: 1 }}>{cdError}</Alert>}
-
-              {cdLoading && buckets === null ? (
-                <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
-                  <CircularProgress />
-                </Box>
-              ) : !buckets || buckets.length === 0 ? (
-                <Typography variant="body2" color="text.secondary">
-                  No readings in this date range. Try seeding history with{' '}
-                  <code>neems-data seed-soc-history --site-id {selectedSite.id}</code>{' '}
-                  or widening the window.
-                </Typography>
-              ) : (
-                <>
-                  <Box ref={cdChartRef}>
-                    <ResponsiveContainer width="100%" height={360}>
-                      <BarChart
-                        data={buckets}
-                        barCategoryGap={BAR_CATEGORY_GAP_PX}
-                        margin={{ top: 8, right: 16, left: 0, bottom: 0 }}
-                      >
-                        <CartesianGrid stroke={theme.palette.divider} strokeDasharray="3 3" />
-                        <XAxis
-                          dataKey="day"
-                          tickFormatter={formatDayLabel}
-                          stroke={theme.palette.text.secondary}
-                          tick={{ fontSize: 12 }}
-                        />
-                        <YAxis
-                          tickFormatter={v => `${v}m`}
-                          stroke={theme.palette.text.secondary}
-                          tick={{ fontSize: 12 }}
-                          width={56}
-                        />
-                        <Tooltip
-                          formatter={(value, name) => [formatMinutes(value as number), name]}
-                          isAnimationActive={false}
-                        />
-                        <Legend />
-                        <Bar
-                          dataKey="charging_minutes"
-                          name="Charging"
-                          stackId="state"
-                          fill={COMMAND_BAR_COLORS.charge}
-                          isAnimationActive={false}
-                        />
-                        <Bar
-                          dataKey="discharging_minutes"
-                          name="Discharging"
-                          stackId="state"
-                          fill={COMMAND_BAR_COLORS.discharge}
-                          isAnimationActive={false}
-                        />
-                        <Bar
-                          dataKey="hold_minutes"
-                          name="Hold"
-                          stackId="state"
-                          fill={theme.palette.grey[400]}
-                          isAnimationActive={false}
-                        />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </Box>
-
-                  {totals && (
-                    <Box sx={{ mt: 2 }}>
-                      <Typography variant="body2" color="text.secondary">
-                        Window totals — charging: {formatMinutes(totals.charging)} ·
-                        discharging: {formatMinutes(totals.discharging)} ·
-                        hold: {formatMinutes(totals.hold)}
-                      </Typography>
-                    </Box>
-                  )}
-                </>
-              )}
-            </CardContent>
-          </Card>
-
           {/* ---- Recent schedule changes ---- */}
           <Card sx={{ mt: 3 }}>
             <CardContent>
@@ -810,7 +615,9 @@ const ReportsPage: React.FC = () => {
                 Merged feed of library-item edits and application-rule changes for
                 this site, newest first.
               </Typography>
-              {activity === null ? (
+              {activityError ? (
+                <Alert severity="error">{activityError}</Alert>
+              ) : activity === null ? (
                 <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
                   <CircularProgress size={24} />
                 </Box>
