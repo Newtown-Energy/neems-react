@@ -19,8 +19,6 @@ export const pageConfig = {
   icon: AccountTreeIcon,
 };
 
-const STALE_THRESHOLD_SECONDS = 60;
-
 // Site identity is intentionally abstracted with placeholder values so the SLD
 // can be shown/demoed without revealing the real site, address, or the
 // utility/developer involved. Replace with real values only in a private build.
@@ -60,10 +58,6 @@ const InfoLine: React.FC<{ label: string; value: string }> = ({ label, value }) 
 const SldPage: React.FC = () => {
   const [diagramState, setDiagramState] = useState<SldDiagramState | null>(null);
 
-  const isStale =
-    diagramState?.dataStale ||
-    (diagramState?.dataAgeSeconds != null &&
-      diagramState.dataAgeSeconds > STALE_THRESHOLD_SECONDS);
   const noData =
     diagramState != null &&
     !diagramState.dataStale &&
@@ -99,11 +93,12 @@ const SldPage: React.FC = () => {
         </Alert>
       )}
 
-      {isStale && (
+      {/* The age-based "alarm data is N seconds old" warning now renders
+          once, app-wide, via SiteStatePanel. Keep only the fetch-failure
+          case here, which that global banner doesn't track. */}
+      {diagramState?.dataStale && (
         <Alert severity="warning" sx={{ mb: 2 }}>
-          {diagramState?.dataStale
-            ? 'Unable to reach the alarm service. Displayed state may be outdated.'
-            : `Alarm data is ${diagramState?.dataAgeSeconds} seconds old. The RTAC connection may be down.`}
+          Unable to reach the alarm service. Displayed state may be outdated.
         </Alert>
       )}
 
