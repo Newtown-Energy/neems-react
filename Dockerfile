@@ -7,8 +7,14 @@ WORKDIR /app
 # Copy package files
 COPY package.json bun.lock ./
 
-# Install dependencies
-RUN bun install --frozen-lockfile
+# Install dependencies. @newtown-energy/types is published to GitHub Packages,
+# which requires auth even for public packages. The token is supplied as a
+# BuildKit secret (id=github_token) so it never lands in an image layer; we
+# write a throwaway .npmrc for the install only, then remove it.
+RUN --mount=type=secret,id=github_token \
+    printf '@newtown-energy:registry=https://npm.pkg.github.com\n//npm.pkg.github.com/:_authToken=%s\n' "$(cat /run/secrets/github_token)" > .npmrc \
+ && bun install --frozen-lockfile \
+ && rm -f .npmrc
 
 # Copy source code
 COPY . .
