@@ -559,6 +559,7 @@ const ReportsPage: React.FC = () => {
                         fill={theme.palette.grey[300]}
                         stroke={theme.palette.grey[300]}
                         strokeWidth={1}
+                        activeBar={{ fill: theme.palette.grey[400], stroke: theme.palette.grey[400] }}
                         isAnimationActive={false}
                       />
                       <Bar
@@ -567,6 +568,7 @@ const ReportsPage: React.FC = () => {
                         fill={theme.palette.primary.main}
                         stroke={theme.palette.primary.main}
                         strokeWidth={1}
+                        activeBar={{ fill: theme.palette.primary.dark, stroke: theme.palette.primary.dark }}
                         isAnimationActive={false}
                       />
                       <Bar
@@ -575,6 +577,7 @@ const ReportsPage: React.FC = () => {
                         fill={theme.palette.common.white}
                         stroke={theme.palette.common.white}
                         strokeWidth={1}
+                        activeBar={{ fill: theme.palette.grey[200], stroke: theme.palette.grey[200] }}
                         isAnimationActive={false}
                       />
                     </BarChart>
