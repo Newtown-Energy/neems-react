@@ -27,7 +27,7 @@ import {
   Typography,
   useTheme,
 } from '@mui/material';
-import { Assessment, Download, Image, PictureAsPdf } from '@mui/icons-material';
+import { Assessment, Download, Image, PictureAsPdf, ZoomIn, ZoomOut } from '@mui/icons-material';
 import {
   Bar,
   BarChart,
@@ -276,6 +276,18 @@ const ChartExportButtons: React.FC<ChartExportProps> = ({
 const SOC_WINDOW_HOURS = 24;
 const SOC_REFRESH_INTERVAL_MS = 60_000;
 
+// Zoom adjusts the From/To data window (not a visual transform): zooming in
+// shrinks the span, out grows it, around an anchor (the cursor for wheel
+// zoom, the center for the buttons).
+const SOC_ZOOM_IN_FACTOR = 1 / 1.6;
+const SOC_ZOOM_OUT_FACTOR = 1.6;
+const SOC_MIN_SPAN_MS = 10 * 60_000; // 10 minutes
+const SOC_MAX_SPAN_MS = 90 * 24 * 3600_000; // 90 days
+// Mirror the chart's YAxis width / right margin so wheel zoom can map a
+// cursor x-position to a time within the plot area.
+const SOC_PLOT_LEFT_PX = 48;
+const SOC_PLOT_RIGHT_PX = 16;
+
 const ReportsPage: React.FC = () => {
   const theme = useTheme();
   const { selectedSite } = useSiteContext();
@@ -342,6 +354,46 @@ const ReportsPage: React.FC = () => {
   useEffect(() => {
     void loadActivity();
   }, [loadActivity]);
+
+  // Zoom the From/To window in/out around an anchor time. Pins the range
+  // (turns off live) the same way editing From/To does.
+  const zoomBy = useCallback(
+    (factor: number, anchorMs?: number) => {
+      const fromMs = socFrom.getTime();
+      const toMs = socTo.getTime();
+      const span = toMs - fromMs;
+      if (span <= 0) return;
+      const nextSpan = Math.min(SOC_MAX_SPAN_MS, Math.max(SOC_MIN_SPAN_MS, span * factor));
+      const ratio = nextSpan / span;
+      if (ratio === 1) return; // already at a zoom limit
+      const anchor = anchorMs ?? fromMs + span / 2;
+      setSocLive(false);
+      setSocFrom(new Date(anchor - (anchor - fromMs) * ratio));
+      setSocTo(new Date(anchor + (toMs - anchor) * ratio));
+    },
+    [socFrom, socTo],
+  );
+
+  // Mouse-wheel zoom over the chart, anchored at the cursor's time. Uses a
+  // non-passive native listener so we can preventDefault the page scroll.
+  useEffect(() => {
+    const el = socChartRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      if (e.deltaY === 0) return;
+      e.preventDefault();
+      const rect = el.getBoundingClientRect();
+      const left = rect.left + SOC_PLOT_LEFT_PX;
+      const right = rect.right - SOC_PLOT_RIGHT_PX;
+      const frac =
+        right > left ? Math.min(1, Math.max(0, (e.clientX - left) / (right - left))) : 0.5;
+      const fromMs = socFrom.getTime();
+      const anchor = fromMs + frac * (socTo.getTime() - fromMs);
+      zoomBy(e.deltaY < 0 ? SOC_ZOOM_IN_FACTOR : SOC_ZOOM_OUT_FACTOR, anchor);
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [socFrom, socTo, zoomBy, socPoints]);
 
   // -- Derived --
   const socDomain: [number, number] = useMemo(
@@ -487,6 +539,22 @@ const ReportsPage: React.FC = () => {
                 >
                   Last 24h
                 </Button>
+                <ButtonGroup size="small" variant="outlined">
+                  <Button
+                    onClick={() => zoomBy(SOC_ZOOM_OUT_FACTOR)}
+                    aria-label="Zoom out (widen the time range)"
+                    title="Zoom out (widen the time range)"
+                  >
+                    <ZoomOut fontSize="small" />
+                  </Button>
+                  <Button
+                    onClick={() => zoomBy(SOC_ZOOM_IN_FACTOR)}
+                    aria-label="Zoom in (narrow the time range)"
+                    title="Zoom in (narrow the time range)"
+                  >
+                    <ZoomIn fontSize="small" />
+                  </Button>
+                </ButtonGroup>
                 <ChartExportButtons
                   chartRef={socChartRef}
                   filePrefix={`soc-site-${selectedSite.id}`}
