@@ -22,7 +22,9 @@ import {
   Select,
   MenuItem,
   FormControl,
+  FormControlLabel,
   InputLabel,
+  Switch,
 } from '@mui/material';
 import {
   NotificationsActive,
@@ -99,6 +101,9 @@ const AlarmsPage: React.FC = () => {
   /** Activation counts per alarm over the last [HISTORY_WINDOW_DAYS] days. */
   const [activationCounts, setActivationCounts] = useState<Record<number, number>>({});
   const [groupByCategory, setGroupByCategory] = useState<boolean>(true);
+  /** Show only currently-active alarms. On by default — the operator
+   *  cares about what's firing now; flip off to browse every definition. */
+  const [activeOnly, setActiveOnly] = useState<boolean>(true);
   const [sortKey, setSortKey] = useState<SortKey>('activations');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
 
@@ -231,6 +236,7 @@ const AlarmsPage: React.FC = () => {
 
   const filteredRows = allRows
     .filter((a) => {
+      if (activeOnly && !a.active) return false;
       if (severityFilter.length > 0 && !severityFilter.includes(a.severity)) return false;
       if (zoneFilter && a.zone !== zoneFilter) return false;
       return true;
@@ -344,6 +350,16 @@ const AlarmsPage: React.FC = () => {
       {/* Filters */}
       <Card sx={{ mb: 3 }}>
         <CardContent sx={{ display: 'flex', gap: 2, alignItems: 'center', py: 1, '&:last-child': { pb: 1 } }}>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={activeOnly}
+                onChange={(e) => setActiveOnly(e.target.checked)}
+                size="small"
+              />
+            }
+            label="Active only"
+          />
           <FormControl size="small" sx={{ minWidth: 200 }}>
             <InputLabel>Filter by Zone</InputLabel>
             <Select
@@ -400,8 +416,18 @@ const AlarmsPage: React.FC = () => {
       ) : groupByCategory ? (
         <Box>
           {rowsByCategory.map(({ category, rows }) => {
-            const activeInCategory = rows.filter((r) => r.active).length;
+            const activeRows = rows.filter((r) => r.active);
+            const activeInCategory = activeRows.length;
             const totalActivations = rows.reduce((s, r) => s + r.activations30d, 0);
+            // Color the "N active" chip by the most urgent active alarm in
+            // the bucket (lowest severity order = most urgent).
+            const mostUrgentActiveSeverity = activeRows.reduce<AlarmSeverityDto | null>(
+              (most, r) =>
+                most === null || getSeverityOrder(r.severity) < getSeverityOrder(most)
+                  ? r.severity
+                  : most,
+              null,
+            );
             return (
               <Accordion key={category} defaultExpanded sx={{ mb: 1 }}>
                 <AccordionSummary expandIcon={<ExpandMoreIcon />}>
@@ -412,7 +438,11 @@ const AlarmsPage: React.FC = () => {
                     {activeInCategory > 0 && (
                       <Chip
                         label={`${activeInCategory} active`}
-                        color="error"
+                        color={
+                          mostUrgentActiveSeverity
+                            ? getSeverityColor(mostUrgentActiveSeverity)
+                            : 'error'
+                        }
                         size="small"
                       />
                     )}
