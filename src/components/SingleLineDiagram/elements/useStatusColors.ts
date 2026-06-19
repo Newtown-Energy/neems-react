@@ -11,14 +11,11 @@ interface StatusColors {
 }
 
 /**
- * Severity-specific palette for SLD visuals. Deliberately chosen so each
- * severity reads distinctly at a glance:
- *   Emergency → bold red
- *   Critical  → bold orange
- *   Warning   → bold yellow
- *   Info      → blue
- * Deliberate hex values are used for orange/yellow rather than MUI's default
- * `warning` (which reads orangish) so Warning and Critical don't collide.
+ * Severity-specific palette for SLD visuals. Resolves to the canonical severity
+ * colors defined on the theme palette (see `theme.ts`), so SLD highlights,
+ * borders, and badges stay in lockstep with the severity Chips rendered via
+ * `getSeverityColor()`. Each severity reads distinctly at a glance:
+ *   Emergency → red, Critical → orange, Warning → yellow, Info → blue.
  */
 export function severityColor(
   severity: AlarmSeverityDto,
@@ -26,13 +23,13 @@ export function severityColor(
 ): string {
   switch (severity) {
     case 'Emergency':
-      return theme.palette.error.main;
+      return theme.palette.severityEmergency.main;
     case 'Critical':
-      return '#F57C00';
+      return theme.palette.severityCritical.main;
     case 'Warning':
-      return '#FFC107';
+      return theme.palette.severityWarning.main;
     case 'Info':
-      return theme.palette.info.main;
+      return theme.palette.severityInfo.main;
   }
 }
 
