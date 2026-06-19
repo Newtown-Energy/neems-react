@@ -7,6 +7,9 @@ export interface ActiveAlarmSummary {
   alarm_num: number;
   name: string;
   severity: AlarmSeverityDto;
+  /** Operator-facing message from the alarm spreadsheet ("Mouseover").
+   *  `null` when the spreadsheet had none — callers fall back to the name. */
+  message: string | null;
 }
 
 /** The visual state of a single SLD component */
@@ -32,6 +35,13 @@ export type PowerFlowDirection = 'forward' | 'reverse' | 'none';
 export interface SldComponentState {
   id: string;
   zone: AlarmZoneDto;
+  /**
+   * "Related SLD Object" tokens this component represents (e.g. `'52-MAIN-1'`,
+   * `'LOR'`, `'Relay'`). An alarm whose `sld_targets` intersect these tokens is
+   * routed to this component — finer than zone matching. Omitted = match by
+   * zone only.
+   */
+  sldTokens?: string[];
   status: ComponentStatus;
   highestSeverity: AlarmSeverityDto | null;
   activeAlarmCount: number;
@@ -54,10 +64,19 @@ export interface SldWireState {
   powerFlow: PowerFlowDirection;
 }
 
+/**
+ * Main-pane border state, driven by alarms targeting the `'Border'` SLD object.
+ * Per the spreadsheet: blue border = controls/electrical problem (site not ready
+ * to operate), red border = fire / life-safety emergency. `null` = no frame.
+ */
+export type SldBorderState = { kind: 'fire' | 'controls' } | null;
+
 /** Top-level diagram state */
 export interface SldDiagramState {
   components: Record<string, SldComponentState>;
   wires: Record<string, SldWireState>;
+  /** Main-pane border overlay driven by `'Border'`-targeted alarms. */
+  border: SldBorderState;
   lastAlarmUpdate: string | null;
   dataAgeSeconds: number | null;
   dataStale: boolean;

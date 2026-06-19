@@ -8,6 +8,7 @@ import {
   DialogContentText,
   DialogTitle,
 } from '@mui/material';
+import { visuallyHidden } from '@mui/utils';
 import {
   ReactSVGPanZoom,
   TOOL_AUTO,
@@ -32,26 +33,30 @@ const DIAGRAM_HEIGHT = 800;
 
 // --- Initial component definitions for Newtown site ---
 
+// The 4th argument is the set of "Related SLD Object" tokens (from the alarm
+// spreadsheet) a component represents, so alarms route to the precise element
+// rather than every component sharing a zone. Tokens with no element yet
+// (`Net`, `M1`/`M2`, `SST-UPS`, `CE_SCADA`, `Estop`) fall back to zone matching.
 const INITIAL_COMPONENTS = [
   defComponent('site', 'Site'),
-  defComponent('meter-main', 'Meter'),
+  defComponent('meter-main', 'Meter', undefined, ['Meter']),
   // SEL-451 protective relay. Kept under the BreakerRelay zone (it's the
   // relay that alarms publish against), but rendered as an off-line control
   // box with dashed supervision lines to the two 89L switches.
-  defComponent('breaker-main', 'BreakerRelay'),
-  defComponent('switch-89l-1', 'BreakerRelay', 'closed'),
-  defComponent('switch-89l-2', 'BreakerRelay', 'closed'),
-  defComponent('transformer-1', 'Transformer1'),
-  defComponent('transformer-2', 'Transformer2'),
+  defComponent('breaker-main', 'BreakerRelay', undefined, ['Relay']),
+  defComponent('switch-89l-1', 'BreakerRelay', 'closed', ['52-MAIN-1']),
+  defComponent('switch-89l-2', 'BreakerRelay', 'closed', ['52-MAIN-2']),
+  defComponent('transformer-1', 'Transformer1', undefined, ['T1']),
+  defComponent('transformer-2', 'Transformer2', undefined, ['T2']),
   defComponent('rtac', 'Rtac'),
-  defComponent('fire-alarm-panel', 'Facp'),
+  defComponent('fire-alarm-panel', 'Facp', undefined, ['FACP']),
   defComponent('tesla-site-controller', 'TeslaSiteController'),
-  defComponent('megapack-1a', 'Mp1a'),
-  defComponent('megapack-1b', 'Mp1b'),
-  defComponent('megapack-1c', 'Mp1c'),
-  defComponent('megapack-2a', 'Mp2a'),
-  defComponent('megapack-2b', 'Mp2b'),
-  defComponent('megapack-2c', 'Mp2c'),
+  defComponent('megapack-1a', 'Mp1a', undefined, ['MP-1A']),
+  defComponent('megapack-1b', 'Mp1b', undefined, ['MP-1B']),
+  defComponent('megapack-1c', 'Mp1c', undefined, ['MP-1C']),
+  defComponent('megapack-2a', 'Mp2a', undefined, ['MP-2A']),
+  defComponent('megapack-2b', 'Mp2b', undefined, ['MP-2B']),
+  defComponent('megapack-2c', 'Mp2c', undefined, ['MP-2C']),
   defComponent('feeder-1a', 'TeslaSiteController', 'closed'),
   defComponent('feeder-1b', 'TeslaSiteController', 'closed'),
   defComponent('feeder-1c', 'TeslaSiteController', 'closed'),
@@ -61,7 +66,7 @@ const INITIAL_COMPONENTS = [
   // Lockout relay — physical breaker-control handle driven by the SEL-451.
   // Shares the BreakerRelay zone for alarm mapping. 'closed' = CLOSE (normal),
   // 'open' = TRIP (breaker tripped / locked out).
-  defComponent('lockout-relay', 'BreakerRelay', 'closed'),
+  defComponent('lockout-relay', 'BreakerRelay', 'closed', ['LOR']),
 ];
 
 const INITIAL_WIRES = [
@@ -189,6 +194,38 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({
       }}
     >
       <CurtailmentBadge />
+      {/* Main-pane border overlay: blue = controls/electrical problem (site not
+          ready to operate), red = fire / life-safety emergency. Red is driven
+          by an Emergency in the fire alarm panel zone; blue by alarms targeting
+          the spreadsheet's 'Border' SLD object. The frame is decorative
+          (aria-hidden); the state is announced via the live region below. */}
+      {state.border && (
+        <>
+          <Box
+            aria-hidden
+            data-testid={`sld-border-${state.border.kind}`}
+            sx={{
+              position: 'absolute',
+              inset: 0,
+              pointerEvents: 'none',
+              zIndex: 5,
+              border: '4px solid',
+              borderColor: state.border.kind === 'fire' ? 'error.main' : 'info.main',
+              borderRadius: 1,
+              animation: 'sldBorderFlash 1.2s steps(1, end) infinite',
+              '@keyframes sldBorderFlash': {
+                '0%, 50%': { opacity: 1 },
+                '50.01%, 100%': { opacity: 0.25 },
+              },
+            }}
+          />
+          <Box role="status" aria-live="assertive" sx={visuallyHidden}>
+            {state.border.kind === 'fire'
+              ? 'Site emergency: fire or life-safety alarm active'
+              : 'Site not ready to operate: controls alarm active'}
+          </Box>
+        </>
+      )}
       {viewerSize && (
         <ReactSVGPanZoom
           ref={viewerRef}
