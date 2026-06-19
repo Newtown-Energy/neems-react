@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import {
   Alert,
   Box,
-  Chip,
   Paper,
   Stack,
   Typography,
@@ -101,13 +100,6 @@ const SldPage: React.FC = () => {
           No alarm data available yet. The diagram shows default (normal) state.
         </Alert>
       )}
-
-      <Stack direction="row" spacing={1} sx={{ mb: 2 }} flexWrap="wrap" useFlexGap>
-        <Chip label="Normal" size="small" variant="outlined" />
-        <Chip label="Warning" size="small" color="info" />
-        <Chip label="Critical" size="small" color="warning" />
-        <Chip label="Emergency" size="small" color="error" />
-      </Stack>
 
       <Box
         sx={{
