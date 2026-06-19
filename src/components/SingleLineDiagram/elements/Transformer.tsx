@@ -4,104 +4,84 @@ import type { SldElementProps } from '../types';
 import { useStatusColors } from './useStatusColors';
 import AlarmIndicator from './AlarmIndicator';
 import AlarmGlow from './AlarmGlow';
-import WyeGroundSymbol from './WyeGroundSymbol';
+import WyeSymbol from './WyeSymbol';
 import { SLD_FONT } from '../sldTypography';
 
 /**
- * Build a vertical coil path with `humpCount` humps bulging to the right
- * (positive X). The path starts at (0, yStart) and ends at (0, yStart + height).
+ * Build a transformer winding: a horizontal row of `loops` semicircular lobes
+ * bulging in Y by `dir` (-1 = up, +1 = down), centered on x=0. Consecutive
+ * lobes meet at cusps on the baseline `y0`; with an even loop count a cusp sits
+ * at x=0, where the vertical conductor connects.
  */
-function coilPath(yStart: number, humpCount: number, humpHeight: number): string {
-  let d = `M 0 ${yStart}`;
-  for (let i = 0; i < humpCount; i += 1) {
-    const yMid = yStart + i * humpHeight + humpHeight / 2;
-    const yEnd = yStart + (i + 1) * humpHeight;
-    d += ` Q 8 ${yMid}, 0 ${yEnd}`;
+function windingPath(y0: number, loops: number, r: number, dir: number): string {
+  const w = 2 * r;
+  const half = (loops * w) / 2;
+  const sweep = dir < 0 ? 1 : 0;
+  let d = `M ${-half} ${y0}`;
+  for (let i = 0; i < loops; i += 1) {
+    const xEnd = -half + (i + 1) * w;
+    d += ` A ${r} ${r} 0 0 ${sweep} ${xEnd} ${y0}`;
   }
   return d;
 }
 
 /**
- * Transformer: two vertically-stacked squiggly coils (primary above,
- * secondary below) with a wye-ground topology mark beside each winding to
- * indicate the Y/Y-ground configuration used at Brigis 1A.
+ * Transformer: the conventional two-winding symbol — two rows of semicircular
+ * coil lobes (primary above, secondary below) whose convex faces meet across
+ * the central gap, with the open side of each lobe facing outward. The vertical
+ * conductor connects to each winding's baseline. Two wye (star) marks sit side
+ * by side beside the windings to indicate the site's Y/Y winding configuration
+ * (high side and low side).
  */
 const Transformer: React.FC<SldElementProps> = ({ x, y, state, label }) => {
   const theme = useTheme();
   const { stroke, strokeWidth } = useStatusColors(state);
   const lineColor = state.status === 'normal' ? theme.palette.text.primary : stroke;
 
-  const humpHeight = 5;
-  const humpCount = 3;
-  const coilHeight = humpHeight * humpCount; // 15
-  const gap = 4; // vertical gap between primary and secondary coils
+  const loops = 4;
+  const r = 4; // lobe radius
+  const halfW = (loops * 2 * r) / 2; // 16
+  const gap = 3; // spacing between the two windings' convex faces
 
-  const primaryTop = -coilHeight - gap / 2;
-  const primaryBottom = primaryTop + coilHeight;
-  const secondaryTop = primaryBottom + gap;
-  const secondaryBottom = secondaryTop + coilHeight;
+  // Outer baselines (cusps) — where the conductor connects. Lobes bulge inward
+  // toward the gap, so the open side of each half-circle faces outward.
+  const primaryBaseline = -(r + gap / 2);
+  const secondaryBaseline = r + gap / 2;
 
-  // Short stub connectors into/out of the coils
-  const stubTopY = primaryTop - 6;
+  const stubTopY = -24;
+  const stubBottomY = 24;
 
   return (
     <g transform={`translate(${x}, ${y})`}>
-      {/* Pulsing severity glow — bounding rect around both windings for Emergency/Critical */}
-      <AlarmGlow state={state} halfW={14} halfH={coilHeight + gap / 2 + 2} />
-      {/* Top stub */}
-      <line x1={0} y1={-24} x2={0} y2={primaryTop} stroke={lineColor} strokeWidth={2} />
-      <circle cx={0} cy={-24} r={2} fill={lineColor} />
+      {/* Pulsing severity glow — bounding box around both windings */}
+      <AlarmGlow state={state} halfW={halfW + 2} halfH={r + gap / 2 + 2} />
 
-      {/* Primary winding */}
+      {/* Top stub — meets the primary winding at its center cusp */}
+      <line x1={0} y1={stubTopY} x2={0} y2={primaryBaseline} stroke={lineColor} strokeWidth={2} />
+      <circle cx={0} cy={stubTopY} r={2} fill={lineColor} />
+
+      {/* Primary winding (lobes bulge down toward the gap; open side faces up) */}
       <path
-        d={coilPath(primaryTop, humpCount, humpHeight)}
+        d={windingPath(primaryBaseline, loops, r, 1)}
         fill="none"
         stroke={lineColor}
         strokeWidth={strokeWidth}
       />
-      {/* Secondary winding */}
+      {/* Secondary winding (lobes bulge up toward the gap; open side faces down) */}
       <path
-        d={coilPath(secondaryTop, humpCount, humpHeight)}
+        d={windingPath(secondaryBaseline, loops, r, -1)}
         fill="none"
         stroke={lineColor}
         strokeWidth={strokeWidth}
-      />
-
-      {/* Iron-core indicator (two short parallel lines between coils) */}
-      <line
-        x1={-6}
-        y1={primaryBottom + gap / 2 - 1}
-        x2={10}
-        y2={primaryBottom + gap / 2 - 1}
-        stroke={lineColor}
-        strokeWidth={0.8}
-      />
-      <line
-        x1={-6}
-        y1={primaryBottom + gap / 2 + 1}
-        x2={10}
-        y2={primaryBottom + gap / 2 + 1}
-        stroke={lineColor}
-        strokeWidth={0.8}
       />
 
       {/* Bottom stub */}
-      <line x1={0} y1={secondaryBottom} x2={0} y2={24} stroke={lineColor} strokeWidth={2} />
-      <circle cx={0} cy={24} r={2} fill={lineColor} />
+      <line x1={0} y1={secondaryBaseline} x2={0} y2={stubBottomY} stroke={lineColor} strokeWidth={2} />
+      <circle cx={0} cy={stubBottomY} r={2} fill={lineColor} />
 
-      {/* Wye-ground topology marks beside each winding */}
-      <WyeGroundSymbol
-        x={24}
-        y={primaryTop + coilHeight / 2}
-        color={lineColor}
-        scale={0.55}
-      />
-      <WyeGroundSymbol
-        x={24}
-        y={secondaryTop + coilHeight / 2}
-        color={lineColor}
-        scale={0.55}
-      />
+      {/* Wye (star) + down-arrow marks, side by side beside the windings */}
+      <WyeSymbol x={halfW + 7} y={-2} color={lineColor} scale={0.55} />
+      <WyeSymbol x={halfW + 18} y={-2} color={lineColor} scale={0.55} />
 
       {/* Label */}
       {label && (
@@ -117,7 +97,7 @@ const Transformer: React.FC<SldElementProps> = ({ x, y, state, label }) => {
           {label}
         </text>
       )}
-      <AlarmIndicator state={state} offsetX={40} offsetY={stubTopY - 4} />
+      <AlarmIndicator state={state} offsetX={halfW + 30} offsetY={stubTopY - 4} />
     </g>
   );
 };

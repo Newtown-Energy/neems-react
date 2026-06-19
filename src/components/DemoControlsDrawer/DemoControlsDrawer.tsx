@@ -43,13 +43,18 @@ import type { AlarmDefinitionDto } from '@newtown-energy/types';
 
 import { useDemoOverrides } from '../../utils/demoOverrides';
 import { useAuth } from '../../pages/LoginPage/useAuth';
+import { useSiteContext } from '../../utils/SiteContext';
 import {
   fetchAlarmDefinitions,
   fetchForcedAlarms,
   setForcedAlarms as putForcedAlarms,
 } from '../../utils/alarmApi';
+import { injectDemoHistory } from '../../utils/demoApi';
 import { getSeverityColor } from '../../utils/alarmHelpers';
 import { errorLog } from '../../utils/debug';
+
+const DEFAULT_INJECT_DAYS = 14;
+const MAX_INJECT_DAYS = 90;
 
 const ADMIN_ROLES = ['admin', 'newtown-admin', 'newtown-staff'];
 
@@ -93,6 +98,7 @@ const DemoControlsDrawer: React.FC<DemoControlsDrawerProps> = ({
 }) => {
   const { userInfo } = useAuth();
   const isAdmin = userInfo?.roles?.some(r => ADMIN_ROLES.includes(r)) ?? false;
+  const { selectedSite } = useSiteContext();
 
   const {
     overrides,
@@ -163,6 +169,32 @@ const DemoControlsDrawer: React.FC<DemoControlsDrawerProps> = ({
       void updateForcedAlarms([]);
     }
   }, [reset, forcedAlarmNums, updateForcedAlarms]);
+
+  // Inject simulated history. Unlike the tab-local overrides above, this asks
+  // the backend to generate SoC + alarm readings for the selected site so the
+  // reports / FDNY views look populated in a hardware-free demo.
+  const [injectDays, setInjectDays] = useState(DEFAULT_INJECT_DAYS);
+  const [injecting, setInjecting] = useState(false);
+  const [injectMsg, setInjectMsg] = useState<string | null>(null);
+
+  const handleInjectHistory = useCallback(async () => {
+    if (!selectedSite) return;
+    setInjecting(true);
+    setInjectMsg(null);
+    try {
+      const resp = await injectDemoHistory(selectedSite.id, injectDays);
+      setInjectMsg(
+        `Injected ${resp.days}d for ${selectedSite.name}: ` +
+          `SoC +${resp.soc.written} (${resp.soc.already_present} already present), ` +
+          `alarms +${resp.alarms.written} (${resp.alarms.already_present} already present).`,
+      );
+    } catch (err) {
+      errorLog('failed to inject demo history', err);
+      setInjectMsg('Injection failed — see console for details.');
+    } finally {
+      setInjecting(false);
+    }
+  }, [selectedSite, injectDays]);
 
   const defByNum = React.useMemo(() => {
     const m = new Map<number, AlarmDefinitionDto>();
@@ -410,6 +442,52 @@ const DemoControlsDrawer: React.FC<DemoControlsDrawerProps> = ({
                   </Typography>
                 )}
               </Stack>
+            </Box>
+
+            <Divider />
+
+            <Box>
+              <Typography variant="subtitle2" gutterBottom>Inject history</Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+                Backfills simulated SoC and alarm history for the selected site so
+                the Reports charts and FDNY timeline look populated. Generated
+                server-side (not in this tab) and safe to re-run — it only fills
+                gaps.
+              </Typography>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <TextField
+                  type="number"
+                  size="small"
+                  label="Days"
+                  value={injectDays}
+                  onChange={e => {
+                    const n = Number.parseInt(e.target.value, 10);
+                    setInjectDays(
+                      Number.isFinite(n) ? Math.min(MAX_INJECT_DAYS, Math.max(1, n)) : 1,
+                    );
+                  }}
+                  slotProps={{ inputLabel: { shrink: true } }}
+                  sx={{ width: 110 }}
+                />
+                <Button
+                  variant="outlined"
+                  onClick={() => { void handleInjectHistory(); }}
+                  disabled={!selectedSite || injecting}
+                >
+                  {injecting ? 'Injecting…' : 'Inject'}
+                </Button>
+              </Stack>
+              {!selectedSite ? (
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+                  Select a site first.
+                </Typography>
+              ) : (
+                injectMsg && (
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+                    {injectMsg}
+                  </Typography>
+                )
+              )}
             </Box>
 
             <Divider />

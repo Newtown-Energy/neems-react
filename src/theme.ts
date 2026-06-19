@@ -60,11 +60,16 @@ export const theme = createTheme({
       dark: materialTheme.palettes.secondary[40],
       contrastText: materialTheme.schemes.light.onSecondary,
     },
+    // Alarms/emergencies use a vivid safety red (think real-world e-stop
+    // button) rather than the muted Material-3 generated error tone, so the
+    // Emergency severity reads as urgent everywhere it surfaces: alarm pills,
+    // FDNY severity chips, SLD component highlights, and active-transition text
+    // all derive from error.main.
     error: {
-      main: materialTheme.schemes.light.error,
-      light: materialTheme.palettes.secondary[80],
-      dark: materialTheme.palettes.secondary[40],
-      contrastText: materialTheme.schemes.light.onError,
+      main: '#D50000',
+      light: '#FF5131',
+      dark: '#9B0000',
+      contrastText: '#FFFFFF',
     },
     background: {
       default: materialTheme.schemes.light.background,

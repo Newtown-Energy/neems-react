@@ -22,7 +22,9 @@ import {
   Select,
   MenuItem,
   FormControl,
+  FormControlLabel,
   InputLabel,
+  Switch,
 } from '@mui/material';
 import {
   NotificationsActive,
@@ -62,7 +64,6 @@ const SEVERITY_OPTIONS: AlarmSeverityDto[] = ['Emergency', 'Critical', 'Warning'
 const ZONE_OPTIONS: AlarmZoneDto[] = Object.keys(ZONE_DISPLAY_NAMES) as AlarmZoneDto[];
 
 const POLL_INTERVAL_MS = 10_000;
-const STALE_THRESHOLD_SECONDS = 60;
 
 /** A row in the alarm table — either active or inactive */
 interface AlarmRow {
@@ -99,6 +100,9 @@ const AlarmsPage: React.FC = () => {
   /** Activation counts per alarm over the last [HISTORY_WINDOW_DAYS] days. */
   const [activationCounts, setActivationCounts] = useState<Record<number, number>>({});
   const [groupByCategory, setGroupByCategory] = useState<boolean>(true);
+  /** Show only currently-active alarms. On by default — the operator
+   *  cares about what's firing now; flip off to browse every definition. */
+  const [activeOnly, setActiveOnly] = useState<boolean>(true);
   const [sortKey, setSortKey] = useState<SortKey>('activations');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
 
@@ -231,6 +235,7 @@ const AlarmsPage: React.FC = () => {
 
   const filteredRows = allRows
     .filter((a) => {
+      if (activeOnly && !a.active) return false;
       if (severityFilter.length > 0 && !severityFilter.includes(a.severity)) return false;
       if (zoneFilter && a.zone !== zoneFilter) return false;
       return true;
@@ -262,9 +267,6 @@ const AlarmsPage: React.FC = () => {
       severityCounts[sev] = (severityCounts[sev] || 0) + 1;
     }
   }
-
-  const isStale =
-    data?.data_age_seconds != null && data.data_age_seconds > STALE_THRESHOLD_SECONDS;
 
   const toggleSeverityFilter = (severity: AlarmSeverityDto) => {
     setSeverityFilter((prev) =>
@@ -304,24 +306,9 @@ const AlarmsPage: React.FC = () => {
         </Alert>
       )}
 
-      {/* Stale data warning */}
-      {isStale && (
-        <Alert severity="warning" sx={{ mb: 2 }}>
-          Alarm data is {data!.data_age_seconds} seconds old. The RTAC connection may be down.
-        </Alert>
-      )}
-
-      {/* Emergency/Critical banner */}
-      {data?.has_emergency && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          EMERGENCY alarms are active — immediate action required.
-        </Alert>
-      )}
-      {data?.has_critical && !data?.has_emergency && (
-        <Alert severity="warning" sx={{ mb: 2 }}>
-          Critical alarms are active — attention required.
-        </Alert>
-      )}
+      {/* Stale-data and emergency/critical banners now render once,
+          app-wide, via SiteStatePanel (the global status banner), so they
+          appear on every page instead of only here. */}
 
       {/* Summary chips */}
       <Box sx={{ display: 'flex', gap: 1, mb: 3, flexWrap: 'wrap' }}>
@@ -344,6 +331,16 @@ const AlarmsPage: React.FC = () => {
       {/* Filters */}
       <Card sx={{ mb: 3 }}>
         <CardContent sx={{ display: 'flex', gap: 2, alignItems: 'center', py: 1, '&:last-child': { pb: 1 } }}>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={activeOnly}
+                onChange={(e) => setActiveOnly(e.target.checked)}
+                size="small"
+              />
+            }
+            label="Active only"
+          />
           <FormControl size="small" sx={{ minWidth: 200 }}>
             <InputLabel>Filter by Zone</InputLabel>
             <Select
@@ -400,8 +397,18 @@ const AlarmsPage: React.FC = () => {
       ) : groupByCategory ? (
         <Box>
           {rowsByCategory.map(({ category, rows }) => {
-            const activeInCategory = rows.filter((r) => r.active).length;
+            const activeRows = rows.filter((r) => r.active);
+            const activeInCategory = activeRows.length;
             const totalActivations = rows.reduce((s, r) => s + r.activations30d, 0);
+            // Color the "N active" chip by the most urgent active alarm in
+            // the bucket (lowest severity order = most urgent).
+            const mostUrgentActiveSeverity = activeRows.reduce<AlarmSeverityDto | null>(
+              (most, r) =>
+                most === null || getSeverityOrder(r.severity) < getSeverityOrder(most)
+                  ? r.severity
+                  : most,
+              null,
+            );
             return (
               <Accordion key={category} defaultExpanded sx={{ mb: 1 }}>
                 <AccordionSummary expandIcon={<ExpandMoreIcon />}>
@@ -412,7 +419,11 @@ const AlarmsPage: React.FC = () => {
                     {activeInCategory > 0 && (
                       <Chip
                         label={`${activeInCategory} active`}
-                        color="error"
+                        color={
+                          mostUrgentActiveSeverity
+                            ? getSeverityColor(mostUrgentActiveSeverity)
+                            : 'error'
+                        }
                         size="small"
                       />
                     )}

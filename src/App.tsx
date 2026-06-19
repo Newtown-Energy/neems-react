@@ -65,19 +65,26 @@ const AppContent: React.FC = () => {
               site; otherwise the same content appears at the top of
               every page including /sld. */}
           <SiteStateBannerSlot />
-          <Routes>
-            <Route path="/" element={<Navigate to="/sld" replace />} />
-            <Route path="/overview" element={<Navigate to="/reports" replace />} />
-            <Route path="/alarms" element={<AlarmsPage />} />
-            <Route path="/fdny" element={<FDNYPage />} />
-            <Route path="/reports" element={<ReportsPage />} />
-            <Route path="/scheduler" element={<SchedulerPage />} />
-            <Route path="/library" element={<LibraryPage />} />
-            <Route path="/library/:itemId/audit" element={<ScheduleAuditPage />} />
-            <Route path="/site-settings" element={<SiteSettingsPage />} />
-            <Route path="/sld" element={<SldPage />} />
-            <Route path="/admin" element={<AdminPage />} />
-          </Routes>
+          {/* Scroll container for the routed page. `minHeight: 0` lets this
+              flex child shrink below its content height so `overflow: auto`
+              actually scrolls instead of the content being clipped by the
+              `main` box's `overflow: hidden`. Pages may still set their own
+              `height: 100%` + `overflowY: auto` to manage scrolling internally. */}
+          <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
+            <Routes>
+              <Route path="/" element={<Navigate to="/sld" replace />} />
+              <Route path="/overview" element={<Navigate to="/reports" replace />} />
+              <Route path="/alarms" element={<AlarmsPage />} />
+              <Route path="/fdny" element={<FDNYPage />} />
+              <Route path="/reports" element={<ReportsPage />} />
+              <Route path="/scheduler" element={<SchedulerPage />} />
+              <Route path="/library" element={<LibraryPage />} />
+              <Route path="/library/:itemId/audit" element={<ScheduleAuditPage />} />
+              <Route path="/site-settings" element={<SiteSettingsPage />} />
+              <Route path="/sld" element={<SldPage />} />
+              <Route path="/admin" element={<AdminPage />} />
+            </Routes>
+          </Box>
         </Box>
       </Box>
       {/* Floating launcher; self-gates to admin and self-positions

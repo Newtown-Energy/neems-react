@@ -1,15 +1,13 @@
 /**
  * Operations Reports page.
  *
- * Two chart sections:
+ * One chart section:
  * 1. Available state of charge — sliding 24h window anchored to "now",
  *    auto-refreshes every 60s so the right edge tracks the current time.
- * 2. Charge / discharge / hold time per day — stacked bar for a
- *    user-chosen date range.
  *
- * Both charts support PNG, PDF, and CSV export.
+ * The chart supports PNG, PDF, and CSV export.
  *
- * Below the charts: a "Recent schedule changes" activity feed.
+ * Below the chart: a "Recent schedule changes" activity feed.
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -29,12 +27,10 @@ import {
   Typography,
   useTheme,
 } from '@mui/material';
-import { Assessment, Download, Image, PictureAsPdf } from '@mui/icons-material';
+import { Assessment, Download, Image, PictureAsPdf, ZoomIn, ZoomOut } from '@mui/icons-material';
 import {
   Bar,
   BarChart,
-  CartesianGrid,
-  Legend,
   ReferenceLine,
   ResponsiveContainer,
   Tooltip,
@@ -42,18 +38,13 @@ import {
   YAxis,
 } from 'recharts';
 import type {
-  ChargeDischargeBucket,
   RecentScheduleActivityEntry,
   SocHistoryPoint,
 } from '@newtown-energy/types';
 
-import {
-  fetchChargeDischargeSummary,
-  fetchRecentScheduleActivity,
-} from '../utils/reportsApi';
+import { fetchRecentScheduleActivity } from '../utils/reportsApi';
 import { fetchSocHistory } from '../utils/socApi';
 import { useSiteContext } from '../utils/SiteContext';
-import { COMMAND_BAR_COLORS } from '../utils/scheduleHelpers';
 import { downloadCsv, toCsv } from '../utils/csv';
 import { exportChartPng, exportChartPdf } from '../utils/chartExport';
 import { errorLog } from '../utils/debug';
@@ -68,26 +59,7 @@ export const pageConfig = {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function startOfDaysAgo(days: number): Date {
-  const d = new Date();
-  d.setDate(d.getDate() - days);
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
-
-function toDateInput(d: Date): string {
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
-
-function fromDateInput(s: string): Date | null {
-  if (!s) return null;
-  const [y, m, d] = s.split('-').map(Number);
-  if (!y || !m || !d) return null;
-  return new Date(y, m - 1, d);
-}
-
-// datetime-local round-trip (local time) for the finer-grained SoC window.
+// datetime-local round-trip (local time) for the SoC window.
 function toDateTimeInput(d: Date): string {
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
@@ -167,19 +139,6 @@ function generateTicks(from: number, to: number, stepMs: number): number[] {
   return ticks;
 }
 
-function formatDayLabel(day: string): string {
-  const parts = day.split('-');
-  if (parts.length !== 3) return day;
-  return `${parts[1]}/${parts[2]}`;
-}
-
-function formatMinutes(value: number): string {
-  if (value < 60) return `${value.toFixed(0)} min`;
-  const h = Math.floor(value / 60);
-  const m = Math.round(value - h * 60);
-  return m === 0 ? `${h}h` : `${h}h ${m}m`;
-}
-
 // Times on the SoC axis are shown in UTC (see the caption under the chart).
 // At a midnight boundary we signal the calendar date instead of "00:00" so a
 // 24h window that spans two days makes the day change obvious.
@@ -201,6 +160,53 @@ function formatTooltipLabel(epochMs: number): string {
       hour12: false,
       timeZone: 'UTC',
     }) + ' UTC'
+  );
+}
+
+// Custom tooltip for the SoC chart: reports the SoC% for a real bucket, or an
+// explicit "No data" for a gap bucket (where only the `gap` sentinel is set),
+// rather than letting the tooltip snap to the nearest real bar.
+function SocChartTooltip({
+  active,
+  payload,
+  label,
+  bucketMs,
+}: {
+  active?: boolean;
+  payload?: Array<{ dataKey?: string | number; value?: number | null }>;
+  label?: number;
+  // Width of one bucket, so the tooltip can show the range a bar covers
+  // (its start `label` through `label + bucketMs`).
+  bucketMs?: number;
+}) {
+  if (!active || !payload || payload.length === 0 || label == null) return null;
+  const soc = payload.find(p => p.dataKey === 'soc' && p.value != null);
+  const end = bucketMs ? label + bucketMs : null;
+  return (
+    <Box
+      sx={{
+        bgcolor: 'background.paper',
+        border: 1,
+        borderColor: 'divider',
+        borderRadius: 1,
+        px: 1.5,
+        py: 1,
+        boxShadow: 2,
+      }}
+    >
+      <Typography variant="caption" color="text.secondary" display="block">
+        {end != null
+          ? `${formatTooltipLabel(label)} – ${formatTooltipLabel(end)}`
+          : formatTooltipLabel(label)}
+      </Typography>
+      {soc ? (
+        <Typography variant="body2">SoC: {soc.value!.toFixed(1)}%</Typography>
+      ) : (
+        <Typography variant="body2" color="text.secondary">
+          No data
+        </Typography>
+      )}
+    </Box>
   );
 }
 
@@ -270,6 +276,18 @@ const ChartExportButtons: React.FC<ChartExportProps> = ({
 const SOC_WINDOW_HOURS = 24;
 const SOC_REFRESH_INTERVAL_MS = 60_000;
 
+// Zoom adjusts the From/To data window (not a visual transform): zooming in
+// shrinks the span, out grows it, around an anchor (the cursor for wheel
+// zoom, the center for the buttons).
+const SOC_ZOOM_IN_FACTOR = 1 / 1.6;
+const SOC_ZOOM_OUT_FACTOR = 1.6;
+const SOC_MIN_SPAN_MS = 10 * 60_000; // 10 minutes
+const SOC_MAX_SPAN_MS = 90 * 24 * 3600_000; // 90 days
+// Mirror the chart's YAxis width / right margin so wheel zoom can map a
+// cursor x-position to a time within the plot area.
+const SOC_PLOT_LEFT_PX = 48;
+const SOC_PLOT_RIGHT_PX = 16;
+
 const ReportsPage: React.FC = () => {
   const theme = useTheme();
   const { selectedSite } = useSiteContext();
@@ -286,14 +304,9 @@ const ReportsPage: React.FC = () => {
   const [socLive, setSocLive] = useState(true);
   const socChartRef = useRef<HTMLDivElement | null>(null);
 
-  // -- Charge/discharge chart state --
-  const [from, setFrom] = useState<Date>(() => startOfDaysAgo(7));
-  const [to, setTo] = useState<Date>(() => new Date());
-  const [buckets, setBuckets] = useState<ChargeDischargeBucket[] | null>(null);
+  // -- Recent schedule changes feed --
   const [activity, setActivity] = useState<RecentScheduleActivityEntry[] | null>(null);
-  const [cdError, setCdError] = useState<string | null>(null);
-  const [cdLoading, setCdLoading] = useState(false);
-  const cdChartRef = useRef<HTMLDivElement | null>(null);
+  const [activityError, setActivityError] = useState<string | null>(null);
 
   // -- SoC data loading over the selected [socFrom, socTo] window --
   const loadSoc = useCallback(async () => {
@@ -325,29 +338,62 @@ const ReportsPage: React.FC = () => {
     return () => clearInterval(id);
   }, [socLive]);
 
-  // -- Charge/discharge data loading --
-  const loadCd = useCallback(async () => {
+  // -- Recent schedule changes loading --
+  const loadActivity = useCallback(async () => {
     if (!selectedSite) return;
-    setCdLoading(true);
-    setCdError(null);
+    setActivityError(null);
     try {
-      const [summary, activityResponse] = await Promise.all([
-        fetchChargeDischargeSummary(selectedSite.id, from, to),
-        fetchRecentScheduleActivity(selectedSite.id, 25),
-      ]);
-      setBuckets(summary.buckets);
-      setActivity(activityResponse.entries);
+      const response = await fetchRecentScheduleActivity(selectedSite.id, 25);
+      setActivity(response.entries);
     } catch (err) {
-      errorLog('ReportsPage: charge/discharge load failed', err);
-      setCdError('Failed to load report data.');
-    } finally {
-      setCdLoading(false);
+      errorLog('ReportsPage: schedule activity load failed', err);
+      setActivityError('Failed to load schedule changes.');
     }
-  }, [selectedSite, from, to]);
+  }, [selectedSite]);
 
   useEffect(() => {
-    void loadCd();
-  }, [loadCd]);
+    void loadActivity();
+  }, [loadActivity]);
+
+  // Zoom the From/To window in/out around an anchor time. Pins the range
+  // (turns off live) the same way editing From/To does.
+  const zoomBy = useCallback(
+    (factor: number, anchorMs?: number) => {
+      const fromMs = socFrom.getTime();
+      const toMs = socTo.getTime();
+      const span = toMs - fromMs;
+      if (span <= 0) return;
+      const nextSpan = Math.min(SOC_MAX_SPAN_MS, Math.max(SOC_MIN_SPAN_MS, span * factor));
+      const ratio = nextSpan / span;
+      if (ratio === 1) return; // already at a zoom limit
+      const anchor = anchorMs ?? fromMs + span / 2;
+      setSocLive(false);
+      setSocFrom(new Date(anchor - (anchor - fromMs) * ratio));
+      setSocTo(new Date(anchor + (toMs - anchor) * ratio));
+    },
+    [socFrom, socTo],
+  );
+
+  // Mouse-wheel zoom over the chart, anchored at the cursor's time. Uses a
+  // non-passive native listener so we can preventDefault the page scroll.
+  useEffect(() => {
+    const el = socChartRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      if (e.deltaY === 0) return;
+      e.preventDefault();
+      const rect = el.getBoundingClientRect();
+      const left = rect.left + SOC_PLOT_LEFT_PX;
+      const right = rect.right - SOC_PLOT_RIGHT_PX;
+      const frac =
+        right > left ? Math.min(1, Math.max(0, (e.clientX - left) / (right - left))) : 0.5;
+      const fromMs = socFrom.getTime();
+      const anchor = fromMs + frac * (socTo.getTime() - fromMs);
+      zoomBy(e.deltaY < 0 ? SOC_ZOOM_IN_FACTOR : SOC_ZOOM_OUT_FACTOR, anchor);
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [socFrom, socTo, zoomBy, socPoints]);
 
   // -- Derived --
   const socDomain: [number, number] = useMemo(
@@ -364,6 +410,38 @@ const ReportsPage: React.FC = () => {
     [socPoints, bucketMs],
   );
 
+  // Continuous, gapless bucket series across the whole window. Each bucket
+  // fills the full height so the chart reads as a solid strip:
+  //   - a bucket WITH data draws `soc` (blue) from 0 and `rest` (white) on top,
+  //   - a bucket with NO data draws `gap` (gray) full-height.
+  // `soc`/`rest` are null in gaps and `gap` is null where there's data, so
+  // exactly one of the two stacks renders per bucket. The gray gap bar also
+  // gives every missing bucket a hover target so the tooltip can report
+  // "No data" instead of snapping to the nearest real bar.
+  const socChartData = useMemo(() => {
+    if (!bucketedSocPoints) return [];
+    const present = new Map(
+      bucketedSocPoints.map(p => [Math.floor(p.t / bucketMs) * bucketMs, p.soc]),
+    );
+    const first = Math.ceil(socDomain[0] / bucketMs) * bucketMs;
+    const out: Array<{
+      t: number;
+      soc: number | null;
+      rest: number | null;
+      gap: number | null;
+    }> = [];
+    for (let t = first; t <= socDomain[1]; t += bucketMs) {
+      const v = present.get(t);
+      out.push({
+        t,
+        soc: v ?? null,
+        rest: v == null ? null : 100 - v,
+        gap: v == null ? 100 : null,
+      });
+    }
+    return out;
+  }, [bucketedSocPoints, socDomain, bucketMs]);
+
   // Axis ticks on round wall-clock steps sized to the span (~10 labels).
   const socTicks = useMemo(
     () => generateTicks(socDomain[0], socDomain[1], pickTickMinutes(socSpanMs) * 60_000),
@@ -378,18 +456,6 @@ const ReportsPage: React.FC = () => {
     return socPoints[socPoints.length - 1].soc;
   }, [socPoints]);
 
-  const totals = useMemo(() => {
-    if (!buckets || buckets.length === 0) return null;
-    return buckets.reduce(
-      (acc, b) => ({
-        charging: acc.charging + b.charging_minutes,
-        discharging: acc.discharging + b.discharging_minutes,
-        hold: acc.hold + b.hold_minutes,
-      }),
-      { charging: 0, discharging: 0, hold: 0 },
-    );
-  }, [buckets]);
-
   // -- CSV exports --
   const handleSocCsv = () => {
     if (!socPoints || !selectedSite) return;
@@ -400,21 +466,6 @@ const ReportsPage: React.FC = () => {
     ]);
     downloadCsv(
       `soc-site-${selectedSite.id}-${new Date().toISOString().slice(0, 10)}.csv`,
-      toCsv(headers, rows),
-    );
-  };
-
-  const handleCdCsv = () => {
-    if (!buckets || !selectedSite) return;
-    const headers = ['Day', 'Charging (min)', 'Discharging (min)', 'Hold (min)'];
-    const rows = buckets.map(b => [
-      b.day,
-      b.charging_minutes.toFixed(1),
-      b.discharging_minutes.toFixed(1),
-      b.hold_minutes.toFixed(1),
-    ]);
-    downloadCsv(
-      `charge-discharge-site-${selectedSite.id}-${toDateInput(from)}_to_${toDateInput(to)}.csv`,
       toCsv(headers, rows),
     );
   };
@@ -488,6 +539,22 @@ const ReportsPage: React.FC = () => {
                 >
                   Last 24h
                 </Button>
+                <ButtonGroup size="small" variant="outlined">
+                  <Button
+                    onClick={() => zoomBy(SOC_ZOOM_OUT_FACTOR)}
+                    aria-label="Zoom out (widen the time range)"
+                    title="Zoom out (widen the time range)"
+                  >
+                    <ZoomOut fontSize="small" />
+                  </Button>
+                  <Button
+                    onClick={() => zoomBy(SOC_ZOOM_IN_FACTOR)}
+                    aria-label="Zoom in (narrow the time range)"
+                    title="Zoom in (narrow the time range)"
+                  >
+                    <ZoomIn fontSize="small" />
+                  </Button>
+                </ButtonGroup>
                 <ChartExportButtons
                   chartRef={socChartRef}
                   filePrefix={`soc-site-${selectedSite.id}`}
@@ -512,8 +579,7 @@ const ReportsPage: React.FC = () => {
               ) : (
                 <Box ref={socChartRef}>
                   <ResponsiveContainer width="100%" height={280}>
-                    <BarChart data={bucketedSocPoints ?? []} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
-                      <CartesianGrid stroke={theme.palette.divider} strokeDasharray="3 3" />
+                    <BarChart data={socChartData} barCategoryGap={0} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
                       <XAxis
                         dataKey="t"
                         type="number"
@@ -533,9 +599,9 @@ const ReportsPage: React.FC = () => {
                         width={48}
                       />
                       <Tooltip
-                        labelFormatter={(label) => formatTooltipLabel(label as number)}
-                        formatter={(value) => [`${(value as number).toFixed(1)}%`, 'SoC']}
+                        content={<SocChartTooltip bucketMs={bucketMs} />}
                         cursor={{ fill: theme.palette.action.hover }}
+                        isAnimationActive={false}
                       />
                       {showNow && (
                         <ReferenceLine
@@ -545,9 +611,41 @@ const ReportsPage: React.FC = () => {
                           label={{ value: 'Now', position: 'top', fill: theme.palette.error.main, fontSize: 11 }}
                         />
                       )}
+                      {/* One full-height stack per bucket (shared stackId, no
+                          category gap → a continuous strip). A data bucket
+                          shows `soc` (blue) under `rest` (white); a no-data
+                          bucket shows `gap` (gray) and doubles as the hover
+                          target so the tooltip can report "No data".
+
+                          Each bar is stroked with its own fill so sub-pixel
+                          rounding between adjacent zero-gap bars doesn't leave
+                          thin white slivers of the card background showing
+                          through. */}
+                      <Bar
+                        dataKey="gap"
+                        stackId="soc"
+                        fill={theme.palette.grey[300]}
+                        stroke={theme.palette.grey[300]}
+                        strokeWidth={1}
+                        activeBar={{ fill: theme.palette.grey[400], stroke: theme.palette.grey[400] }}
+                        isAnimationActive={false}
+                      />
                       <Bar
                         dataKey="soc"
+                        stackId="soc"
                         fill={theme.palette.primary.main}
+                        stroke={theme.palette.primary.main}
+                        strokeWidth={1}
+                        activeBar={{ fill: theme.palette.primary.dark, stroke: theme.palette.primary.dark }}
+                        isAnimationActive={false}
+                      />
+                      <Bar
+                        dataKey="rest"
+                        stackId="soc"
+                        fill={theme.palette.common.white}
+                        stroke={theme.palette.common.white}
+                        strokeWidth={1}
+                        activeBar={{ fill: theme.palette.grey[200], stroke: theme.palette.grey[200] }}
                         isAnimationActive={false}
                       />
                     </BarChart>
@@ -564,120 +662,6 @@ const ReportsPage: React.FC = () => {
             </CardContent>
           </Card>
 
-          {/* ---- Charge / discharge chart ---- */}
-          <Card sx={{ mb: 3 }}>
-            <CardContent>
-              <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="center" sx={{ mb: 2 }}>
-                <Typography variant="h6" sx={{ flex: 1 }}>
-                  Time per day in each state
-                </Typography>
-                <TextField
-                  type="date"
-                  label="From"
-                  size="small"
-                  value={toDateInput(from)}
-                  onChange={e => {
-                    const d = fromDateInput(e.target.value);
-                    if (d) setFrom(d);
-                  }}
-                  slotProps={{ inputLabel: { shrink: true } }}
-                />
-                <TextField
-                  type="date"
-                  label="To"
-                  size="small"
-                  value={toDateInput(to)}
-                  onChange={e => {
-                    const d = fromDateInput(e.target.value);
-                    if (d) setTo(d);
-                  }}
-                  slotProps={{ inputLabel: { shrink: true } }}
-                />
-                <ChartExportButtons
-                  chartRef={cdChartRef}
-                  filePrefix={`charge-discharge-site-${selectedSite.id}`}
-                  pdfTitle={`Charge/Discharge Summary — ${selectedSite.name}`}
-                  onCsvExport={handleCdCsv}
-                  disabled={!buckets || buckets.length === 0}
-                />
-              </Stack>
-
-              {cdError && <Alert severity="error" sx={{ mb: 1 }}>{cdError}</Alert>}
-
-              {cdLoading && buckets === null ? (
-                <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
-                  <CircularProgress />
-                </Box>
-              ) : !buckets || buckets.length === 0 ? (
-                <Typography variant="body2" color="text.secondary">
-                  No readings in this date range. Try seeding history with{' '}
-                  <code>neems-data seed-soc-history --site-id {selectedSite.id}</code>{' '}
-                  or widening the window.
-                </Typography>
-              ) : (
-                <>
-                  <Box ref={cdChartRef}>
-                    <ResponsiveContainer width="100%" height={360}>
-                      <BarChart
-                        data={buckets}
-                        margin={{ top: 8, right: 16, left: 0, bottom: 0 }}
-                      >
-                        <CartesianGrid stroke={theme.palette.divider} strokeDasharray="3 3" />
-                        <XAxis
-                          dataKey="day"
-                          tickFormatter={formatDayLabel}
-                          stroke={theme.palette.text.secondary}
-                          tick={{ fontSize: 12 }}
-                        />
-                        <YAxis
-                          tickFormatter={v => `${v}m`}
-                          stroke={theme.palette.text.secondary}
-                          tick={{ fontSize: 12 }}
-                          width={56}
-                        />
-                        <Tooltip
-                          formatter={(value, name) => [formatMinutes(value as number), name]}
-                        />
-                        <Legend />
-                        <Bar
-                          dataKey="charging_minutes"
-                          name="Charging"
-                          stackId="state"
-                          fill={COMMAND_BAR_COLORS.charge}
-                          isAnimationActive={false}
-                        />
-                        <Bar
-                          dataKey="discharging_minutes"
-                          name="Discharging"
-                          stackId="state"
-                          fill={COMMAND_BAR_COLORS.discharge}
-                          isAnimationActive={false}
-                        />
-                        <Bar
-                          dataKey="hold_minutes"
-                          name="Hold"
-                          stackId="state"
-                          fill={theme.palette.grey[400]}
-                          isAnimationActive={false}
-                        />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </Box>
-
-                  {totals && (
-                    <Box sx={{ mt: 2 }}>
-                      <Typography variant="body2" color="text.secondary">
-                        Window totals — charging: {formatMinutes(totals.charging)} ·
-                        discharging: {formatMinutes(totals.discharging)} ·
-                        hold: {formatMinutes(totals.hold)}
-                      </Typography>
-                    </Box>
-                  )}
-                </>
-              )}
-            </CardContent>
-          </Card>
-
           {/* ---- Recent schedule changes ---- */}
           <Card sx={{ mt: 3 }}>
             <CardContent>
@@ -688,7 +672,9 @@ const ReportsPage: React.FC = () => {
                 Merged feed of library-item edits and application-rule changes for
                 this site, newest first.
               </Typography>
-              {activity === null ? (
+              {activityError ? (
+                <Alert severity="error">{activityError}</Alert>
+              ) : activity === null ? (
                 <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
                   <CircularProgress size={24} />
                 </Box>
