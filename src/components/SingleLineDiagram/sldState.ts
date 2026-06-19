@@ -1,4 +1,4 @@
-import type { ActiveAlarmsResponse, AlarmZoneDto } from '@newtown-energy/types';
+import type { ActiveAlarmsResponse, AlarmSeverityDto, AlarmZoneDto } from '@newtown-energy/types';
 import { getSeverityOrder } from '../../utils/alarmHelpers';
 import { resolveAlarmSeverity } from '../../config/siteConfig';
 import type {
@@ -82,13 +82,12 @@ function applyAlarms(
   }
 
   // Route each alarm to its target component(s) and fold in the main-pane
-  // border state. Per the spreadsheet's guidance, the pane border is red for a
-  // fire / life-safety emergency (an Emergency in the fire alarm panel zone)
-  // and blue for a controls/electrical problem that leaves the site not ready
-  // to operate (the `Border`-targeted alarms, the "site offline" controls
-  // faults). A non-fire Emergency elsewhere does not paint the red frame.
-  let borderFire = false;
-  let borderControls = false;
+  // border state. The frame is raised by alarms that target the `Border` SLD
+  // object (the spreadsheet's "site not ready to operate" controls faults) and
+  // by a fire / life-safety emergency in the FACP zone. Its color tracks the
+  // highest severity among those triggering alarms — matching the alarm-badge
+  // palette — so a critical fault reads red/orange, not an unintuitive blue.
+  let borderSeverity: AlarmSeverityDto | null = null;
 
   for (const alarm of alarms.alarms) {
     // Apply any per-site alarm-level override before computing severity-driven state.
@@ -102,8 +101,16 @@ function applyAlarms(
       message: alarm.message ?? null,
     };
 
-    if (severity === 'Emergency' && alarm.zone === FIRE_ZONE) borderFire = true;
-    if (sldTargets.includes(BORDER_TOKEN)) borderControls = true;
+    const raisesBorder =
+      sldTargets.includes(BORDER_TOKEN) ||
+      (severity === 'Emergency' && alarm.zone === FIRE_ZONE);
+    if (
+      raisesBorder &&
+      (borderSeverity === null ||
+        getSeverityOrder(severity) < getSeverityOrder(borderSeverity))
+    ) {
+      borderSeverity = severity;
+    }
 
     const targetIds = resolveAlarmTargets(updatedComponents, alarm.zone, sldTargets);
     for (const id of targetIds) {
@@ -131,11 +138,7 @@ function applyAlarms(
     }
   }
 
-  const border: SldBorderState = borderFire
-    ? { kind: 'fire' }
-    : borderControls
-      ? { kind: 'controls' }
-      : null;
+  const border: SldBorderState = borderSeverity ? { severity: borderSeverity } : null;
 
   return {
     ...state,

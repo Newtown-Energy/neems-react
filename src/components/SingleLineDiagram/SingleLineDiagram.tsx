@@ -7,8 +7,10 @@ import {
   DialogContent,
   DialogContentText,
   DialogTitle,
+  useTheme,
 } from '@mui/material';
 import { visuallyHidden } from '@mui/utils';
+import { severityColor } from './elements/useStatusColors';
 import {
   ReactSVGPanZoom,
   TOOL_AUTO,
@@ -115,6 +117,7 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({
 }) => {
   const [state, dispatch] = useReducer(sldReducer, INITIAL_STATE);
   const [eStopDialogOpen, setEStopDialogOpen] = useState(false);
+  const theme = useTheme();
 
   // Pan/zoom viewer state. TOOL_AUTO gives click-through for buttons/switches
   // plus drag-to-pan and wheel/pinch zoom — the right default for a mixed
@@ -194,23 +197,23 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({
       }}
     >
       <CurtailmentBadge />
-      {/* Main-pane border overlay: blue = controls/electrical problem (site not
-          ready to operate), red = fire / life-safety emergency. Red is driven
-          by an Emergency in the fire alarm panel zone; blue by alarms targeting
-          the spreadsheet's 'Border' SLD object. The frame is decorative
-          (aria-hidden); the state is announced via the live region below. */}
+      {/* Main-pane border overlay: a flashing frame raised by site-level faults
+          (alarms targeting the spreadsheet's 'Border' SLD object, plus a fire
+          emergency in the FACP zone). Its color tracks the highest severity
+          among those alarms, matching the alarm-badge palette. The frame is
+          decorative (aria-hidden); the state is announced via the live region. */}
       {state.border && (
         <>
           <Box
             aria-hidden
-            data-testid={`sld-border-${state.border.kind}`}
+            data-testid={`sld-border-${state.border.severity}`}
             sx={{
               position: 'absolute',
               inset: 0,
               pointerEvents: 'none',
               zIndex: 5,
               border: '4px solid',
-              borderColor: state.border.kind === 'fire' ? 'error.main' : 'info.main',
+              borderColor: severityColor(state.border.severity, theme),
               borderRadius: 1,
               animation: 'sldBorderFlash 1.2s steps(1, end) infinite',
               '@keyframes sldBorderFlash': {
@@ -220,9 +223,7 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({
             }}
           />
           <Box role="status" aria-live="assertive" sx={visuallyHidden}>
-            {state.border.kind === 'fire'
-              ? 'Site emergency: fire or life-safety alarm active'
-              : 'Site not ready to operate: controls alarm active'}
+            {`Site-level ${state.border.severity.toLowerCase()} alarm active`}
           </Box>
         </>
       )}

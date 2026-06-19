@@ -65,11 +65,14 @@ export interface SldWireState {
 }
 
 /**
- * Main-pane border state, driven by alarms targeting the `'Border'` SLD object.
- * Per the spreadsheet: blue border = controls/electrical problem (site not ready
- * to operate), red border = fire / life-safety emergency. `null` = no frame.
+ * Main-pane border state. Driven by alarms that target the `'Border'` SLD object
+ * (the spreadsheet's "site not ready to operate" controls faults) plus a fire /
+ * life-safety emergency in the FACP zone. The frame is colored by the highest
+ * severity among those triggering alarms, matching the alarm-badge palette, so a
+ * critical fault reads red/orange rather than an unintuitive blue. `null` = no
+ * frame.
  */
-export type SldBorderState = { kind: 'fire' | 'controls' } | null;
+export type SldBorderState = { severity: AlarmSeverityDto } | null;
 
 /** Top-level diagram state */
 export interface SldDiagramState {

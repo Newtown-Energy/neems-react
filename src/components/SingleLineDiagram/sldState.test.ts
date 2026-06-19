@@ -89,18 +89,20 @@ describe('sldReducer alarm routing', () => {
     expect(state.components['feeder-1a'].activeAlarmCount).toBe(1);
   });
 
-  test('Border-targeted controls alarm sets a blue (controls) border', () => {
+  test('a Border-targeted alarm colors the frame by its severity', () => {
+    // A critical controls fault paints the frame in its own severity color
+    // (critical), not an unintuitive fixed blue.
     const state = apply([
       alarm({ alarm_num: 103, zone: 'BreakerRelay', severity: 'Critical', sld_targets: ['LOR', 'Border'] }),
     ]);
-    expect(state.border).toEqual({ kind: 'controls' });
+    expect(state.border).toEqual({ severity: 'Critical' });
     // The non-Border token still routes to the lockout relay.
     expect(state.components['lockout-relay'].activeAlarmCount).toBe(1);
   });
 
-  test('a non-fire emergency does not set a fire border', () => {
-    // An Emergency outside the fire alarm panel zone must NOT paint the red
-    // life-safety frame — it still lights its own element, but no border.
+  test('a non-fire emergency does not raise the frame', () => {
+    // An Emergency outside the fire alarm panel zone with no Border target must
+    // NOT paint the frame — it still lights its own element, but no border.
     const state = apply([
       alarm({ alarm_num: 601, zone: 'Mp1a', severity: 'Emergency', sld_targets: ['MP-1A'] }),
     ]);
@@ -114,22 +116,24 @@ describe('sldReducer alarm routing', () => {
     const state = apply([
       alarm({ alarm_num: 103, zone: 'BreakerRelay', severity: 'Critical', sld_targets: ['Border'] }),
     ]);
-    expect(state.border).toEqual({ kind: 'controls' });
+    expect(state.border).toEqual({ severity: 'Critical' });
     expect(state.components['breaker-main'].activeAlarmCount).toBe(0);
     expect(state.components['switch-89l-1'].activeAlarmCount).toBe(0);
     expect(state.components['lockout-relay'].activeAlarmCount).toBe(0);
   });
 
-  test('an emergency sets a red (fire) border, outranking controls', () => {
+  test('the frame takes the highest severity among triggering alarms', () => {
+    // A fire emergency (FACP zone) plus a critical controls fault → the frame
+    // shows the most severe (emergency) color.
     const state = apply([
       alarm({ alarm_num: 401, zone: 'Facp', severity: 'Emergency', sld_targets: ['FACP'], message: 'FIRE!!' }),
       alarm({ alarm_num: 103, zone: 'BreakerRelay', severity: 'Critical', sld_targets: ['Border'] }),
     ]);
-    expect(state.border).toEqual({ kind: 'fire' });
+    expect(state.border).toEqual({ severity: 'Emergency' });
     expect(state.components['fire-alarm-panel'].activeAlarms[0].message).toBe('FIRE!!');
   });
 
-  test('no border when nothing targets it and there is no emergency', () => {
+  test('no border when nothing targets it and there is no fire emergency', () => {
     const state = apply([
       alarm({ alarm_num: 107, zone: 'BreakerRelay', sld_targets: ['Relay'] }),
     ]);
