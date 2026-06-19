@@ -1,4 +1,5 @@
 import type {
+  AcknowledgeAlarmResponse,
   ActiveAlarmsResponse,
   AlarmDefinitionsResponse,
   AlarmHistoryResponse,
@@ -49,5 +50,21 @@ export async function setForcedAlarms(alarmNums: number[]): Promise<ForcedAlarms
   return await apiRequestWithMapping<ForcedAlarmsResponse>('/api/1/Alarms/Forced', {
     method: 'PUT',
     body: JSON.stringify({ alarm_nums: alarmNums }),
+  });
+}
+
+/**
+ * Acknowledge an active alarm by its `alarm_num`. Acknowledgement is
+ * persistent and server-side — it does not necessarily clear the alarm, so
+ * callers should re-fetch `/Alarms/Active` afterwards to pick up the updated
+ * status. An optional free-form `note` is recorded with the acknowledgement.
+ */
+export async function acknowledgeAlarm(
+  alarmNum: number,
+  note?: string,
+): Promise<AcknowledgeAlarmResponse> {
+  return await apiRequestWithMapping<AcknowledgeAlarmResponse>('/api/1/Alarms/Acknowledge', {
+    method: 'POST',
+    body: JSON.stringify({ alarm_num: alarmNum, note: note ?? null }),
   });
 }

@@ -99,6 +99,10 @@ function applyAlarms(
       name: alarm.name,
       severity,
       message: alarm.message ?? null,
+      status: alarm.status,
+      dataActive: alarm.data_active,
+      acknowledgedByEmail: alarm.acknowledged_by_email ?? null,
+      acknowledgedAt: alarm.acknowledged_at ?? null,
     };
 
     const raisesBorder =
