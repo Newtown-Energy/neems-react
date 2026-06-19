@@ -2,6 +2,36 @@ import { createTheme } from '@mui/material/styles';
 import type { ThemeOptions } from '@mui/material/styles';
 import materialTheme from './material-theme.json';
 
+// Canonical alarm-severity palette — the single source of truth for severity
+// colors across the app (SLD component highlights, the main-pane border, alarm
+// badges, and every MUI severity Chip). Each severity reads distinctly at a
+// glance: Emergency → red, Critical → orange, Warning → yellow, Info → blue.
+// `severityColor()` (SLD SVG visuals) and `getSeverityColor()` (Chip color
+// prop) both resolve to these entries so the two never drift apart.
+declare module '@mui/material/styles' {
+  interface Palette {
+    severityEmergency: Palette['error'];
+    severityCritical: Palette['error'];
+    severityWarning: Palette['error'];
+    severityInfo: Palette['error'];
+  }
+  interface PaletteOptions {
+    severityEmergency?: PaletteOptions['error'];
+    severityCritical?: PaletteOptions['error'];
+    severityWarning?: PaletteOptions['error'];
+    severityInfo?: PaletteOptions['error'];
+  }
+}
+
+declare module '@mui/material/Chip' {
+  interface ChipPropsColorOverrides {
+    severityEmergency: true;
+    severityCritical: true;
+    severityWarning: true;
+    severityInfo: true;
+  }
+}
+
 const baseTheme: ThemeOptions = {
   typography: {
     fontFamily: '"Inter", "Segoe UI", "Roboto", "Helvetica", "Arial", sans-serif',
@@ -69,6 +99,26 @@ export const theme = createTheme({
       main: '#D50000',
       light: '#FF5131',
       dark: '#9B0000',
+      contrastText: '#FFFFFF',
+    },
+    // Severity palette — see the module augmentation above. Emergency reuses the
+    // safety red from `error.main`; Critical/Warning use deliberate orange/yellow
+    // hexes (MUI has no yellow named color) so Warning and Critical stay distinct;
+    // Info is the standard MUI blue. Warning's yellow needs dark text for contrast.
+    severityEmergency: {
+      main: '#D50000',
+      contrastText: '#FFFFFF',
+    },
+    severityCritical: {
+      main: '#F57C00',
+      contrastText: '#FFFFFF',
+    },
+    severityWarning: {
+      main: '#FFC107',
+      contrastText: 'rgba(0, 0, 0, 0.87)',
+    },
+    severityInfo: {
+      main: '#0288D1',
       contrastText: '#FFFFFF',
     },
     background: {

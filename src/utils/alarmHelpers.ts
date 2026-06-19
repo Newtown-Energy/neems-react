@@ -24,19 +24,24 @@ export function formatAlarmName(name: string): string {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-/** Get MUI color for alarm severity */
+/**
+ * MUI Chip `color` for an alarm severity. Returns custom theme palette colors
+ * (registered in `theme.ts`) so severity Chips match the SLD palette exactly:
+ *   Emergency → red, Critical → orange, Warning → yellow, Info → blue.
+ * These resolve to the same hexes as `severityColor()` used for SLD visuals.
+ */
 export function getSeverityColor(
   severity: AlarmSeverityDto,
-): 'error' | 'warning' | 'info' | 'success' {
+): 'severityEmergency' | 'severityCritical' | 'severityWarning' | 'severityInfo' {
   switch (severity) {
     case 'Emergency':
-      return 'error';
+      return 'severityEmergency';
     case 'Critical':
-      return 'warning';
+      return 'severityCritical';
     case 'Warning':
-      return 'info';
+      return 'severityWarning';
     case 'Info':
-      return 'success';
+      return 'severityInfo';
   }
 }
 
