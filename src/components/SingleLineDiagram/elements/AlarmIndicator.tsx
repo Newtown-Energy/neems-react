@@ -179,24 +179,33 @@ const AlarmIndicator: React.FC<AlarmIndicatorProps> = ({ state, offsetX, offsetY
                 void ackTick;
                 const acked = isAlarmAcknowledged(alarm.alarm_num);
                 return (
-                  <Box
-                    key={alarm.alarm_num}
-                    sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
-                  >
-                    <Chip
-                      label={formatAlarmName(alarm.name)}
-                      color={getSeverityColor(alarm.severity)}
-                      size="small"
-                      variant={acked ? 'filled' : 'outlined'}
-                      sx={{ flex: 1, opacity: acked ? 0.7 : 1 }}
-                    />
-                    <Button
-                      size="small"
-                      variant={acked ? 'outlined' : 'text'}
-                      onClick={() => handleAcknowledgeOne(alarm)}
-                    >
-                      {acked ? 'Unack' : 'Ack'}
-                    </Button>
+                  <Box key={alarm.alarm_num}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Chip
+                        label={formatAlarmName(alarm.name)}
+                        color={getSeverityColor(alarm.severity)}
+                        size="small"
+                        variant={acked ? 'filled' : 'outlined'}
+                        sx={{ flex: 1, opacity: acked ? 0.7 : 1 }}
+                      />
+                      <Button
+                        size="small"
+                        variant={acked ? 'outlined' : 'text'}
+                        onClick={() => handleAcknowledgeOne(alarm)}
+                      >
+                        {acked ? 'Unack' : 'Ack'}
+                      </Button>
+                    </Box>
+                    {alarm.message && (
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        component="div"
+                        sx={{ pl: 0.5, mt: 0.25, opacity: acked ? 0.7 : 1 }}
+                      >
+                        {alarm.message}
+                      </Typography>
+                    )}
                   </Box>
                 );
               })}

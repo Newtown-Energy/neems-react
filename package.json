@@ -9,7 +9,7 @@
     "lint": "npm run lint:eslint && npm run lint:tsc",
     "lint:eslint": "eslint ./src --max-warnings=0",
     "lint:tsc": "tsc --noEmit",
-    "test:unit": "bun test src/utils",
+    "test:unit": "bun test src",
     "preview": "vite preview",
     "generate-types": "dosh generate-types"
   },
@@ -27,7 +27,7 @@
     "recharts": "^3.8.1"
   },
   "devDependencies": {
-    "@newtown-energy/types": "0.3.6",
+    "@newtown-energy/types": "0.3.7",
     "@types/jest": "^30.0.0",
     "@types/node": "^24.0.10",
     "@types/react": "^19.1.8",

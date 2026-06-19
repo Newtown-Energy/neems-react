@@ -192,7 +192,7 @@ const FIELD_HELP: Record<string, string> = {
   capacity_kwh:
     'Total energy storage capacity. Used for the available-SoC duration warning.',
   ramp_duration_seconds:
-    'Time to ramp from 0 to full power. ConEd standard is 120 seconds (2-minute full-power ramp).',
+    'Time to ramp from 0 to full power. The utility standard is 120 seconds (2-minute full-power ramp).',
   closed_loop_enabled:
     'When on, scheduled commands are sent to the RTAC for execution. When off, schedules are visualized but not enforced.',
   charge_rate_percent:
@@ -280,8 +280,8 @@ const SiteDefaultsPanel: React.FC<SiteDefaultsPanelProps> = ({ onSavingChange, r
   /**
    * Live ramp-rate readout derived from the user's current power +
    * duration draft, surfaced inline so operators see what their config
-   * actually means in kW/minute (per-minute is the format ConEd uses
-   * when negotiating interconnection terms).
+   * actually means in kW/minute (per-minute is the format the utility
+   * uses when negotiating interconnection terms).
    *
    * Returns null when either input is empty or non-positive so the UI
    * can fall back to a generic helper line.
@@ -511,7 +511,7 @@ const SiteDefaultsPanel: React.FC<SiteDefaultsPanelProps> = ({ onSavingChange, r
                   : rampRateKwPerMin != null
                     ? `≈ ${Math.round(rampRateKwPerMin).toLocaleString()} kW/min ramp rate at current power.`
                     : autoRampDurationSeconds
-                      ? `Auto-suggested: ${autoRampDurationSeconds}s (matches ConEd 2-min full-power ramp).`
+                      ? `Auto-suggested: ${autoRampDurationSeconds}s (matches the utility's 2-min full-power ramp).`
                       : 'Time to ramp from 0 to full power. Default is 120s.'
               }
             />

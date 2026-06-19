@@ -71,6 +71,8 @@ interface AlarmRow {
   zone: AlarmZoneDto;
   category: AlarmCategory;
   name: string;
+  /** Operator-facing message from the alarm spreadsheet; null when none. */
+  message: string | null;
   severity: AlarmSeverityDto;
   active: boolean;
   /** Number of activations in the last [HISTORY_WINDOW_DAYS] days. */
@@ -196,6 +198,7 @@ const AlarmsPage: React.FC = () => {
       zone: def.zone,
       category: getZoneCategory(def.zone),
       name: def.name,
+      message: def.message ?? null,
       severity: resolveAlarmSeverity(def.alarm_num, def.severity),
       active: activeNums.has(def.alarm_num),
       activations30d: activationCounts[def.alarm_num] ?? 0,
@@ -505,7 +508,14 @@ const AlarmsPage: React.FC = () => {
                       />
                     </TableCell>
                     <TableCell>{alarm.alarm_num}</TableCell>
-                    <TableCell>{formatAlarmName(alarm.name)}</TableCell>
+                    <TableCell>
+                      {formatAlarmName(alarm.name)}
+                      {alarm.message && (
+                        <Typography variant="caption" color="text.secondary" component="div">
+                          {alarm.message}
+                        </Typography>
+                      )}
+                    </TableCell>
                     <TableCell>{ZONE_DISPLAY_NAMES[alarm.zone]}</TableCell>
                     <TableCell>
                       <Chip
