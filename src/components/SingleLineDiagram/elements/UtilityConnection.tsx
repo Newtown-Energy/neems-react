@@ -6,8 +6,7 @@ import AlarmIndicator from './AlarmIndicator';
 
 /**
  * Utility line-in connection: a downward-pointing triangle meeting the power
- * line, with a labeled box (the line/circuit number, e.g. "ConEd 6Q81") to
- * the right.
+ * line, with a labeled box (the utility line/circuit number) to the right.
  */
 const UtilityConnection: React.FC<SldElementProps> = ({
   x,

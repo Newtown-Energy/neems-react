@@ -25,7 +25,7 @@ describe('SLD Page Tests', () => {
 
   it('should render the project info card', async () => {
     const content = await page.content();
-    expect(content).toContain('Project Info: Brigis 1A');
+    expect(content).toContain('Project Info: Demo BESS 1A');
     expect(content).toContain('Address');
     expect(content).toContain('BESS Rating');
   });
