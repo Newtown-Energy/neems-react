@@ -1,4 +1,4 @@
-import type { AlarmSeverityDto, AlarmZoneDto } from '@newtown-energy/types';
+import type { AlarmSeverityDto, AlarmStatusDto, AlarmZoneDto } from '@newtown-energy/types';
 
 /** Summary of a single active alarm on a component */
 export interface ActiveAlarmSummary {
@@ -10,6 +10,17 @@ export interface ActiveAlarmSummary {
   /** Operator-facing message from the alarm spreadsheet ("Mouseover").
    *  `null` when the spreadsheet had none — callers fall back to the name. */
   message: string | null;
+  /** Server-authoritative acknowledgement status. `Active` = unacked and
+   *  firing now; `AcknowledgedActive` = acked but still firing;
+   *  `ReturnedUnacknowledged` = no longer firing but latched awaiting ack. */
+  status: AlarmStatusDto;
+  /** Raw current data state, independent of acknowledgement. `false` for a
+   *  returned-to-normal alarm still latched awaiting acknowledgement. */
+  dataActive: boolean;
+  /** Email of the most recent acknowledger, for display; `null` if unacked. */
+  acknowledgedByEmail: string | null;
+  /** ISO 8601 timestamp of the most recent acknowledgement; `null` if unacked. */
+  acknowledgedAt: string | null;
 }
 
 /** The visual state of a single SLD component */
