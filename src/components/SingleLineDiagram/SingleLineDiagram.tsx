@@ -27,6 +27,7 @@ import {
 import type { SldAction } from './sldState';
 import type { SldDiagramState } from './types';
 import { useSldAlarms } from './useSldAlarms';
+import { SldAlarmRefetchContext } from './SldAlarmRefetchContext';
 import NewtownLayout from './layouts/NewtownLayout';
 import CurtailmentBadge from './CurtailmentBadge';
 
@@ -162,7 +163,7 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({
   // alarm reducer never touches breaker/switch positions — so leaving
   // polling on in demoMode is safe and lets forced alarms surface
   // through the same path real alarms use.
-  useSldAlarms(dispatch);
+  const { refetch: refetchAlarms } = useSldAlarms(dispatch);
 
   useEffect(() => {
     onDispatchReady?.(dispatch);
@@ -246,11 +247,13 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({
           toolbarProps={{ position: POSITION_RIGHT }}
         >
           <svg width={DIAGRAM_WIDTH} height={DIAGRAM_HEIGHT}>
-            <NewtownLayout
-              state={state}
-              dispatch={dispatch}
-              onEStopClicked={() => setEStopDialogOpen(true)}
-            />
+            <SldAlarmRefetchContext.Provider value={refetchAlarms}>
+              <NewtownLayout
+                state={state}
+                dispatch={dispatch}
+                onEStopClicked={() => setEStopDialogOpen(true)}
+              />
+            </SldAlarmRefetchContext.Provider>
           </svg>
         </ReactSVGPanZoom>
       )}

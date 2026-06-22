@@ -19,6 +19,7 @@ import {
   Alert,
   IconButton,
   CircularProgress,
+  Button,
   Select,
   MenuItem,
   FormControl,
@@ -39,9 +40,15 @@ import type {
   AlarmDefinitionDto,
   AlarmHistoryEntry,
   AlarmSeverityDto,
+  AlarmStatusDto,
   AlarmZoneDto,
 } from '@newtown-energy/types';
-import { fetchActiveAlarms, fetchAlarmDefinitions, fetchAlarmHistory } from '../utils/alarmApi';
+import {
+  acknowledgeAlarm,
+  fetchActiveAlarms,
+  fetchAlarmDefinitions,
+  fetchAlarmHistory,
+} from '../utils/alarmApi';
 import {
   ALARM_CATEGORY_ORDER,
   ZONE_DISPLAY_NAMES,
@@ -75,6 +82,11 @@ interface AlarmRow {
   message: string | null;
   severity: AlarmSeverityDto;
   active: boolean;
+  /** Server-authoritative acknowledgement status when the alarm is currently
+   *  visible (active or latched); `null` for an inactive definition row. */
+  status: AlarmStatusDto | null;
+  /** Email of the most recent acknowledger, for display; `null` if unacked. */
+  acknowledgedByEmail: string | null;
   /** Number of activations in the last [HISTORY_WINDOW_DAYS] days. */
   activations30d: number;
 }
@@ -85,6 +97,18 @@ type HistoryState =
   | { kind: 'error'; message: string };
 
 const HISTORY_WINDOW_DAYS = 30;
+
+/** Human-readable label for an alarm's acknowledgement status. */
+function statusLabel(status: AlarmStatusDto): string {
+  switch (status) {
+    case 'Active':
+      return 'Active';
+    case 'AcknowledgedActive':
+      return 'Acknowledged';
+    case 'ReturnedUnacknowledged':
+      return 'Returned — needs ack';
+  }
+}
 
 type SortKey = 'activations' | 'name' | 'severity' | 'zone';
 type SortDir = 'asc' | 'desc';
@@ -107,6 +131,8 @@ const AlarmsPage: React.FC = () => {
   const [activeOnly, setActiveOnly] = useState<boolean>(true);
   const [sortKey, setSortKey] = useState<SortKey>('activations');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
+  /** alarm_num currently being acknowledged (disables its button), or null. */
+  const [ackingNum, setAckingNum] = useState<number | null>(null);
 
   /** Fetch the 30d activation count for every alarm in one call. */
   const loadActivationCounts = useCallback(() => {
@@ -175,6 +201,22 @@ const AlarmsPage: React.FC = () => {
     }
   }, []);
 
+  /** Acknowledge an alarm, then immediately refresh so its new status shows. */
+  const handleAcknowledge = useCallback(
+    async (alarmNum: number) => {
+      setAckingNum(alarmNum);
+      try {
+        await acknowledgeAlarm(alarmNum);
+        await loadAlarms();
+      } catch (err) {
+        errorLog('Alarm acknowledge failed:', err);
+      } finally {
+        setAckingNum(null);
+      }
+    },
+    [loadAlarms],
+  );
+
   useEffect(() => {
     // Definitions are static — load once
     fetchAlarmDefinitions()
@@ -191,18 +233,23 @@ const AlarmsPage: React.FC = () => {
   const allRows: AlarmRow[] = React.useMemo(() => {
     if (!definitions) return [];
 
-    const activeNums = new Set(data?.alarms.map((a) => a.alarm_num) ?? []);
+    const activeByNum = new Map((data?.alarms ?? []).map((a) => [a.alarm_num, a]));
 
-    return definitions.definitions.map((def: AlarmDefinitionDto) => ({
-      alarm_num: def.alarm_num,
-      zone: def.zone,
-      category: getZoneCategory(def.zone),
-      name: def.name,
-      message: def.message ?? null,
-      severity: resolveAlarmSeverity(def.alarm_num, def.severity),
-      active: activeNums.has(def.alarm_num),
-      activations30d: activationCounts[def.alarm_num] ?? 0,
-    }));
+    return definitions.definitions.map((def: AlarmDefinitionDto) => {
+      const activeAlarm = activeByNum.get(def.alarm_num);
+      return {
+        alarm_num: def.alarm_num,
+        zone: def.zone,
+        category: getZoneCategory(def.zone),
+        name: def.name,
+        message: def.message ?? null,
+        severity: resolveAlarmSeverity(def.alarm_num, def.severity),
+        active: activeAlarm != null,
+        status: activeAlarm?.status ?? null,
+        acknowledgedByEmail: activeAlarm?.acknowledged_by_email ?? null,
+        activations30d: activationCounts[def.alarm_num] ?? 0,
+      };
+    });
   }, [data, definitions, activationCounts]);
 
   const handleSort = (key: SortKey): void => {
@@ -500,12 +547,39 @@ const AlarmsPage: React.FC = () => {
                       </IconButton>
                     </TableCell>
                     <TableCell>
-                      <Chip
-                        label={alarm.active ? 'Active' : 'OK'}
-                        color={alarm.active ? getSeverityColor(alarm.severity) : 'default'}
-                        variant={alarm.active ? 'filled' : 'outlined'}
-                        size="small"
-                      />
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Chip
+                          label={alarm.status ? statusLabel(alarm.status) : 'OK'}
+                          color={alarm.active ? getSeverityColor(alarm.severity) : 'default'}
+                          // Solid only while currently firing AND unacked. Acked
+                          // and returned-but-unacked alarms render hollow; the
+                          // returned blip additionally gets a dashed border so it
+                          // reads apart from a currently-active alarm.
+                          variant={alarm.status === 'Active' ? 'filled' : 'outlined'}
+                          size="small"
+                          sx={
+                            alarm.status === 'ReturnedUnacknowledged'
+                              ? { borderStyle: 'dashed' }
+                              : undefined
+                          }
+                        />
+                        {(alarm.status === 'Active' ||
+                          alarm.status === 'ReturnedUnacknowledged') && (
+                          <Button
+                            size="small"
+                            variant="contained"
+                            disabled={ackingNum === alarm.alarm_num}
+                            onClick={() => handleAcknowledge(alarm.alarm_num)}
+                          >
+                            Ack
+                          </Button>
+                        )}
+                      </Box>
+                      {alarm.status === 'AcknowledgedActive' && alarm.acknowledgedByEmail && (
+                        <Typography variant="caption" color="text.secondary" component="div">
+                          by {alarm.acknowledgedByEmail}
+                        </Typography>
+                      )}
                     </TableCell>
                     <TableCell>{alarm.alarm_num}</TableCell>
                     <TableCell>

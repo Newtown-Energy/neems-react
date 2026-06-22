@@ -2,20 +2,30 @@ import React, { useRef, useState } from 'react';
 import { Box, Button, Chip, Popover, Stack, Typography, useTheme } from '@mui/material';
 import { formatAlarmName, getSeverityColor, ZONE_DISPLAY_NAMES } from '../../../utils/alarmHelpers';
 import type { AlarmSeverityDto } from '@newtown-energy/types';
+import { acknowledgeAlarm } from '../../../utils/alarmApi';
+import { errorLog } from '../../../utils/debug';
 import type { ActiveAlarmSummary, SldComponentState } from '../types';
 import { SLD_FONT } from '../sldTypography';
 import { severityColor } from './useStatusColors';
-import {
-  acknowledgeAlarm,
-  clearAlarmAcknowledgement,
-  useAllAlarmsAcknowledged,
-  isAlarmAcknowledged
-} from '../../../utils/alarmAcknowledge';
+import { useSldAlarmRefetch } from '../SldAlarmRefetchContext';
 
 interface AlarmIndicatorProps {
   state: SldComponentState;
   offsetX: number;
   offsetY: number;
+}
+
+/** True for alarms still awaiting acknowledgement (firing now or latched). */
+function needsAck(alarm: ActiveAlarmSummary): boolean {
+  return alarm.status === 'Active' || alarm.status === 'ReturnedUnacknowledged';
+}
+
+/** Format an acknowledgement timestamp for compact display. */
+function formatAckTime(iso: string | null): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleString();
 }
 
 /** Hexagon polygon points centered at (0,0) with the given circumradius. */
@@ -46,18 +56,33 @@ function trianglePoints(r: number): string {
  *   Info      → circle
  * All shapes are sized to a similar visual area so the alarm count stays
  * legible inside.
+ *
+ * When `returned` is set (every alarm on the component is
+ * ReturnedUnacknowledged — no longer firing but latched awaiting ack) the
+ * shape renders hollow with a dashed outline so the operator can tell it apart
+ * at a glance from a currently-active alarm, which renders solid.
  */
 const SeverityShape: React.FC<{
   severity: AlarmSeverityDto;
   color: string;
   strokeColor: string;
-}> = ({ severity, color, strokeColor }) => {
-  const common = {
-    fill: color,
-    stroke: strokeColor,
-    strokeWidth: 2,
-    strokeLinejoin: 'round' as const,
-  };
+  returned: boolean;
+}> = ({ severity, color, strokeColor, returned }) => {
+  const common = returned
+    ? {
+        // Hollow + dashed + desaturated: distinctly "returned, needs ack".
+        fill: 'none',
+        stroke: color,
+        strokeWidth: 2,
+        strokeDasharray: '3 2',
+        strokeLinejoin: 'round' as const,
+      }
+    : {
+        fill: color,
+        stroke: strokeColor,
+        strokeWidth: 2,
+        strokeLinejoin: 'round' as const,
+      };
   switch (severity) {
     case 'Emergency':
       return <polygon points={hexagonPoints(10)} {...common} />;
@@ -74,14 +99,18 @@ const SeverityShape: React.FC<{
  * Colored badge overlay that appears on alarmed components. The badge's
  * shape encodes severity (hexagon/square/triangle/circle) and the center
  * shows the active alarm count. Emergency/Critical badges pulse via a halo
- * ring animation. Clicking opens a popover listing the active alarms.
+ * ring animation while at least one alarm is still firing AND unacknowledged.
+ * Acknowledging pauses the flash (but keeps the outline) and a component whose
+ * alarms have all returned-to-normal-but-unacked renders a hollow/dashed badge
+ * so it reads as distinct from a currently-active alarm. Clicking opens a
+ * popover listing the alarms with per-alarm acknowledgement.
  */
 const AlarmIndicator: React.FC<AlarmIndicatorProps> = ({ state, offsetX, offsetY }) => {
   const theme = useTheme();
   const badgeRef = useRef<SVGGElement>(null);
   const [popoverOpen, setPopoverOpen] = useState(false);
-  const [ackTick, setAckTick] = useState(0);
-  const allAcked = useAllAlarmsAcknowledged(state.activeAlarms.map(a => a.alarm_num));
+  const [acking, setAcking] = useState<number | 'all' | null>(null);
+  const refetchAlarms = useSldAlarmRefetch();
 
   if (state.activeAlarmCount === 0 || !state.highestSeverity) return null;
 
@@ -89,27 +118,47 @@ const AlarmIndicator: React.FC<AlarmIndicatorProps> = ({ state, offsetX, offsetY
   const strokeColor = theme.palette.getContrastText(color);
   const shouldPulse =
     state.highestSeverity === 'Emergency' || state.highestSeverity === 'Critical';
-  const animate = shouldPulse && !allAcked;
+  // Pulse only while at least one alarm is firing now AND unacknowledged.
+  const anyActiveUnacked = state.activeAlarms.some((a) => a.status === 'Active');
+  const animate = shouldPulse && anyActiveUnacked;
+  // Distinct "returned, needs ack" look: every alarm on the component is
+  // latched-but-not-firing. A single still-firing alarm reverts to the solid
+  // active look so the more urgent state always wins.
+  const allReturned =
+    state.activeAlarms.length > 0 &&
+    state.activeAlarms.every((a) => a.status === 'ReturnedUnacknowledged');
+  const unackedCount = state.activeAlarms.filter(needsAck).length;
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     setPopoverOpen(true);
   };
 
-  const handleAcknowledgeAll = () => {
-    for (const alarm of state.activeAlarms) {
-      acknowledgeAlarm(alarm.alarm_num, alarm.severity);
+  const runAck = async (alarmNums: number[], marker: number | 'all') => {
+    setAcking(marker);
+    try {
+      for (const num of alarmNums) {
+        await acknowledgeAlarm(num);
+      }
+      // Re-fetch so the new server-authoritative status reflects immediately
+      // rather than after the next poll tick.
+      await refetchAlarms();
+    } catch (err) {
+      errorLog('Alarm acknowledge failed:', err);
+    } finally {
+      setAcking(null);
     }
-    setAckTick(t => t + 1);
+  };
+
+  const handleAcknowledgeAll = () => {
+    void runAck(
+      state.activeAlarms.filter(needsAck).map((a) => a.alarm_num),
+      'all',
+    );
   };
 
   const handleAcknowledgeOne = (alarm: ActiveAlarmSummary) => {
-    if (isAlarmAcknowledged(alarm.alarm_num)) {
-      clearAlarmAcknowledgement(alarm.alarm_num);
-    } else {
-      acknowledgeAlarm(alarm.alarm_num, alarm.severity);
-    }
-    setAckTick(t => t + 1);
+    void runAck([alarm.alarm_num], alarm.alarm_num);
   };
 
   return (
@@ -140,6 +189,7 @@ const AlarmIndicator: React.FC<AlarmIndicatorProps> = ({ state, offsetX, offsetY
           severity={state.highestSeverity}
           color={color}
           strokeColor={strokeColor}
+          returned={allReturned}
         />
       </g>
       {/* Alarm count */}
@@ -150,7 +200,7 @@ const AlarmIndicator: React.FC<AlarmIndicatorProps> = ({ state, offsetX, offsetY
         fontSize={SLD_FONT.badge}
         fontFamily="monospace"
         fontWeight="bold"
-        fill={strokeColor}
+        fill={allReturned ? color : strokeColor}
         style={{ pointerEvents: 'none' }}
       >
         {state.activeAlarmCount}
@@ -171,13 +221,13 @@ const AlarmIndicator: React.FC<AlarmIndicatorProps> = ({ state, offsetX, offsetY
               {ZONE_DISPLAY_NAMES[state.zone]}
             </Typography>
             <Typography variant="caption" color="text.secondary" gutterBottom component="div">
-              {state.activeAlarmCount} active alarm{state.activeAlarmCount !== 1 ? 's' : ''}
+              {state.activeAlarmCount} alarm{state.activeAlarmCount !== 1 ? 's' : ''}
             </Typography>
             <Stack spacing={0.75} sx={{ mt: 1 }}>
               {state.activeAlarms.map((alarm) => {
-                // Re-read on every render — cheap; key off ackTick to refresh.
-                void ackTick;
-                const acked = isAlarmAcknowledged(alarm.alarm_num);
+                const acked = alarm.status === 'AcknowledgedActive';
+                const returned = alarm.status === 'ReturnedUnacknowledged';
+                const ackTime = formatAckTime(alarm.acknowledgedAt);
                 return (
                   <Box key={alarm.alarm_num}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -185,23 +235,53 @@ const AlarmIndicator: React.FC<AlarmIndicatorProps> = ({ state, offsetX, offsetY
                         label={formatAlarmName(alarm.name)}
                         color={getSeverityColor(alarm.severity)}
                         size="small"
-                        variant={acked ? 'filled' : 'outlined'}
-                        sx={{ flex: 1, opacity: acked ? 0.7 : 1 }}
+                        // Hollow chip for acked (paused) and for returned. A
+                        // dashed border additionally marks the returned blip so
+                        // it reads apart from a currently-active alarm.
+                        variant={alarm.status === 'Active' ? 'filled' : 'outlined'}
+                        sx={{
+                          flex: 1,
+                          opacity: alarm.status === 'Active' ? 1 : 0.7,
+                          ...(returned ? { borderStyle: 'dashed' } : {}),
+                        }}
                       />
-                      <Button
-                        size="small"
-                        variant={acked ? 'outlined' : 'text'}
-                        onClick={() => handleAcknowledgeOne(alarm)}
-                      >
-                        {acked ? 'Unack' : 'Ack'}
-                      </Button>
+                      {needsAck(alarm) && (
+                        <Button
+                          size="small"
+                          variant="contained"
+                          disabled={acking !== null}
+                          onClick={() => handleAcknowledgeOne(alarm)}
+                        >
+                          Ack
+                        </Button>
+                      )}
                     </Box>
+                    {returned && (
+                      <Typography
+                        variant="caption"
+                        sx={{ pl: 0.5, mt: 0.25, display: 'block', fontStyle: 'italic' }}
+                        color="warning.main"
+                      >
+                        Returned to normal — still needs acknowledgement
+                      </Typography>
+                    )}
+                    {acked && (
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        component="div"
+                        sx={{ pl: 0.5, mt: 0.25 }}
+                      >
+                        Acknowledged{alarm.acknowledgedByEmail ? ` by ${alarm.acknowledgedByEmail}` : ''}
+                        {ackTime ? ` at ${ackTime}` : ''}
+                      </Typography>
+                    )}
                     {alarm.message && (
                       <Typography
                         variant="caption"
                         color="text.secondary"
                         component="div"
-                        sx={{ pl: 0.5, mt: 0.25, opacity: acked ? 0.7 : 1 }}
+                        sx={{ pl: 0.5, mt: 0.25, opacity: alarm.status === 'Active' ? 1 : 0.7 }}
                       >
                         {alarm.message}
                       </Typography>
@@ -210,21 +290,26 @@ const AlarmIndicator: React.FC<AlarmIndicatorProps> = ({ state, offsetX, offsetY
                 );
               })}
             </Stack>
-            {state.activeAlarmCount > 1 && !allAcked && (
+            {unackedCount > 1 && (
               <Box sx={{ mt: 1.5, display: 'flex', justifyContent: 'flex-end' }}>
-                <Button size="small" variant="contained" onClick={handleAcknowledgeAll}>
+                <Button
+                  size="small"
+                  variant="contained"
+                  disabled={acking !== null}
+                  onClick={handleAcknowledgeAll}
+                >
                   Acknowledge all
                 </Button>
               </Box>
             )}
-            {allAcked && (
+            {unackedCount === 0 && (
               <Typography
                 variant="caption"
                 color="text.secondary"
                 sx={{ display: 'block', mt: 1.5, fontStyle: 'italic' }}
               >
-                Flash paused — outline kept so the alarm stays findable.
-                The flash resumes automatically after the ack window expires.
+                Flash paused — outline kept so the alarm stays findable while it
+                remains active.
               </Typography>
             )}
           </Popover>
