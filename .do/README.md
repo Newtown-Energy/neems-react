@@ -36,7 +36,7 @@ After this, every merge to `main` rebuilds and redeploys.
 ## Notes
 
 - App Platform serves the App over HTTPS (edge TLS); Caddy runs plain HTTP
-  internally (`DEMO_DOMAIN=:80`, HTTP port 80).
+  internally on App Platform's default port (`DEMO_DOMAIN=:8080`, HTTP port 8080).
 - Routine CD uses `doctl apps create-deployment`, which redeploys with the App's
   **stored** config — so `NEEMS_API_UPSTREAM` set on the App persists and is not
   overwritten by CI.

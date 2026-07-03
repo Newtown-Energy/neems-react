@@ -2,7 +2,8 @@
 #
 # DEMO_DOMAIN controls the site address:
 #   - a real hostname (e.g. demo.example.org) -> automatic HTTPS via ACME
-#   - ":80"                                   -> plain HTTP (App Platform does TLS)
+#   - ":8080"                                 -> plain HTTP (App Platform does TLS);
+#                                                8080 is App Platform's default port
 #
 # NEEMS_API_UPSTREAM is the address Caddy proxies /api to. It is set as an
 # environment variable on THIS App in DigitalOcean (not hard-coded) — point it
@@ -10,7 +11,7 @@
 # https://neems-demo-api-xxxx.ondigitalocean.app. Falls back to neems-api:8000
 # for local/compose use when unset.
 
-{$DEMO_DOMAIN::80} {
+{$DEMO_DOMAIN::8080} {
 	encode gzip
 
 	# API traffic is reverse-proxied to the backend. Same origin as the app,

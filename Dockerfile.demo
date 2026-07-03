@@ -25,4 +25,6 @@ RUN bun run build   # -> /app/dist
 FROM caddy:2-alpine AS runtime
 COPY --from=builder /app/dist /srv
 COPY deploy/Caddyfile /etc/caddy/Caddyfile
-EXPOSE 80 443
+# Caddy listens on 8080 (App Platform's default port); DO terminates TLS at the
+# edge, so Caddy serves plain HTTP and never binds 443 itself.
+EXPOSE 8080
