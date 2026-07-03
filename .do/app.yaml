@@ -1,0 +1,46 @@
+# DigitalOcean App Platform spec for the public NEEMS demo web front end.
+#
+# Built in GitHub Actions and pushed to public GHCR (ghcr.io/newtown-energy/
+# neems-web); this App pulls the image and App Platform serves it over HTTPS.
+# Self-contained CD — no coordinator repo (see .github/workflows/deploy.yml).
+#
+# Caddy serves the built SPA and reverse-proxies /api to the SEPARATE core API
+# App (neems-core), so the browser stays same-origin and the SameSite=Lax
+# session cookie keeps working. Set NEEMS_API_UPSTREAM to the core App's public
+# URL. Keep both Apps on one registrable domain (same-origin or sibling
+# subdomains like app.demo.x / api.demo.x), never fully cross-site.
+#
+# Routine CD uses `doctl apps create-deployment` (re-pull :latest), so this
+# committed spec is the bootstrap template + reference; the live App is the
+# source of truth for NEEMS_API_UPSTREAM. See .do/README.md.
+
+name: neems-demo-web
+region: nyc
+
+services:
+  - name: web
+    image:
+      registry_type: GHCR
+      registry: newtown-energy
+      repository: neems-web
+      tag: latest
+      # Public GHCR package -> no pull credential. If you make it private, add:
+      #   registry_credentials: "<gh-user>:<read:packages PAT>"
+    http_port: 80
+    # Adjust to a current slug from `doctl apps tier instance-size list`.
+    instance_size_slug: apps-s-1vcpu-0.5gb
+    instance_count: 1
+    routes:
+      - path: /
+    health_check:
+      http_path: /
+    envs:
+      # App Platform terminates TLS at the edge; Caddy serves plain HTTP.
+      - key: DEMO_DOMAIN
+        value: ":80"
+      # NEEMS_API_UPSTREAM (the core API App's public URL that Caddy proxies
+      # /api to) is intentionally NOT set here — configure it on the App in
+      # DigitalOcean so it isn't hard-coded in git. Set it to the core App's
+      # public URL, including the https:// scheme, once that App is up. Until
+      # then Caddy falls back to neems-api:8000 and /api won't resolve. See
+      # .do/README.md.
