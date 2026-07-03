@@ -26,7 +26,7 @@ services:
       tag: latest
       # Public GHCR package -> no pull credential. If you make it private, add:
       #   registry_credentials: "<gh-user>:<read:packages PAT>"
-    http_port: 80
+    http_port: 8080
     # Adjust to a current slug from `doctl apps tier instance-size list`.
     instance_size_slug: apps-s-1vcpu-0.5gb
     instance_count: 1
@@ -35,9 +35,10 @@ services:
     health_check:
       http_path: /
     envs:
-      # App Platform terminates TLS at the edge; Caddy serves plain HTTP.
+      # App Platform terminates TLS at the edge; Caddy serves plain HTTP on
+      # App Platform's default port (8080), matching http_port above.
       - key: DEMO_DOMAIN
-        value: ":80"
+        value: ":8080"
       # NEEMS_API_UPSTREAM (the core API App's public URL that Caddy proxies
       # /api to) is intentionally NOT set here — configure it on the App in
       # DigitalOcean so it isn't hard-coded in git. Set it to the core App's
