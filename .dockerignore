@@ -1,0 +1,9 @@
+# node_modules and dist are regenerated inside the build; keeping them out of
+# the context avoids leaking host state and speeds the build.
+node_modules/
+dist/
+.git/
+local-types/
+test/jest/node_modules/
+**/*.swp
+.DS_Store
