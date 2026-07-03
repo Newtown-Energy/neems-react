@@ -1,0 +1,93 @@
+name: Demo CD
+
+# Self-contained continuous deployment for this repo's public demo web App on
+# DigitalOcean App Platform. No coordinator repo — neems-react owns and deploys
+# its own App.
+#
+#   - pull request  -> build the image as a check (no push, no deploy)
+#   - merge to main  -> push ghcr.io/newtown-energy/neems-web, then roll a new
+#                       deployment of the demo web App (re-pulls :latest)
+#
+# The demo App is the ONLY environment fed by CI. Production sites are
+# air-gapped, behind a VPN, and updated by hand — never touched here.
+#
+# Required repo secrets (beyond the automatic GITHUB_TOKEN, which pushes to GHCR
+# and installs the @newtown-energy/types package):
+#   DIGITALOCEAN_ACCESS_TOKEN - DO API token (App read + write)
+#   DIGITALOCEAN_APP_ID       - id of the demo web App (`doctl apps list`)
+# One-time setup: see .do/README.md.
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+  pull_request:
+    paths:
+      - 'Dockerfile.demo'
+      - '.dockerignore'
+      - 'deploy/Caddyfile'
+      - 'src/**'
+      - 'public/**'
+      - 'index.html'
+      - 'package.json'
+      - 'bun.lock'
+      - 'tsconfig*.json'
+      - 'vite.config.ts'
+      - '.do/**'
+      - '.github/workflows/deploy.yml'
+  workflow_dispatch:
+
+env:
+  IMAGE: ghcr.io/newtown-energy/neems-web
+
+jobs:
+  build:
+    name: Build image${{ github.event_name == 'pull_request' && ' (check)' || ' and push' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build (and push on main)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.demo
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: |
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:${{ github.sha }}
+          # @newtown-energy/types is a public GitHub Packages package; the
+          # automatic GITHUB_TOKEN has packages:read to install it.
+          secrets: |
+            github_packages_token=${{ secrets.GITHUB_TOKEN }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy demo web App
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+
+      # Roll a new deployment that re-pulls the :latest image. Uses the App's
+      # stored config (incl. NEEMS_API_UPSTREAM), so CI never overwrites it.
+      - name: Roll a new deployment
+        run: doctl apps create-deployment "${{ secrets.DIGITALOCEAN_APP_ID }}" --wait

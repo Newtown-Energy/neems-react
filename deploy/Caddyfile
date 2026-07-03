@@ -1,0 +1,37 @@
+# Caddy config baked into the neems-web image (Dockerfile.demo).
+#
+# DEMO_DOMAIN controls the site address:
+#   - a real hostname (e.g. demo.example.org) -> automatic HTTPS via ACME
+#   - ":80"                                   -> plain HTTP (App Platform does TLS)
+#
+# NEEMS_API_UPSTREAM is the address Caddy proxies /api to. It is set as an
+# environment variable on THIS App in DigitalOcean (not hard-coded) — point it
+# at the core API App's public URL, including the scheme, e.g.
+# https://neems-demo-api-xxxx.ondigitalocean.app. Falls back to neems-api:8000
+# for local/compose use when unset.
+
+{$DEMO_DOMAIN::80} {
+	encode gzip
+
+	# API traffic is reverse-proxied to the backend. Same origin as the app,
+	# so the SameSite=Lax session cookie is sent normally.
+	handle /api/* {
+		reverse_proxy {$NEEMS_API_UPSTREAM:neems-api:8000} {
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Real-IP {remote_host}
+		}
+	}
+
+	# Everything else is the single-page app. Unknown paths fall back to
+	# index.html so client-side routes survive a hard refresh / deep link.
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+		header {
+			X-Frame-Options DENY
+			X-Content-Type-Options nosniff
+			Referrer-Policy strict-origin-when-cross-origin
+		}
+	}
+}
