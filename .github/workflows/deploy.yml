@@ -89,5 +89,16 @@ jobs:
 
       # Roll a new deployment that re-pulls the :latest image. Uses the App's
       # stored config (incl. NEEMS_API_UPSTREAM), so CI never overwrites it.
+      #
+      # An unset secret interpolates to an empty string rather than failing, so
+      # a missing APP_ID would otherwise reach the API as `/v2/apps//deployments`
+      # and come back as an opaque 405. Check it first and say what is wrong.
       - name: Roll a new deployment
-        run: doctl apps create-deployment "${{ secrets.DIGITALOCEAN_APP_ID }}" --wait
+        env:
+          APP_ID: ${{ secrets.DIGITALOCEAN_APP_ID }}
+        run: |
+          if [ -z "$APP_ID" ]; then
+            echo "::error::DIGITALOCEAN_APP_ID is not set. Add it as a repo secret (see .do/README.md)."
+            exit 1
+          fi
+          doctl apps create-deployment "$APP_ID" --wait
