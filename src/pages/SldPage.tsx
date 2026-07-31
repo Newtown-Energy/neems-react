@@ -9,6 +9,7 @@ import {
 import AccountTreeIcon from '@mui/icons-material/AccountTree';
 import SingleLineDiagram from '../components/SingleLineDiagram/SingleLineDiagram';
 import type { SldDiagramState } from '../components/SingleLineDiagram/types';
+import { useEstop } from '../utils/useEstop';
 // DemoControlsDrawer is now mounted at the app level (fixed
 // bottom-right) and self-gates to admin roles.
 
@@ -56,11 +57,13 @@ const InfoLine: React.FC<{ label: string; value: string }> = ({ label, value }) 
 
 const SldPage: React.FC = () => {
   const [diagramState, setDiagramState] = useState<SldDiagramState | null>(null);
+  const estop = useEstop();
 
   const noData =
     diagramState != null &&
     !diagramState.dataStale &&
     diagramState.lastAlarmUpdate == null;
+  // Read from alarm 104 via the alarm feed, not from anything this page did.
   const eStopActive = diagramState?.operationalMode === 'e-stop-active';
 
   return (
@@ -78,8 +81,8 @@ const SldPage: React.FC = () => {
           </Typography>
           <Typography variant="body2" color="text.secondary">
             {PROJECT_INFO.name} — click a line switch (89L-1/89L-2) or feeder
-            breaker to toggle its position. Use the red E-STOP button for a
-            confirmed site-wide lockout.
+            breaker to toggle its position. The red E-STOP button requests a
+            site-wide emergency stop; clearing one is done at the panel on site.
           </Typography>
         </Box>
         <ProjectInfoCard />
@@ -87,8 +90,33 @@ const SldPage: React.FC = () => {
 
       {eStopActive && (
         <Alert severity="error" sx={{ mb: 2 }}>
-          E-Stop is active. Line switches are shown as locked out. Press
-          "Remove E-Stop" on the diagram to return to normal operation.
+          E-Stop is active. Line switches are shown as locked out. An E-Stop
+          cannot be cleared from this interface — reset it at the panel on
+          site, and this will clear once the site reports it.
+        </Alert>
+      )}
+
+      {/* A request that has been recorded but not yet confirmed by the site.
+          Deliberately not styled as an active E-stop: nothing has tripped
+          until the RTAC says so. */}
+      {!eStopActive && estop.pending && (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          E-Stop requested — waiting for the site to confirm. The diagram will
+          show the site as stopped once the RTAC reports the trip.
+        </Alert>
+      )}
+
+      {estop.failure && !eStopActive && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          E-Stop did not take effect: {estop.failure}. The site is
+          <strong> not </strong>
+          stopped. Escalate to on-site personnel immediately.
+        </Alert>
+      )}
+
+      {estop.error && (
+        <Alert severity="error" sx={{ mb: 2 }} onClose={estop.dismissError}>
+          {estop.error}
         </Alert>
       )}
 
@@ -110,7 +138,7 @@ const SldPage: React.FC = () => {
           p: 2,
         }}
       >
-        <SingleLineDiagram onStateChange={setDiagramState} />
+        <SingleLineDiagram onStateChange={setDiagramState} estop={estop} />
       </Box>
     </Box>
   );

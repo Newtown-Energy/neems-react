@@ -44,6 +44,8 @@ interface NewtownLayoutProps {
   dispatch: React.Dispatch<SldAction>;
   /** Called when the E-stop button is clicked. Owner displays the confirm dialog. */
   onEStopClicked: () => void;
+  /** An E-stop request is recorded but the site has not confirmed it yet. */
+  eStopPending?: boolean;
 }
 
 // --- Layout coordinates (viewBox 1200x800) ---
@@ -134,6 +136,7 @@ const NewtownLayout: React.FC<NewtownLayoutProps> = ({
   state,
   dispatch,
   onEStopClicked,
+  eStopPending = false,
 }) => {
   const comp = (id: string) => state.components[id];
   const wire = (id: string) => state.wires[id];
@@ -438,6 +441,7 @@ const NewtownLayout: React.FC<NewtownLayoutProps> = ({
         x={ESTOP_X}
         y={ESTOP_Y}
         active={state.operationalMode === 'e-stop-active'}
+        pending={eStopPending}
         onClick={onEStopClicked}
       />
     </>

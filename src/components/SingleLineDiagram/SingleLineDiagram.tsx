@@ -27,6 +27,7 @@ import {
 import type { SldAction } from './sldState';
 import type { SldDiagramState } from './types';
 import { useSldAlarms } from './useSldAlarms';
+import type { EstopState } from '../../utils/useEstop';
 import NewtownLayout from './layouts/NewtownLayout';
 import CurtailmentBadge from './CurtailmentBadge';
 
@@ -105,6 +106,11 @@ interface SingleLineDiagramProps {
   onDispatchReady?: (dispatch: React.Dispatch<SldAction>) => void;
   /** Callback that receives the diagram state on each render so the parent can read it. */
   onStateChange?: (state: SldDiagramState) => void;
+  /**
+   * E-stop request state. Owned by the page so the page can render request
+   * banners from the same polling instance the button reads.
+   */
+  estop: EstopState;
 }
 
 /**
@@ -114,6 +120,7 @@ interface SingleLineDiagramProps {
 const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({
   onDispatchReady,
   onStateChange,
+  estop,
 }) => {
   const [state, dispatch] = useReducer(sldReducer, INITIAL_STATE);
   const [eStopDialogOpen, setEStopDialogOpen] = useState(false);
@@ -176,11 +183,12 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({
     stableOnStateChange(state);
   }, [state, stableOnStateChange]);
 
-  const eStopActive = state.operationalMode === 'e-stop-active';
-
-  const handleEStopConfirm = () => {
-    dispatch({ type: 'SET_ESTOP_ACTIVE', active: !eStopActive });
+  // The button's active state comes from `state.operationalMode`, which the
+  // alarm reducer derives from alarm 104 — what the RTAC reports, not anything
+  // the browser decided. Confirming only *requests* a trip.
+  const handleEStopConfirm = async () => {
     setEStopDialogOpen(false);
+    await estop.trigger();
   };
 
   return (
@@ -250,31 +258,34 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({
               state={state}
               dispatch={dispatch}
               onEStopClicked={() => setEStopDialogOpen(true)}
+              eStopPending={estop.pending || estop.submitting}
             />
           </svg>
         </ReactSVGPanZoom>
       )}
 
       <Dialog open={eStopDialogOpen} onClose={() => setEStopDialogOpen(false)}>
-        <DialogTitle>
-          {eStopActive ? 'Remove E-Stop?' : 'Confirm E-Stop?'}
-        </DialogTitle>
+        <DialogTitle>Request E-Stop?</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            {eStopActive
-              ? 'Removing E-Stop returns the site to normal operating mode. Line switches 89L-1 and 89L-2 will resume showing their commanded position. Confirm only after verifying it is safe to re-energize.'
-              : 'Activating E-Stop will lock out line switches 89L-1 and 89L-2 and signal a site-wide emergency stop. This action should be used only in a genuine emergency.'}
+            This sends an emergency stop request to the site. The diagram will
+            show the site as stopped only once the RTAC confirms the trip.
+            This action should be used only in a genuine emergency.
+          </DialogContentText>
+          <DialogContentText sx={{ mt: 2 }}>
+            An E-stop cannot be cleared from here — it must be reset at the
+            panel on site.
           </DialogContentText>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setEStopDialogOpen(false)}>Cancel</Button>
           <Button
-            onClick={handleEStopConfirm}
-            color={eStopActive ? 'primary' : 'error'}
+            onClick={() => { void handleEStopConfirm(); }}
+            color="error"
             variant="contained"
             autoFocus
           >
-            {eStopActive ? 'Remove E-Stop' : 'Confirm E-Stop'}
+            Request E-Stop
           </Button>
         </DialogActions>
       </Dialog>
