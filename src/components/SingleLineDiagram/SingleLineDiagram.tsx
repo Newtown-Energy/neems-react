@@ -268,8 +268,9 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({
         <DialogTitle>Request E-Stop?</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            This sends an emergency stop request to the site. The diagram will
-            show the site as stopped only once the RTAC confirms the trip.
+            This sends an emergency stop signal to the site. The diagram will
+            show the site as stopped only if the RTAC then reports a trip —
+            what the site does with the signal is decided on site, not here.
             This action should be used only in a genuine emergency.
           </DialogContentText>
           <DialogContentText sx={{ mt: 2 }}>

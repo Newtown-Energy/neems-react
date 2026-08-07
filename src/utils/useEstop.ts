@@ -9,22 +9,50 @@ import { useSiteContext } from './SiteContext';
 const POLL_INTERVAL_MS = 10_000;
 
 /**
- * Cadence while a request is in flight. An operator watching for their trip to
- * take should not wait out the idle interval.
+ * Cadence while a request is in flight, or just after its signal went out. An
+ * operator watching for the plant to stop should not wait out the idle
+ * interval.
  */
 const ACTIVE_POLL_INTERVAL_MS = 1_000;
 
+/**
+ * How long after the signal reaches the RTAC we keep watching closely for a
+ * trip.
+ *
+ * The RTAC is polled at 10 Hz and readings land at 1 Hz, so a trip shows up
+ * well inside this. It is bounded because "sent but no trip" is a state that
+ * can last indefinitely — the RTAC is entitled to ignore us — and that must
+ * not leave the browser polling every second forever.
+ */
+const WATCH_FOR_TRIP_MS = 60_000;
+
 export interface EstopState {
   /**
-   * Whether the RTAC reports the site tripped. The only field that should
-   * drive "is the site stopped" in the UI.
+   * Whether the RTAC reports the site tripped (alarm 104). The only field that
+   * should drive "is the site stopped" in the UI.
    */
   observedActive: boolean;
   /** The latest request and its lifecycle status, or null if none was made. */
   request: EstopRequestDto | null;
-  /** True while a request is recorded but not yet resolved by the RTAC. */
+  /**
+   * True while a request is recorded but its signal has not reached the RTAC
+   * yet. This is the only genuinely transient state.
+   */
   pending: boolean;
-  /** Message from a request that was dispatched but never took effect. */
+  /**
+   * True once the signal reached the RTAC. Says nothing about whether the plant
+   * stopped — that is `observedActive`, and the two are independent.
+   */
+  sent: boolean;
+  /**
+   * The signal went out and the site still reports no trip. Not a failure of
+   * this system, but the operator needs to know the plant has not stopped.
+   */
+  sentWithoutTrip: boolean;
+  /**
+   * Message from a request whose signal never reached the RTAC at all — the
+   * site was never asked. Distinct from `sentWithoutTrip`, and more serious.
+   */
   failure: string | null;
   /** True while the POST is in flight. */
   submitting: boolean;
@@ -36,17 +64,59 @@ export interface EstopState {
   dismissError: () => void;
 }
 
-function isPending(request: EstopRequestDto | null): boolean {
-  return request?.status === 'pending' || request?.status === 'dispatched';
+/** The signal has not reached the RTAC yet. */
+export function isAwaitingSignal(request: EstopRequestDto | null): boolean {
+  return request?.status === 'pending';
+}
+
+/** The signal reached the RTAC, which is all this system undertakes to do. */
+export function hasBeenSent(request: EstopRequestDto | null): boolean {
+  return request?.status === 'dispatched';
 }
 
 /**
- * Track a site's E-stop: what the RTAC reports and what an operator has asked
- * for.
+ * Why the signal never got out, if it didn't.
  *
- * The two are deliberately separate. Triggering does not flip anything locally
- * — it records a request and then watches `observed_active`, so the UI can only
- * ever claim the site is stopped because the RTAC said so.
+ * Only ever set for a request that could not be delivered — a request is never
+ * failed because the RTAC declined to trip.
+ */
+export function deliveryFailure(request: EstopRequestDto | null): string | null {
+  if (request?.status !== 'failed') return null;
+  return request.failure_reason ?? 'the E-stop signal never reached the site';
+}
+
+/** Backend timestamps are naive UTC; see SocMiniChart for the same handling. */
+function parseUtc(timestamp: string | null | undefined): number | null {
+  if (!timestamp) return null;
+  const ms = new Date(`${timestamp}Z`).getTime();
+  return Number.isNaN(ms) ? null : ms;
+}
+
+/**
+ * Whether to poll at the fast cadence: while a signal is still going out, and
+ * for a bounded window afterwards while we watch for the plant to stop.
+ */
+export function shouldPollQuickly(
+  status: EstopStatusResponse | null,
+  now: number,
+): boolean {
+  const request = status?.request ?? null;
+  if (isAwaitingSignal(request)) return true;
+  if (!hasBeenSent(request) || status?.observed_active) return false;
+
+  const sentAt = parseUtc(request?.dispatched_at);
+  return sentAt != null && now - sentAt < WATCH_FOR_TRIP_MS;
+}
+
+/**
+ * Track a site's E-stop: what the RTAC reports, and what became of an
+ * operator's request.
+ *
+ * The two are deliberately separate and neither stands in for the other.
+ * Triggering records a request and watches it reach the RTAC; whether the
+ * plant then stops is `observedActive`, read from alarm 104. The UI can only
+ * ever claim the site is stopped because the RTAC said so, and can only claim
+ * the operator's ask went out because the collector confirmed the write.
  */
 export function useEstop(enabled = true): EstopState {
   const { selectedSiteId } = useSiteContext();
@@ -85,7 +155,7 @@ export function useEstop(enabled = true): EstopState {
       if (!mounted) return;
       await load();
       if (!mounted) return;
-      const delay = isPending(statusRef.current?.request ?? null)
+      const delay = shouldPollQuickly(statusRef.current, Date.now())
         ? ACTIVE_POLL_INTERVAL_MS
         : POLL_INTERVAL_MS;
       timer = setTimeout(() => { void tick(); }, delay);
@@ -119,12 +189,16 @@ export function useEstop(enabled = true): EstopState {
   const dismissError = useCallback(() => setError(null), []);
 
   const request = status?.request ?? null;
+  const observedActive = status?.observed_active ?? false;
+  const sent = hasBeenSent(request);
 
   return {
-    observedActive: status?.observed_active ?? false,
+    observedActive,
     request,
-    pending: isPending(request),
-    failure: request?.status === 'failed' ? (request.failure_reason ?? 'E-stop did not take effect') : null,
+    pending: isAwaitingSignal(request),
+    sent,
+    sentWithoutTrip: sent && !observedActive,
+    failure: deliveryFailure(request),
     submitting,
     error,
     trigger,

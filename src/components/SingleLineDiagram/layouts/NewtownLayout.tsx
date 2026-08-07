@@ -44,7 +44,7 @@ interface NewtownLayoutProps {
   dispatch: React.Dispatch<SldAction>;
   /** Called when the E-stop button is clicked. Owner displays the confirm dialog. */
   onEStopClicked: () => void;
-  /** An E-stop request is recorded but the site has not confirmed it yet. */
+  /** An E-stop request is recorded but its signal has not reached the site yet. */
   eStopPending?: boolean;
 }
 

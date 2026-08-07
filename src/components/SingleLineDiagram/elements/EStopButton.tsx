@@ -6,7 +6,7 @@ interface EStopButtonProps {
   y: number;
   /** The RTAC reports the site tripped (alarm 104). Read, never authored. */
   active: boolean;
-  /** A request has been recorded but the RTAC has not confirmed it yet. */
+  /** A request is recorded but its signal has not reached the site yet. */
   pending?: boolean;
   onClick: () => void;
 }
@@ -18,10 +18,15 @@ interface EStopButtonProps {
  * presentations:
  *
  * - idle (`!active`): red circle, "E-STOP", clickable.
- * - pending: red circle, "REQUESTING", not clickable — the ask is in flight.
+ * - pending: red circle, "SENDING", not clickable — the signal is on its way.
  * - active: outlined, "E-STOP ACTIVE", not clickable. Software does not clear
  *   a latched E-stop; that happens at the panel, after which alarm 104 drops
  *   and this returns to idle on its own.
+ *
+ * Note that a signal already delivered returns the button to idle rather than
+ * disabling it. A site that was asked and did not trip may be asked again, and
+ * refusing to let an operator re-send is not this component's call to make.
+ * That the last signal went out unheeded is surfaced as a page-level alert.
  *
  * The caller owns confirmation dialogs; this component only reports clicks.
  */
@@ -34,13 +39,13 @@ const EStopButton: React.FC<EStopButtonProps> = ({ x, y, active, pending = false
   const fill = active ? theme.palette.background.paper : red;
   const textColor = active ? red : '#ffffff';
 
-  const label = active ? 'E-STOP' : pending ? 'REQUESTING' : 'E-STOP';
+  const label = active ? 'E-STOP' : pending ? 'SENDING' : 'E-STOP';
   const subLabel = active ? 'ACTIVE' : null;
 
   const title = active
     ? 'E-stop is active — clear it at the panel'
     : pending
-      ? 'E-stop requested, waiting for the site to confirm'
+      ? 'Sending the E-stop signal to the site'
       : 'Request a site-wide emergency stop';
 
   return (

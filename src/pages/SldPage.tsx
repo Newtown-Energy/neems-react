@@ -96,21 +96,33 @@ const SldPage: React.FC = () => {
         </Alert>
       )}
 
-      {/* A request that has been recorded but not yet confirmed by the site.
-          Deliberately not styled as an active E-stop: nothing has tripped
-          until the RTAC says so. */}
+      {/* A request recorded but not yet sent to the site. Deliberately not
+          styled as an active E-stop: nothing has tripped until the RTAC says
+          so. */}
       {!eStopActive && estop.pending && (
         <Alert severity="warning" sx={{ mb: 2 }}>
-          E-Stop requested — waiting for the site to confirm. The diagram will
-          show the site as stopped once the RTAC reports the trip.
+          E-Stop requested — sending the signal to the site.
+        </Alert>
+      )}
+
+      {/* The signal reached the RTAC and the site still reports no trip. The
+          ask was delivered, so this is not a failure of this system; it is
+          news about the plant, and the operator needs it either way. */}
+      {!eStopActive && estop.sentWithoutTrip && (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          E-Stop signal sent to the site. The site has
+          <strong> not </strong>
+          reported a trip. If the plant should have stopped, escalate to on-site
+          personnel — this interface cannot stop it.
         </Alert>
       )}
 
       {estop.failure && !eStopActive && (
         <Alert severity="error" sx={{ mb: 2 }}>
-          E-Stop did not take effect: {estop.failure}. The site is
-          <strong> not </strong>
-          stopped. Escalate to on-site personnel immediately.
+          E-Stop signal could not be delivered: {estop.failure}. The site was
+          <strong> never asked </strong>
+          and is <strong>not</strong> stopped. Escalate to on-site personnel
+          immediately.
         </Alert>
       )}
 

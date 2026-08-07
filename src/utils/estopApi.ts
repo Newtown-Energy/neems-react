@@ -23,9 +23,10 @@ export async function fetchEstopStatus(siteId: number): Promise<EstopStatusRespo
  * Engage-only: there is no counterpart to clear one. A latched E-stop is
  * cleared at the panel, after which alarm 104 drops and the UI follows.
  *
- * Returns the site's status as of the request. `observed_active` will still be
- * false until the RTAC confirms the trip — the request is an ask, not a state
- * change.
+ * The request asks the *site* to trip. It resolves once the signal reaches the
+ * RTAC, which is all the backend undertakes to do; whether the plant then stops
+ * is reported separately by `observed_active`, and may never happen. A returned
+ * request is an ask that has been recorded, not a state change.
  */
 export async function requestEstop(siteId: number): Promise<EstopStatusResponse> {
   return await apiRequestWithMapping<EstopStatusResponse>(
