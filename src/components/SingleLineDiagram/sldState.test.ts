@@ -140,3 +140,38 @@ describe('sldReducer alarm routing', () => {
     expect(state.border).toBeNull();
   });
 });
+
+describe('sldReducer E-stop mode', () => {
+  test('operationalMode follows alarm 104 from the site', () => {
+    const state = apply([
+      alarm({ alarm_num: 104, zone: 'BreakerRelay', name: 'estop', severity: 'Critical' }),
+    ]);
+    expect(state.operationalMode).toBe('e-stop-active');
+  });
+
+  test('operationalMode stays normal when the site reports no E-stop', () => {
+    const state = apply([
+      alarm({ alarm_num: 107, zone: 'BreakerRelay', sld_targets: ['Relay'] }),
+    ]);
+    expect(state.operationalMode).toBe('normal');
+  });
+
+  test('operationalMode clears when alarm 104 drops', () => {
+    // Cleared at the panel: no client action resets this, the alarm simply
+    // stops arriving and the diagram follows.
+    const tripped = apply([
+      alarm({ alarm_num: 104, zone: 'BreakerRelay', name: 'estop', severity: 'Critical' }),
+    ]);
+    expect(tripped.operationalMode).toBe('e-stop-active');
+
+    const cleared = sldReducer(tripped, { type: 'UPDATE_ALARMS', alarms: response([]) });
+    expect(cleared.operationalMode).toBe('normal');
+  });
+
+  test('an unrelated critical alarm does not read as an E-stop', () => {
+    const state = apply([
+      alarm({ alarm_num: 401, zone: 'Facp', severity: 'Emergency', sld_targets: ['FACP'] }),
+    ]);
+    expect(state.operationalMode).toBe('normal');
+  });
+});

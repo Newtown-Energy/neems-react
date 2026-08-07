@@ -1,8 +1,10 @@
 import type { ActiveAlarmsResponse, AlarmSeverityDto, AlarmZoneDto } from '@newtown-energy/types';
 import { getSeverityOrder } from '../../utils/alarmHelpers';
+import { ESTOP_ALARM_NUM } from '../../utils/estopApi';
 import { resolveAlarmSeverity } from '../../config/siteConfig';
 import type {
   ActiveAlarmSummary,
+  OperationalMode,
   SldBorderState,
   SldComponentState,
   SldDiagramState,
@@ -59,7 +61,6 @@ export type SldAction =
   | { type: 'UPDATE_ALARMS'; alarms: ActiveAlarmsResponse }
   | { type: 'TOGGLE_BREAKER'; componentId: string }
   | { type: 'SET_SWITCH_POSITION'; componentId: string; position: 'open' | 'closed' }
-  | { type: 'SET_ESTOP_ACTIVE'; active: boolean }
   | { type: 'SET_POWER_FLOW'; wireId: string; direction: PowerFlowDirection }
   | { type: 'MARK_STALE' };
 
@@ -140,10 +141,21 @@ function applyAlarms(
 
   const border: SldBorderState = borderSeverity ? { severity: borderSeverity } : null;
 
+  // E-stop is read from the site, never authored here. Alarm 104 is what the
+  // RTAC raises when the site is tripped, so the diagram's operational mode
+  // follows it directly — the same update that lights the alarm also locks the
+  // switches out, keeping the two from ever disagreeing.
+  const operationalMode: OperationalMode = alarms.alarms.some(
+    (a) => a.alarm_num === ESTOP_ALARM_NUM,
+  )
+    ? 'e-stop-active'
+    : 'normal';
+
   return {
     ...state,
     components: updatedComponents,
     border,
+    operationalMode,
     lastAlarmUpdate: alarms.timestamp,
     dataAgeSeconds:
       alarms.data_age_seconds != null ? Number(alarms.data_age_seconds) : null,
@@ -191,12 +203,6 @@ export function sldReducer(
         },
       };
     }
-
-    case 'SET_ESTOP_ACTIVE':
-      return {
-        ...state,
-        operationalMode: action.active ? 'e-stop-active' : 'normal',
-      };
 
     case 'SET_POWER_FLOW': {
       const wire = state.wires[action.wireId];

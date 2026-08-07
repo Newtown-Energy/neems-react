@@ -41,32 +41,22 @@ describe('SLD Page Tests', () => {
   });
 
   it('should render the E-Stop button inside the diagram', async () => {
-    // Wait for the diagram to mount and the EStopButton group to appear.
-    await page.waitForFunction(
-      () => {
-        const groups = Array.from(document.querySelectorAll('g')) as SVGGElement[];
-        return groups.some(g => {
-          const children = Array.from(g.children);
-          const hasEStopText = children.some(c => c.tagName.toLowerCase() === 'text' && c.textContent === 'E-STOP');
-          const hasBigCircle = children.some(c => c.tagName.toLowerCase() === 'circle' && c.getAttribute('r') === '44');
-          return hasEStopText && hasBigCircle;
-        });
-      },
-      { timeout: 5000 }
+    await page.waitForSelector('[data-testid="sld-estop-button"]', { timeout: 5000 });
+  });
+
+  it('should render the E-Stop button as idle when the site is not tripped', async () => {
+    // The button reports what the site reports. With no E-stop alarm active it
+    // must be actionable rather than showing a trip the RTAC never reported.
+    const state = await page.$eval(
+      '[data-testid="sld-estop-button"]',
+      el => el.getAttribute('data-estop-state')
     );
+    expect(state).toBe('idle');
   });
 
   it('should open the E-Stop confirmation dialog when clicked', async () => {
-    // Find the EStopButton g (one with E-STOP text and r=44 circle as direct children)
-    // and click via mouse coordinates from its bounding box.
     const rect = await page.evaluate(() => {
-      const groups = Array.from(document.querySelectorAll('g')) as SVGGElement[];
-      const target = groups.find(g => {
-        const children = Array.from(g.children);
-        const hasEStopText = children.some(c => c.tagName.toLowerCase() === 'text' && c.textContent === 'E-STOP');
-        const hasBigCircle = children.some(c => c.tagName.toLowerCase() === 'circle' && c.getAttribute('r') === '44');
-        return hasEStopText && hasBigCircle;
-      });
+      const target = document.querySelector('[data-testid="sld-estop-button"]');
       if (!target) return null;
       const r = target.getBoundingClientRect();
       return { x: r.x, y: r.y, width: r.width, height: r.height };
@@ -77,10 +67,13 @@ describe('SLD Page Tests', () => {
     await page.waitForSelector('[role="dialog"]', { timeout: 5000 });
 
     const dialogText = await page.$eval('[role="dialog"]', el => el.textContent || '');
-    expect(dialogText).toMatch(/Confirm E-Stop/i);
+    // Engage-only: the dialog asks for a trip and says so, and tells the
+    // operator this is not how an E-stop gets cleared.
+    expect(dialogText).toMatch(/Request E-Stop/i);
+    expect(dialogText).toMatch(/reset at the panel/i);
   });
 
-  it('should dismiss the E-Stop dialog via Cancel without arming E-Stop', async () => {
+  it('should dismiss the E-Stop dialog via Cancel without requesting an E-Stop', async () => {
     const cancelButton = await findButtonByText(page, ['Cancel']);
     expect(await cancelButton.evaluate((el: any) => !!el)).toBe(true);
     await cancelButton.click();
@@ -89,8 +82,15 @@ describe('SLD Page Tests', () => {
     const dialog = await page.$('[role="dialog"]');
     expect(dialog).toBeNull();
 
-    // Confirm we did not arm E-Stop: the page should NOT show the active banner.
+    // Neither a trip nor a request should have been recorded.
     const content = await page.content();
     expect(content).not.toContain('E-Stop is active.');
+    expect(content).not.toContain('E-Stop requested');
+
+    const state = await page.$eval(
+      '[data-testid="sld-estop-button"]',
+      el => el.getAttribute('data-estop-state')
+    );
+    expect(state).toBe('idle');
   });
 });
