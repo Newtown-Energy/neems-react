@@ -27,6 +27,7 @@ import { Download, Refresh } from '@mui/icons-material';
 import type {
   AlarmDefinitionDto,
   AlarmHistoryEntry,
+  AlarmHistoryEventDto,
 } from '@newtown-energy/types';
 import { fetchActiveAlarms, fetchAlarmDefinitions, fetchAlarmHistory } from '../utils/alarmApi';
 import {
@@ -42,6 +43,24 @@ export const pageConfig = {
   id: 'fdny',
   title: 'FDNY',
   iconPath: '/FDNY.svg',
+};
+
+/** Operator-facing label per event kind.
+ *
+ *  Switch on `entry.event`, never on the legacy `entry.active` boolean:
+ *  acknowledgements report `active: false`, so the old two-state view
+ *  labelled every ack as "Cleared" — telling a fire department the alarm
+ *  returned to normal when a human had merely said they'd seen it. */
+const EVENT_LABEL: Record<AlarmHistoryEventDto, string> = {
+  Activated: 'Activated',
+  Cleared: 'Cleared',
+  Acknowledged: 'Acknowledged',
+};
+
+const EVENT_COLOR: Record<AlarmHistoryEventDto, string> = {
+  Activated: 'error.main',
+  Cleared: 'text.secondary',
+  Acknowledged: 'info.main',
 };
 
 function startOfDaysAgo(days: number): Date {
@@ -139,7 +158,16 @@ const FDNYPage: React.FC = () => {
   }, [definitions]);
 
   const handleExportCsv = useCallback(() => {
-    const headers = ['Time', 'Alarm', 'Zone', 'Severity', 'Transition', 'Status'];
+    const headers = [
+      'Time',
+      'Alarm',
+      'Zone',
+      'Severity',
+      'Event',
+      'Acknowledged by',
+      'Note',
+      'Status',
+    ];
     const rows = sortedEntries.map((entry) => {
       const def = definitionsByNum.get(entry.alarm_num);
       const severity = resolveAlarmSeverity(
@@ -151,7 +179,9 @@ const FDNYPage: React.FC = () => {
         formatAlarmName(entry.name),
         ZONE_DISPLAY_NAMES[entry.zone],
         severity,
-        entry.active ? 'Activated' : 'Cleared',
+        EVENT_LABEL[entry.event],
+        entry.acknowledged_by_email ?? '',
+        entry.note ?? '',
         isCurrentRow(entry) ? 'CURRENT' : '',
       ];
     });
@@ -277,7 +307,8 @@ const FDNYPage: React.FC = () => {
                       <TableCell>Alarm</TableCell>
                       <TableCell>Zone</TableCell>
                       <TableCell>Severity</TableCell>
-                      <TableCell>Transition</TableCell>
+                      <TableCell>Event</TableCell>
+                      <TableCell>Acknowledged by</TableCell>
                       <TableCell>Status</TableCell>
                     </TableRow>
                   </TableHead>
@@ -307,11 +338,19 @@ const FDNYPage: React.FC = () => {
                           <TableCell>
                             <Typography
                               variant="body2"
-                              color={entry.active ? 'error.main' : 'text.secondary'}
-                              sx={{ fontWeight: entry.active ? 600 : 400 }}
+                              color={EVENT_COLOR[entry.event]}
+                              sx={{ fontWeight: entry.event === 'Activated' ? 600 : 400 }}
                             >
-                              {entry.active ? 'Activated' : 'Cleared'}
+                              {EVENT_LABEL[entry.event]}
                             </Typography>
+                          </TableCell>
+                          <TableCell>
+                            {entry.event === 'Acknowledged' && (
+                              <Typography variant="body2" color="text.secondary">
+                                {entry.acknowledged_by_email ?? '—'}
+                                {entry.note ? ` — ${entry.note}` : ''}
+                              </Typography>
+                            )}
                           </TableCell>
                           <TableCell>
                             {current && (

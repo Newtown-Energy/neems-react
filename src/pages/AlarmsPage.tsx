@@ -99,15 +99,25 @@ type HistoryState =
 const HISTORY_WINDOW_DAYS = 30;
 
 /** Human-readable label for an alarm's acknowledgement status. */
-function statusLabel(status: AlarmStatusDto): string {
+/** The alarm's data state — whether the condition is physically present.
+ *
+ *  Acknowledgement is a separate, orthogonal axis: acking an alarm records that
+ *  someone has seen it, and does nothing to the condition itself. Labelling an
+ *  acknowledged-but-still-firing alarm "Acknowledged" implied it had stopped,
+ *  so the two are reported independently — this label, plus [isAcknowledged]. */
+function dataStateLabel(status: AlarmStatusDto): string {
   switch (status) {
     case 'Active':
-      return 'Active';
     case 'AcknowledgedActive':
-      return 'Acknowledged';
+      return 'Active';
     case 'ReturnedUnacknowledged':
-      return 'Returned — needs ack';
+      return 'Cleared';
   }
+}
+
+/** Whether the alarm has been acknowledged since it last went active. */
+function isAcknowledged(status: AlarmStatusDto): boolean {
+  return status === 'AcknowledgedActive';
 }
 
 type SortKey = 'activations' | 'name' | 'severity' | 'zone';
@@ -549,7 +559,7 @@ const AlarmsPage: React.FC = () => {
                     <TableCell>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <Chip
-                          label={alarm.status ? statusLabel(alarm.status) : 'OK'}
+                          label={alarm.status ? dataStateLabel(alarm.status) : 'OK'}
                           color={alarm.active ? getSeverityColor(alarm.severity) : 'default'}
                           // Solid only while currently firing AND unacked. Acked
                           // and returned-but-unacked alarms render hollow; the
@@ -563,6 +573,9 @@ const AlarmsPage: React.FC = () => {
                               : undefined
                           }
                         />
+                        {alarm.status && isAcknowledged(alarm.status) && (
+                          <Chip label="Acknowledged" size="small" variant="outlined" />
+                        )}
                         {(alarm.status === 'Active' ||
                           alarm.status === 'ReturnedUnacknowledged') && (
                           <Button
