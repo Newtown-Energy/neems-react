@@ -2,7 +2,6 @@ import React from 'react';
 import { useTheme } from '@mui/material';
 import type { SldComponentState } from '../types';
 import { severityColor } from './useStatusColors';
-import { useAllAlarmsAcknowledged } from '../../../utils/alarmAcknowledge';
 
 interface AlarmGlowProps {
   state: SldComponentState;
@@ -24,10 +23,11 @@ interface AlarmGlowProps {
  * local coordinate space (assumes the parent has already translated to the
  * entity's center) so callers only need to provide the entity's half-size.
  *
- * When *all* of the component's active alarms have been acknowledged via
- * [acknowledgeAlarm], the glow renders without its pulse animation so
- * the operator isn't visually pestered — the static color remains as a
- * findable cue that the alarm is still present.
+ * The glow pulses only while at least one currently-active alarm is still
+ * unacknowledged (`status === 'Active'`). Once every active alarm on the
+ * component has been acknowledged (`AcknowledgedActive`), the glow renders
+ * without its pulse animation so the operator isn't visually pestered — the
+ * static color remains as a findable cue that the alarm is still present.
  */
 const AlarmGlow: React.FC<AlarmGlowProps> = ({
   state,
@@ -38,9 +38,6 @@ const AlarmGlow: React.FC<AlarmGlowProps> = ({
   padding = 5,
 }) => {
   const theme = useTheme();
-  const allAcked = useAllAlarmsAcknowledged(
-    state.activeAlarms.map(a => a.alarm_num)
-  );
 
   if (!state.highestSeverity) return null;
   const shouldPulse =
@@ -48,7 +45,10 @@ const AlarmGlow: React.FC<AlarmGlowProps> = ({
   if (!shouldPulse) return null;
 
   const color = severityColor(state.highestSeverity, theme);
-  const animate = !allAcked;
+  // Pulse only while something is still firing AND unacknowledged. A
+  // ReturnedUnacknowledged alarm is no longer firing, so it doesn't drive the
+  // pulsing glow (the AlarmIndicator badge carries its distinct cue instead).
+  const animate = state.activeAlarms.some((a) => a.status === 'Active');
 
   // No stroke on the glow — the parent entity already renders a severity-tinted
   // stroke via useStatusColors, so an outlined halo here would read as a

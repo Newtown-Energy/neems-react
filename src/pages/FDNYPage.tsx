@@ -27,6 +27,7 @@ import { Download, Refresh } from '@mui/icons-material';
 import type {
   AlarmDefinitionDto,
   AlarmHistoryEntry,
+  AlarmHistoryEventDto,
 } from '@newtown-energy/types';
 import { fetchActiveAlarms, fetchAlarmDefinitions, fetchAlarmHistory } from '../utils/alarmApi';
 import {
@@ -42,6 +43,24 @@ export const pageConfig = {
   id: 'fdny',
   title: 'FDNY',
   iconPath: '/FDNY.svg',
+};
+
+/** Operator-facing label per event kind.
+ *
+ *  Switch on `entry.event`, never on the legacy `entry.active` boolean:
+ *  acknowledgements report `active: false`, so the old two-state view
+ *  labelled every ack as "Cleared" — telling a fire department the alarm
+ *  returned to normal when a human had merely said they'd seen it. */
+const EVENT_LABEL: Record<AlarmHistoryEventDto, string> = {
+  Activated: 'Activated',
+  Cleared: 'Cleared',
+  Acknowledged: 'Acknowledged',
+};
+
+const EVENT_COLOR: Record<AlarmHistoryEventDto, string> = {
+  Activated: 'error.main',
+  Cleared: 'text.secondary',
+  Acknowledged: 'info.main',
 };
 
 function startOfDaysAgo(days: number): Date {
@@ -69,6 +88,13 @@ function fromLocalInput(s: string): Date {
 const FDNYPage: React.FC = () => {
   const [from, setFrom] = useState<Date>(() => startOfDaysAgo(7));
   const [to, setTo] = useState<Date>(() => new Date());
+  /** True once the operator picks an explicit end date.
+   *
+   *  Until then `to` means "now" and Refresh advances it. Without this the
+   *  bound stays frozen at mount, so nothing that happens while the page is
+   *  open can ever enter the range — refreshing looks like it works (the
+   *  "Updated" time ticks) while silently querying a stale window. */
+  const [toPinned, setToPinned] = useState(false);
   const [alarmNumFilter, setAlarmNumFilter] = useState<number[]>([]);
   const [definitions, setDefinitions] = useState<AlarmDefinitionDto[]>([]);
   const [entries, setEntries] = useState<AlarmHistoryEntry[]>([]);
@@ -92,7 +118,14 @@ const FDNYPage: React.FC = () => {
         fetchActiveAlarms(),
       ]);
       setEntries(history.entries);
-      setActiveAlarmNums(new Set(active.alarms.map((a) => a.alarm_num)));
+      // Only alarms whose condition is physically present. `/Alarms/Active`
+      // also returns latched ones (ReturnedUnacknowledged, `data_active:
+      // false`) that are visible but no longer firing — counting those as
+      // "active now" made a cleared alarm's latest transition disagree with
+      // present state, costing it the CURRENT tag.
+      setActiveAlarmNums(
+        new Set(active.alarms.filter((a) => a.data_active).map((a) => a.alarm_num)),
+      );
       setLastRefresh(new Date());
     } catch (err) {
       setError('Failed to load alarm history');
@@ -106,11 +139,27 @@ const FDNYPage: React.FC = () => {
     load();
   }, [load]);
 
+  /** Refresh. With `to` still meaning "now", advance it so anything that
+   *  happened since the page opened comes into range; the state change
+   *  re-triggers `load`. With an explicit end date, just re-run the query. */
+  const handleRefresh = useCallback(() => {
+    if (toPinned) {
+      void load();
+    } else {
+      setTo(new Date());
+    }
+  }, [toPinned, load]);
+
   // Compute the "current status" row per alarm_num — the chronologically-latest
   // transition wins, and only if its active/cleared value matches today's state.
+  //
+  // Only data-state transitions are eligible. An acknowledgement says nothing
+  // about whether the condition is still present, so letting one win here would
+  // tag it CURRENT on the strength of its `active: false` placeholder.
   const latestByAlarmNum = useMemo(() => {
     const m = new Map<number, AlarmHistoryEntry>();
     for (const e of entries) {
+      if (e.event === 'Acknowledged') continue;
       // Backend returns entries in ascending chronological order, so the last
       // write wins — giving us the most recent transition per alarm.
       m.set(e.alarm_num, e);
@@ -118,11 +167,18 @@ const FDNYPage: React.FC = () => {
     return m;
   }, [entries]);
 
+  /** True for the row describing an alarm's present data state.
+   *
+   *  That is the newest Activated/Cleared entry for the alarm — acknowledgements
+   *  say nothing about whether the condition is present — and only when it
+   *  agrees with what the alarm is doing right now. The agreement check matters
+   *  when the range ends in the past: the newest transition inside a window
+   *  that closed last week is history, not current state. */
   const isCurrentRow = useCallback(
     (entry: AlarmHistoryEntry): boolean => {
       if (latestByAlarmNum.get(entry.alarm_num) !== entry) return false;
       const isActiveNow = activeAlarmNums.has(entry.alarm_num);
-      return entry.active === isActiveNow;
+      return (entry.event === 'Activated') === isActiveNow;
     },
     [latestByAlarmNum, activeAlarmNums],
   );
@@ -139,7 +195,16 @@ const FDNYPage: React.FC = () => {
   }, [definitions]);
 
   const handleExportCsv = useCallback(() => {
-    const headers = ['Time', 'Alarm', 'Zone', 'Severity', 'Transition', 'Status'];
+    const headers = [
+      'Time',
+      'Alarm',
+      'Zone',
+      'Severity',
+      'Event',
+      'Acknowledged by',
+      'Note',
+      'Status',
+    ];
     const rows = sortedEntries.map((entry) => {
       const def = definitionsByNum.get(entry.alarm_num);
       const severity = resolveAlarmSeverity(
@@ -151,7 +216,9 @@ const FDNYPage: React.FC = () => {
         formatAlarmName(entry.name),
         ZONE_DISPLAY_NAMES[entry.zone],
         severity,
-        entry.active ? 'Activated' : 'Cleared',
+        EVENT_LABEL[entry.event],
+        entry.acknowledged_by_email ?? '',
+        entry.note ?? '',
         isCurrentRow(entry) ? 'CURRENT' : '',
       ];
     });
@@ -177,7 +244,7 @@ const FDNYPage: React.FC = () => {
               Updated {lastRefresh.toLocaleTimeString()}
             </Typography>
           )}
-          <IconButton onClick={load} size="small" title="Refresh" disabled={loading}>
+          <IconButton onClick={handleRefresh} size="small" title="Refresh" disabled={loading}>
             <Refresh />
           </IconButton>
         </Box>
@@ -199,7 +266,10 @@ const FDNYPage: React.FC = () => {
               label="To"
               size="small"
               value={toLocalInput(to)}
-              onChange={(e) => setTo(fromLocalInput(e.target.value))}
+              onChange={(e) => {
+                setTo(fromLocalInput(e.target.value));
+                setToPinned(true);
+              }}
               slotProps={{ inputLabel: { shrink: true } }}
             />
             <FormControl size="small" sx={{ minWidth: 240, flex: 1 }}>
@@ -277,7 +347,8 @@ const FDNYPage: React.FC = () => {
                       <TableCell>Alarm</TableCell>
                       <TableCell>Zone</TableCell>
                       <TableCell>Severity</TableCell>
-                      <TableCell>Transition</TableCell>
+                      <TableCell>Event</TableCell>
+                      <TableCell>Acknowledged by</TableCell>
                       <TableCell>Status</TableCell>
                     </TableRow>
                   </TableHead>
@@ -307,11 +378,19 @@ const FDNYPage: React.FC = () => {
                           <TableCell>
                             <Typography
                               variant="body2"
-                              color={entry.active ? 'error.main' : 'text.secondary'}
-                              sx={{ fontWeight: entry.active ? 600 : 400 }}
+                              color={EVENT_COLOR[entry.event]}
+                              sx={{ fontWeight: entry.event === 'Activated' ? 600 : 400 }}
                             >
-                              {entry.active ? 'Activated' : 'Cleared'}
+                              {EVENT_LABEL[entry.event]}
                             </Typography>
+                          </TableCell>
+                          <TableCell>
+                            {entry.event === 'Acknowledged' && (
+                              <Typography variant="body2" color="text.secondary">
+                                {entry.acknowledged_by_email ?? '—'}
+                                {entry.note ? ` — ${entry.note}` : ''}
+                              </Typography>
+                            )}
                           </TableCell>
                           <TableCell>
                             {current && (
