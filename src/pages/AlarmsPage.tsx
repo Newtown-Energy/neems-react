@@ -72,7 +72,7 @@ const ZONE_OPTIONS: AlarmZoneDto[] = Object.keys(ZONE_DISPLAY_NAMES) as AlarmZon
 
 const POLL_INTERVAL_MS = 10_000;
 
-/** A row in the alarm table — either active or inactive */
+/** A row in the alarm table — either outstanding or a quiet definition */
 interface AlarmRow {
   alarm_num: number;
   zone: AlarmZoneDto;
@@ -81,7 +81,14 @@ interface AlarmRow {
   /** Operator-facing message from the alarm spreadsheet; null when none. */
   message: string | null;
   severity: AlarmSeverityDto;
-  active: boolean;
+  /** The alarm is outstanding: the backend still reports it, because it is
+   *  firing now *or* it returned to normal without being acknowledged.
+   *
+   *  Deliberately not called `active` — a latched `ReturnedUnacknowledged`
+   *  alarm has `data_active: false` and is not firing, but still demands the
+   *  operator's attention, so it sorts, filters and colours like one. Read
+   *  `status` when you need to know whether the condition is present. */
+  visible: boolean;
   /** Server-authoritative acknowledgement status when the alarm is currently
    *  visible (active or latched); `null` for an inactive definition row. */
   status: AlarmStatusDto | null;
@@ -98,7 +105,6 @@ type HistoryState =
 
 const HISTORY_WINDOW_DAYS = 30;
 
-/** Human-readable label for an alarm's acknowledgement status. */
 /** The alarm's data state — whether the condition is physically present.
  *
  *  Acknowledgement is a separate, orthogonal axis: acking an alarm records that
@@ -136,9 +142,10 @@ const AlarmsPage: React.FC = () => {
   /** Activation counts per alarm over the last [HISTORY_WINDOW_DAYS] days. */
   const [activationCounts, setActivationCounts] = useState<Record<number, number>>({});
   const [groupByCategory, setGroupByCategory] = useState<boolean>(true);
-  /** Show only currently-active alarms. On by default — the operator
-   *  cares about what's firing now; flip off to browse every definition. */
-  const [activeOnly, setActiveOnly] = useState<boolean>(true);
+  /** Show only outstanding alarms — firing now, or returned to normal and
+   *  still awaiting acknowledgement. On by default: the operator cares about
+   *  what needs action; flip off to browse every definition. */
+  const [outstandingOnly, setOutstandingOnly] = useState<boolean>(true);
   const [sortKey, setSortKey] = useState<SortKey>('activations');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   /** alarm_num currently being acknowledged (disables its button), or null. */
@@ -254,7 +261,7 @@ const AlarmsPage: React.FC = () => {
         name: def.name,
         message: def.message ?? null,
         severity: resolveAlarmSeverity(def.alarm_num, def.severity),
-        active: activeAlarm != null,
+        visible: activeAlarm != null,
         status: activeAlarm?.status ?? null,
         acknowledgedByEmail: activeAlarm?.acknowledged_by_email ?? null,
         activations30d: activationCounts[def.alarm_num] ?? 0,
@@ -275,9 +282,9 @@ const AlarmsPage: React.FC = () => {
 
   const compareRows = useCallback(
     (a: AlarmRow, b: AlarmRow): number => {
-      // Active alarms always above inactive — the operator wants the
-      // current state first regardless of sort.
-      if (a.active !== b.active) return a.active ? -1 : 1;
+      // Outstanding alarms always above quiet ones — the operator wants
+      // what needs attention first, regardless of sort.
+      if (a.visible !== b.visible) return a.visible ? -1 : 1;
       const dir = sortDir === 'asc' ? 1 : -1;
       switch (sortKey) {
         case 'activations':
@@ -295,7 +302,7 @@ const AlarmsPage: React.FC = () => {
 
   const filteredRows = allRows
     .filter((a) => {
-      if (activeOnly && !a.active) return false;
+      if (outstandingOnly && !a.visible) return false;
       if (severityFilter.length > 0 && !severityFilter.includes(a.severity)) return false;
       if (zoneFilter && a.zone !== zoneFilter) return false;
       return true;
@@ -303,7 +310,7 @@ const AlarmsPage: React.FC = () => {
     .slice()
     .sort(compareRows);
 
-  const activeCount = filteredRows.filter((r) => r.active).length;
+  const outstandingCount = filteredRows.filter((r) => r.visible).length;
 
   // Group rows by category for the accordion view. Categories appear in
   // ALARM_CATEGORY_ORDER even when empty? No — drop empty buckets so
@@ -394,12 +401,12 @@ const AlarmsPage: React.FC = () => {
           <FormControlLabel
             control={
               <Switch
-                checked={activeOnly}
-                onChange={(e) => setActiveOnly(e.target.checked)}
+                checked={outstandingOnly}
+                onChange={(e) => setOutstandingOnly(e.target.checked)}
                 size="small"
               />
             }
-            label="Active only"
+            label="Outstanding only"
           />
           <FormControl size="small" sx={{ minWidth: 200 }}>
             <InputLabel>Filter by Zone</InputLabel>
@@ -438,7 +445,7 @@ const AlarmsPage: React.FC = () => {
             />
           )}
           <Typography variant="body2" color="text.secondary" sx={{ ml: 'auto' }}>
-            {activeCount} active of {filteredRows.length} shown
+            {outstandingCount} outstanding of {filteredRows.length} shown
           </Typography>
         </CardContent>
       </Card>
@@ -457,12 +464,12 @@ const AlarmsPage: React.FC = () => {
       ) : groupByCategory ? (
         <Box>
           {rowsByCategory.map(({ category, rows }) => {
-            const activeRows = rows.filter((r) => r.active);
-            const activeInCategory = activeRows.length;
+            const outstandingRows = rows.filter((r) => r.visible);
+            const outstandingInCategory = outstandingRows.length;
             const totalActivations = rows.reduce((s, r) => s + r.activations30d, 0);
             // Color the "N active" chip by the most urgent active alarm in
             // the bucket (lowest severity order = most urgent).
-            const mostUrgentActiveSeverity = activeRows.reduce<AlarmSeverityDto | null>(
+            const mostUrgentActiveSeverity = outstandingRows.reduce<AlarmSeverityDto | null>(
               (most, r) =>
                 most === null || getSeverityOrder(r.severity) < getSeverityOrder(most)
                   ? r.severity
@@ -476,9 +483,9 @@ const AlarmsPage: React.FC = () => {
                     <Typography variant="h6" sx={{ flexGrow: 0 }}>
                       {category}
                     </Typography>
-                    {activeInCategory > 0 && (
+                    {outstandingInCategory > 0 && (
                       <Chip
-                        label={`${activeInCategory} active`}
+                        label={`${outstandingInCategory} outstanding`}
                         color={
                           mostUrgentActiveSeverity
                             ? getSeverityColor(mostUrgentActiveSeverity)
@@ -543,7 +550,7 @@ const AlarmsPage: React.FC = () => {
                 <React.Fragment key={alarm.alarm_num}>
                   <TableRow
                     sx={{
-                      ...(alarm.active ? {} : { opacity: 0.45 }),
+                      ...(alarm.visible ? {} : { opacity: 0.45 }),
                       '& > *': { borderBottom: 'unset' },
                     }}
                   >
@@ -560,7 +567,7 @@ const AlarmsPage: React.FC = () => {
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <Chip
                           label={alarm.status ? dataStateLabel(alarm.status) : 'OK'}
-                          color={alarm.active ? getSeverityColor(alarm.severity) : 'default'}
+                          color={alarm.visible ? getSeverityColor(alarm.severity) : 'default'}
                           // Solid only while currently firing AND unacked. Acked
                           // and returned-but-unacked alarms render hollow; the
                           // returned blip additionally gets a dashed border so it
@@ -607,8 +614,8 @@ const AlarmsPage: React.FC = () => {
                     <TableCell>
                       <Chip
                         label={alarm.severity}
-                        color={alarm.active ? getSeverityColor(alarm.severity) : 'default'}
-                        variant={alarm.active ? 'filled' : 'outlined'}
+                        color={alarm.visible ? getSeverityColor(alarm.severity) : 'default'}
+                        variant={alarm.visible ? 'filled' : 'outlined'}
                         size="small"
                       />
                     </TableCell>
