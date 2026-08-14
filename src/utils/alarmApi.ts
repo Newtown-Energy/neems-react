@@ -3,6 +3,7 @@ import type {
   ActiveAlarmsResponse,
   AlarmDefinitionsResponse,
   AlarmHistoryResponse,
+  DemoAlarmStateResponse,
   ForcedAlarmsResponse,
 } from '@newtown-energy/types';
 import { apiRequestWithMapping } from './api';
@@ -40,6 +41,33 @@ export async function fetchAlarmHistory(
  */
 export async function fetchForcedAlarms(): Promise<ForcedAlarmsResponse> {
   return await apiRequestWithMapping<ForcedAlarmsResponse>('/api/1/Alarms/Forced');
+}
+
+/**
+ * Read demo alarm data-state: every alarm that has transitioned, plus the
+ * numbers currently active. Demo mode only; admin / newtown-admin /
+ * newtown-staff only.
+ */
+export async function fetchDemoAlarmState(): Promise<DemoAlarmStateResponse> {
+  return await apiRequestWithMapping<DemoAlarmStateResponse>('/api/1/Demo/AlarmState');
+}
+
+/**
+ * Activate or deactivate a single alarm for a demo.
+ *
+ * This writes a real data-state transition, so it behaves like the RTAC feed
+ * would: deactivating an alarm does NOT hide it. An alarm that has not been
+ * acknowledged since it fired stays visible as `ReturnedUnacknowledged` until
+ * an operator acknowledges it, which is the point of the latch.
+ */
+export async function setDemoAlarmState(
+  alarmNum: number,
+  active: boolean
+): Promise<DemoAlarmStateResponse> {
+  return await apiRequestWithMapping<DemoAlarmStateResponse>('/api/1/Demo/AlarmState', {
+    method: 'POST',
+    body: JSON.stringify({ alarm_num: alarmNum, active }),
+  });
 }
 
 /**
