@@ -13,7 +13,7 @@
  * view-only users — non-admins simply see no button.
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Badge,
   Box,
@@ -140,14 +140,24 @@ const DemoControlsDrawer: React.FC<DemoControlsDrawerProps> = ({
   }, [open]);
 
   /** Raise or lower one alarm, optimistically reflecting it in the drawer. */
+  /** Sequence number of the most recently issued alarm write.
+   *
+   *  Each response carries the whole active set, so applying a slow response
+   *  after a newer one has already landed rewinds the drawer to a stale set —
+   *  an alarm reappearing after it was lowered. Only the newest request is
+   *  allowed to publish its result. */
+  const alarmWriteSeq = useRef(0);
+
   const updateAlarm = useCallback(
     async (num: number, active: boolean) => {
       setForcedAlarmNums(prev =>
         active ? (prev.includes(num) ? prev : [...prev, num]) : prev.filter(n => n !== num)
       );
+      alarmWriteSeq.current += 1;
+      const seq = alarmWriteSeq.current;
       try {
         const resp = await setDemoAlarmState(num, active);
-        setForcedAlarmNums(resp.active_alarm_nums);
+        if (seq === alarmWriteSeq.current) setForcedAlarmNums(resp.active_alarm_nums);
       } catch (err) {
         errorLog('failed to update demo alarm state', err);
       }
@@ -172,11 +182,28 @@ const DemoControlsDrawer: React.FC<DemoControlsDrawerProps> = ({
 
   const handleReset = useCallback(() => {
     reset();
+    const raised = forcedAlarmNums;
+    if (raised.length === 0) return;
+
     // Lower each raised alarm individually; they latch rather than vanish.
-    for (const num of forcedAlarmNums) {
-      void updateAlarm(num, false);
-    }
-  }, [reset, forcedAlarmNums, updateAlarm]);
+    // Sequentially, then reconcile once: firing them together let responses
+    // land out of order, and since each carries the whole active set the last
+    // one to arrive could reinstate an alarm that had already been lowered.
+    setForcedAlarmNums([]);
+    alarmWriteSeq.current += 1;
+    const seq = alarmWriteSeq.current;
+    void (async () => {
+      try {
+        for (const num of raised) {
+          await setDemoAlarmState(num, false);
+        }
+        const current = await fetchDemoAlarmState();
+        if (seq === alarmWriteSeq.current) setForcedAlarmNums(current.active_alarm_nums);
+      } catch (err) {
+        errorLog('failed to reset demo alarms', err);
+      }
+    })();
+  }, [reset, forcedAlarmNums]);
 
   // Inject simulated history. Unlike the tab-local overrides above, this asks
   // the backend to generate SoC + alarm readings for the selected site so the
