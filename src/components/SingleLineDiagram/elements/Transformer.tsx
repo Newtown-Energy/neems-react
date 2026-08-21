@@ -29,9 +29,9 @@ function windingPath(y0: number, loops: number, r: number, dir: number): string 
  * Transformer: the conventional two-winding symbol — two rows of semicircular
  * coil lobes (primary above, secondary below) whose convex faces meet across
  * the central gap, with the open side of each lobe facing outward. The vertical
- * conductor connects to each winding's baseline. Two wye (star) marks sit side
- * by side beside the windings to indicate the site's Y/Y winding configuration
- * (high side and low side).
+ * conductor connects to each winding's baseline. Two wye (star) marks stack
+ * vertically beside the windings to indicate the site's Y/Y winding
+ * configuration, the upper mark for the high side and the lower for the low.
  */
 const Transformer: React.FC<SldElementProps> = ({ x, y, state, label }) => {
   const theme = useTheme();
@@ -79,9 +79,12 @@ const Transformer: React.FC<SldElementProps> = ({ x, y, state, label }) => {
       <line x1={0} y1={secondaryBaseline} x2={0} y2={stubBottomY} stroke={lineColor} strokeWidth={2} />
       <circle cx={0} cy={stubBottomY} r={2} fill={lineColor} />
 
-      {/* Wye (star) + down-arrow marks, side by side beside the windings */}
-      <WyeSymbol x={halfW + 7} y={-2} color={lineColor} scale={0.55} />
-      <WyeSymbol x={halfW + 18} y={-2} color={lineColor} scale={0.55} />
+      {/* Wye (star) + down-arrow marks, stacked vertically beside the windings:
+          high side above, low side below. Each mark reaches 9*scale above its
+          junction and 16*scale below it, so the two junctions sit 16 apart to
+          keep the upper mark's lead arrow clear of the lower mark's spokes. */}
+      <WyeSymbol x={halfW + 8} y={-10} color={lineColor} scale={0.55} />
+      <WyeSymbol x={halfW + 8} y={6} color={lineColor} scale={0.55} />
 
       {/* Label */}
       {label && (
