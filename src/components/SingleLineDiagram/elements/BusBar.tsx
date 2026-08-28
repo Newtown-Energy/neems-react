@@ -33,6 +33,7 @@ const BusBar: React.FC<BusBarProps> = ({
     ? theme.palette.text.primary
     : theme.palette.action.disabled;
   const nodeColor = theme.palette.info.main;
+  const uniqueNodes = Array.from(new Set(nodes ?? []));
 
   return (
     <>
@@ -52,8 +53,11 @@ const BusBar: React.FC<BusBarProps> = ({
           </text>
         )}
       </g>
-      {/* Node dots in absolute coords (nodes array is in the caller's space) */}
-      {nodes?.map((nx) => (
+      {/* Node dots in absolute coords (nodes array is in the caller's space).
+          De-duplicated: a switch drop and a feeder can share an x (390 on bus
+          1, 870 on bus 2), and a junction dot is idempotent -- drawing it
+          twice paints the same pixels and collides the React key. */}
+      {uniqueNodes.map((nx) => (
         <circle
           key={`bus-node-${nx}`}
           cx={nx}
