@@ -532,7 +532,7 @@ const AlarmsPage: React.FC = () => {
               // is not the same as clearing, so the chip reports the condition
               // and the badge beside it reports whether anyone has seen it.
               const firing = alarm.visible && alarm.dataActive && !alarm.acknowledged;
-              const returned = alarm.visible && !alarm.dataActive;
+              const returned = alarm.visible && !alarm.dataActive && !alarm.acknowledged;
               const needsAck = alarm.visible && !alarm.acknowledged;
               return (
                 <React.Fragment key={alarm.alarm_num}>

@@ -116,11 +116,14 @@ const AlarmIndicator: React.FC<AlarmIndicatorProps> = ({ state, offsetX, offsetY
   // Pulse only while at least one alarm is firing now AND unacknowledged.
   const anyActiveUnacked = state.activeAlarms.some((a) => a.dataActive && !a.acknowledged);
   const animate = shouldPulse && anyActiveUnacked;
-  // Distinct "returned, needs ack" look: every alarm on the component is
-  // latched-but-not-firing. A single still-firing alarm reverts to the solid
-  // active look so the more urgent state always wins.
+  // Distinct "returned, needs ack" look: every alarm on the component has
+  // stopped firing and is still owed an acknowledgement. A single still-firing
+  // alarm reverts to the solid active look so the more urgent state always
+  // wins. Both axes are named rather than relying on the backend omitting the
+  // cleared-and-acknowledged quadrant from the list.
   const allReturned =
-    state.activeAlarms.length > 0 && state.activeAlarms.every((a) => !a.dataActive);
+    state.activeAlarms.length > 0 &&
+    state.activeAlarms.every((a) => !a.dataActive && !a.acknowledged);
   const unackedCount = state.activeAlarms.filter((a) => !a.acknowledged).length;
 
   const handleClick = (e: React.MouseEvent) => {
