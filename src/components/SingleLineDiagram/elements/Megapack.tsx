@@ -23,6 +23,20 @@ function formatAnalog(value: number | null | undefined, unit: string): string {
 }
 
 /**
+ * Real power, labelled by what the pack is doing rather than by sign alone.
+ *
+ * Negative is charging — the pack is a load — which is the convention the
+ * backend reads off the register. A bare "-950 kW" makes an operator remember
+ * that; the word does not.
+ */
+function formatPower(kW: number | null | undefined): string {
+  if (kW == null || Number.isNaN(kW)) return '-- kW';
+  if (kW === 0) return 'idle';
+  const verb = kW < 0 ? 'chg' : 'dis';
+  return `${verb} ${Math.abs(kW).toFixed(0)} kW`;
+}
+
+/**
  * Megapack 2XL battery unit.
  * Shape: a tall rectangle with five small circles stacked along its right side
  * (representing the stack "fans"/vents on the back panel).
@@ -56,11 +70,22 @@ const Megapack: React.FC<SldElementProps> = ({ x, y, state, label }) => {
   const soc = state.analogs?.soc ?? null;
   const stackTemp = state.analogs?.stackTemp ?? null;
   const outputV = state.analogs?.outputVoltage ?? null;
+  const realPower = state.analogs?.real_power_output ?? null;
 
   // `gaugeLevel`, not `fill`: `fill` is already the body's status color from
   // useStatusColors above.
   const gauge = gaugeGeometry(w, h);
   const gaugeLevel = gaugeFill(soc, gauge);
+
+  // Charging and discharging are the two states an operator is actually
+  // looking for, so they get a color as well as a sign. Idle and unknown stay
+  // in the secondary text color, because neither is an event.
+  const powerColor =
+    realPower == null || Number.isNaN(realPower) || realPower === 0
+      ? theme.palette.text.secondary
+      : realPower < 0
+        ? theme.palette.info.main
+        : theme.palette.warning.main;
 
   return (
     <g transform={`translate(${x}, ${y})`}>
@@ -183,6 +208,19 @@ const Megapack: React.FC<SldElementProps> = ({ x, y, state, label }) => {
           fill={theme.palette.text.secondary}
         >
           V {formatAnalog(outputV, 'V')}
+        </text>
+        {/* Real power, signed: the sign is the reading. A pack pulling
+            1,000 kW in and one pushing 1,000 kW out are opposite states that
+            an unsigned magnitude would render identically. */}
+        <text
+          x={0}
+          y={72}
+          textAnchor="middle"
+          fontSize={SLD_FONT.analog}
+          fontFamily="monospace"
+          fill={powerColor}
+        >
+          {formatPower(realPower)}
         </text>
       </g>
 
