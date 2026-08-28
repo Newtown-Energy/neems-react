@@ -5,6 +5,7 @@ import { useStatusColors } from './useStatusColors';
 import AlarmIndicator from './AlarmIndicator';
 import AlarmGlow from './AlarmGlow';
 import { SLD_FONT } from '../sldTypography';
+import { gaugeFill, gaugeGeometry } from './chargeGauge';
 
 const FIRE_RELATED_KEYWORDS = ['high temp', 'hi temp', 'sparker', 'fire'];
 
@@ -19,6 +20,20 @@ function hasFireRelatedAlarm(
 function formatAnalog(value: number | null | undefined, unit: string): string {
   if (value == null || Number.isNaN(value)) return `-- ${unit}`;
   return `${value.toFixed(unit === '%' ? 0 : 1)} ${unit}`;
+}
+
+/**
+ * Real power, labelled by what the pack is doing rather than by sign alone.
+ *
+ * Negative is charging — the pack is a load — which is the convention the
+ * backend reads off the register. A bare "-950 kW" makes an operator remember
+ * that; the word does not.
+ */
+function formatPower(kW: number | null | undefined): string {
+  if (kW == null || Number.isNaN(kW)) return '-- kW';
+  if (kW === 0) return 'idle';
+  const verb = kW < 0 ? 'chg' : 'dis';
+  return `${verb} ${Math.abs(kW).toFixed(0)} kW`;
 }
 
 /**
@@ -55,6 +70,22 @@ const Megapack: React.FC<SldElementProps> = ({ x, y, state, label }) => {
   const soc = state.analogs?.soc ?? null;
   const stackTemp = state.analogs?.stackTemp ?? null;
   const outputV = state.analogs?.outputVoltage ?? null;
+  const realPower = state.analogs?.real_power_output ?? null;
+
+  // `gaugeLevel`, not `fill`: `fill` is already the body's status color from
+  // useStatusColors above.
+  const gauge = gaugeGeometry(w, h);
+  const gaugeLevel = gaugeFill(soc, gauge);
+
+  // Charging and discharging are the two states an operator is actually
+  // looking for, so they get a color as well as a sign. Idle and unknown stay
+  // in the secondary text color, because neither is an event.
+  const powerColor =
+    realPower == null || Number.isNaN(realPower) || realPower === 0
+      ? theme.palette.text.secondary
+      : realPower < 0
+        ? theme.palette.info.main
+        : theme.palette.warning.main;
 
   return (
     <g transform={`translate(${x}, ${y})`}>
@@ -73,26 +104,38 @@ const Megapack: React.FC<SldElementProps> = ({ x, y, state, label }) => {
         strokeWidth={strokeWidth}
         rx={2}
       />
-      {/* Charge bar graph — vertical fill proportional to SOC%.
-          Rendered behind the fan circles. Clamped to [0, 100]. */}
-      {soc != null && !Number.isNaN(soc) && (() => {
-        const pct = Math.max(0, Math.min(100, soc));
-        const innerW = w - 4;
-        const innerH = h - 4;
-        const barH = (pct / 100) * innerH;
-        const barY = h / 2 - 2 - barH;
-        return (
+      {/* Charge gauge — the spreadsheet's "MP gas gauge".
+          An inset bordered track rather than a tint over the whole body: the
+          body's fill and AlarmGlow already encode alarm state, and a
+          measurement painted on the same rect competes with them. Giving
+          charge its own bordered channel lets an operator read level and
+          alarm independently.
+          Drawn only when there is a reading. An empty track is
+          indistinguishable from an empty pack, and those are opposite
+          claims — no reading shows no gauge, matching the `--` in the text
+          below. */}
+      {gaugeLevel && (
+        <g>
           <rect
-            x={-w / 2 + 2}
-            y={barY}
-            width={innerW}
-            height={barH}
-            fill={theme.palette.success.main}
-            opacity={0.3}
+            x={gauge.x}
+            y={gauge.y}
+            width={gauge.width}
+            height={gauge.height}
+            fill="none"
+            stroke={lineColor}
+            strokeWidth={0.75}
+            opacity={0.7}
             rx={1}
           />
-        );
-      })()}
+          <rect
+            x={gaugeLevel.x}
+            y={gaugeLevel.y}
+            width={gaugeLevel.width}
+            height={gaugeLevel.height}
+            fill={theme.palette.success.main}
+          />
+        </g>
+      )}
       {/* Five stack-fan circles (back-panel indicators) */}
       {Array.from({ length: fanCount }).map((_, i) => {
         const cy = fanYStart + i * fanSpacing;
@@ -165,6 +208,19 @@ const Megapack: React.FC<SldElementProps> = ({ x, y, state, label }) => {
           fill={theme.palette.text.secondary}
         >
           V {formatAnalog(outputV, 'V')}
+        </text>
+        {/* Real power, signed: the sign is the reading. A pack pulling
+            1,000 kW in and one pushing 1,000 kW out are opposite states that
+            an unsigned magnitude would render identically. */}
+        <text
+          x={0}
+          y={72}
+          textAnchor="middle"
+          fontSize={SLD_FONT.analog}
+          fontFamily="monospace"
+          fill={powerColor}
+        >
+          {formatPower(realPower)}
         </text>
       </g>
 
