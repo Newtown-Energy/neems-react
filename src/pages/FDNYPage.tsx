@@ -119,10 +119,10 @@ const FDNYPage: React.FC = () => {
       ]);
       setEntries(history.entries);
       // Only alarms whose condition is physically present. `/Alarms/Active`
-      // also returns latched ones (ReturnedUnacknowledged, `data_active:
-      // false`) that are visible but no longer firing — counting those as
-      // "active now" made a cleared alarm's latest transition disagree with
-      // present state, costing it the CURRENT tag.
+      // also returns latched ones (`data_active: false`, still unacknowledged)
+      // that are visible but no longer firing — counting those as "active now"
+      // made a cleared alarm's latest transition disagree with present state,
+      // costing it the CURRENT tag.
       setActiveAlarmNums(
         new Set(active.alarms.filter((a) => a.data_active).map((a) => a.alarm_num)),
       );

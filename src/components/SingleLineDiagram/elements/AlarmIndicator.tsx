@@ -15,11 +15,6 @@ interface AlarmIndicatorProps {
   offsetY: number;
 }
 
-/** True for alarms still awaiting acknowledgement (firing now or latched). */
-function needsAck(alarm: ActiveAlarmSummary): boolean {
-  return alarm.status === 'Active' || alarm.status === 'ReturnedUnacknowledged';
-}
-
 /** Format an acknowledgement timestamp for compact display. */
 function formatAckTime(iso: string | null): string | null {
   if (!iso) return null;
@@ -57,10 +52,10 @@ function trianglePoints(r: number): string {
  * All shapes are sized to a similar visual area so the alarm count stays
  * legible inside.
  *
- * When `returned` is set (every alarm on the component is
- * ReturnedUnacknowledged — no longer firing but latched awaiting ack) the
- * shape renders hollow with a dashed outline so the operator can tell it apart
- * at a glance from a currently-active alarm, which renders solid.
+ * When `returned` is set (no alarm on the component is firing any more, but
+ * one is still awaiting acknowledgement) the shape renders hollow with a
+ * dashed outline so the operator can tell it apart at a glance from a
+ * currently-active alarm, which renders solid.
  */
 const SeverityShape: React.FC<{
   severity: AlarmSeverityDto;
@@ -119,15 +114,14 @@ const AlarmIndicator: React.FC<AlarmIndicatorProps> = ({ state, offsetX, offsetY
   const shouldPulse =
     state.highestSeverity === 'Emergency' || state.highestSeverity === 'Critical';
   // Pulse only while at least one alarm is firing now AND unacknowledged.
-  const anyActiveUnacked = state.activeAlarms.some((a) => a.status === 'Active');
+  const anyActiveUnacked = state.activeAlarms.some((a) => a.dataActive && !a.acknowledged);
   const animate = shouldPulse && anyActiveUnacked;
   // Distinct "returned, needs ack" look: every alarm on the component is
   // latched-but-not-firing. A single still-firing alarm reverts to the solid
   // active look so the more urgent state always wins.
   const allReturned =
-    state.activeAlarms.length > 0 &&
-    state.activeAlarms.every((a) => a.status === 'ReturnedUnacknowledged');
-  const unackedCount = state.activeAlarms.filter(needsAck).length;
+    state.activeAlarms.length > 0 && state.activeAlarms.every((a) => !a.dataActive);
+  const unackedCount = state.activeAlarms.filter((a) => !a.acknowledged).length;
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -152,7 +146,7 @@ const AlarmIndicator: React.FC<AlarmIndicatorProps> = ({ state, offsetX, offsetY
 
   const handleAcknowledgeAll = () => {
     void runAck(
-      state.activeAlarms.filter(needsAck).map((a) => a.alarm_num),
+      state.activeAlarms.filter((a) => !a.acknowledged).map((a) => a.alarm_num),
       'all',
     );
   };
@@ -225,8 +219,11 @@ const AlarmIndicator: React.FC<AlarmIndicatorProps> = ({ state, offsetX, offsetY
             </Typography>
             <Stack spacing={0.75} sx={{ mt: 1 }}>
               {state.activeAlarms.map((alarm) => {
-                const acked = alarm.status === 'AcknowledgedActive';
-                const returned = alarm.status === 'ReturnedUnacknowledged';
+                // The two axes drive the two visual cues independently:
+                // `firing` decides solid vs hollow, `returned` adds the dashed
+                // "no longer firing but still owed an ack" marker.
+                const firing = alarm.dataActive && !alarm.acknowledged;
+                const returned = !alarm.dataActive && !alarm.acknowledged;
                 const ackTime = formatAckTime(alarm.acknowledgedAt);
                 return (
                   <Box key={alarm.alarm_num}>
@@ -235,17 +232,18 @@ const AlarmIndicator: React.FC<AlarmIndicatorProps> = ({ state, offsetX, offsetY
                         label={formatAlarmName(alarm.name)}
                         color={getSeverityColor(alarm.severity)}
                         size="small"
-                        // Hollow chip for acked (paused) and for returned. A
-                        // dashed border additionally marks the returned blip so
-                        // it reads apart from a currently-active alarm.
-                        variant={alarm.status === 'Active' ? 'filled' : 'outlined'}
+                        // Hollow chip once an alarm is either acknowledged or
+                        // no longer firing. A dashed border additionally marks
+                        // the returned blip so it reads apart from a
+                        // currently-active alarm.
+                        variant={firing ? 'filled' : 'outlined'}
                         sx={{
                           flex: 1,
-                          opacity: alarm.status === 'Active' ? 1 : 0.7,
+                          opacity: firing ? 1 : 0.7,
                           ...(returned ? { borderStyle: 'dashed' } : {}),
                         }}
                       />
-                      {needsAck(alarm) && (
+                      {!alarm.acknowledged && (
                         <Button
                           size="small"
                           variant="contained"
@@ -265,7 +263,7 @@ const AlarmIndicator: React.FC<AlarmIndicatorProps> = ({ state, offsetX, offsetY
                         Returned to normal — still needs acknowledgement
                       </Typography>
                     )}
-                    {acked && (
+                    {alarm.acknowledged && (
                       <Typography
                         variant="caption"
                         color="text.secondary"
@@ -281,7 +279,7 @@ const AlarmIndicator: React.FC<AlarmIndicatorProps> = ({ state, offsetX, offsetY
                         variant="caption"
                         color="text.secondary"
                         component="div"
-                        sx={{ pl: 0.5, mt: 0.25, opacity: alarm.status === 'Active' ? 1 : 0.7 }}
+                        sx={{ pl: 0.5, mt: 0.25, opacity: firing ? 1 : 0.7 }}
                       >
                         {alarm.message}
                       </Typography>
