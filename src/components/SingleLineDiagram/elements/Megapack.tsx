@@ -5,6 +5,7 @@ import { useStatusColors } from './useStatusColors';
 import AlarmIndicator from './AlarmIndicator';
 import AlarmGlow from './AlarmGlow';
 import { SLD_FONT } from '../sldTypography';
+import { gaugeFill, gaugeGeometry } from './chargeGauge';
 
 const FIRE_RELATED_KEYWORDS = ['high temp', 'hi temp', 'sparker', 'fire'];
 
@@ -56,6 +57,11 @@ const Megapack: React.FC<SldElementProps> = ({ x, y, state, label }) => {
   const stackTemp = state.analogs?.stackTemp ?? null;
   const outputV = state.analogs?.outputVoltage ?? null;
 
+  // `gaugeLevel`, not `fill`: `fill` is already the body's status color from
+  // useStatusColors above.
+  const gauge = gaugeGeometry(w, h);
+  const gaugeLevel = gaugeFill(soc, gauge);
+
   return (
     <g transform={`translate(${x}, ${y})`}>
       {/* Pulsing severity glow — rendered behind the body for Emergency/Critical */}
@@ -73,26 +79,38 @@ const Megapack: React.FC<SldElementProps> = ({ x, y, state, label }) => {
         strokeWidth={strokeWidth}
         rx={2}
       />
-      {/* Charge bar graph — vertical fill proportional to SOC%.
-          Rendered behind the fan circles. Clamped to [0, 100]. */}
-      {soc != null && !Number.isNaN(soc) && (() => {
-        const pct = Math.max(0, Math.min(100, soc));
-        const innerW = w - 4;
-        const innerH = h - 4;
-        const barH = (pct / 100) * innerH;
-        const barY = h / 2 - 2 - barH;
-        return (
+      {/* Charge gauge — the spreadsheet's "MP gas gauge".
+          An inset bordered track rather than a tint over the whole body: the
+          body's fill and AlarmGlow already encode alarm state, and a
+          measurement painted on the same rect competes with them. Giving
+          charge its own bordered channel lets an operator read level and
+          alarm independently.
+          Drawn only when there is a reading. An empty track is
+          indistinguishable from an empty pack, and those are opposite
+          claims — no reading shows no gauge, matching the `--` in the text
+          below. */}
+      {gaugeLevel && (
+        <g>
           <rect
-            x={-w / 2 + 2}
-            y={barY}
-            width={innerW}
-            height={barH}
-            fill={theme.palette.success.main}
-            opacity={0.3}
+            x={gauge.x}
+            y={gauge.y}
+            width={gauge.width}
+            height={gauge.height}
+            fill="none"
+            stroke={lineColor}
+            strokeWidth={0.75}
+            opacity={0.7}
             rx={1}
           />
-        );
-      })()}
+          <rect
+            x={gaugeLevel.x}
+            y={gaugeLevel.y}
+            width={gaugeLevel.width}
+            height={gaugeLevel.height}
+            fill={theme.palette.success.main}
+          />
+        </g>
+      )}
       {/* Five stack-fan circles (back-panel indicators) */}
       {Array.from({ length: fanCount }).map((_, i) => {
         const cy = fanYStart + i * fanSpacing;
