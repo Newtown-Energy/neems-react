@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "npm run lint:eslint && npm run lint:tsc",
     "lint:eslint": "eslint ./src --max-warnings=0",
-    "lint:tsc": "tsc --noEmit",
+    "lint:tsc": "tsc -b",
     "test:unit": "bun test src",
     "preview": "vite preview",
     "generate-types": "dosh generate-types"
