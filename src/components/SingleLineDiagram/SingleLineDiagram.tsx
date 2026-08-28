@@ -27,9 +27,11 @@ import {
 import type { SldAction } from './sldState';
 import type { SldDiagramState } from './types';
 import { useSldAlarms } from './useSldAlarms';
+import { useSldAnalogs } from './useSldAnalogs';
 import type { EstopState } from '../../utils/useEstop';
 import { SldAlarmRefetchContext } from './SldAlarmRefetchContext';
 import NewtownLayout from './layouts/NewtownLayout';
+import { useSiteContext } from '../../utils/SiteContext';
 import CurtailmentBadge from './CurtailmentBadge';
 
 const DIAGRAM_WIDTH = 1200;
@@ -124,6 +126,7 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({
   estop,
 }) => {
   const [state, dispatch] = useReducer(sldReducer, INITIAL_STATE);
+  const { selectedSite } = useSiteContext();
   const [eStopDialogOpen, setEStopDialogOpen] = useState(false);
   const theme = useTheme();
 
@@ -171,6 +174,11 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({
   // polling on in demoMode is safe and lets forced alarms surface
   // through the same path real alarms use.
   const { refetch: refetchAlarms } = useSldAlarms(dispatch);
+
+  // Gauge values, on the same cadence as the alarm poll. Separate from it
+  // because the two answer different questions and a site with no analog
+  // feed must still light its alarms.
+  useSldAnalogs(dispatch, selectedSite?.id ?? null);
 
   useEffect(() => {
     onDispatchReady?.(dispatch);

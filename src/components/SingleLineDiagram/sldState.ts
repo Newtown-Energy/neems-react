@@ -1,4 +1,10 @@
-import type { ActiveAlarmsResponse, AlarmSeverityDto, AlarmZoneDto } from '@newtown-energy/types';
+import type {
+  ActiveAlarmsResponse,
+  AlarmSeverityDto,
+  AlarmZoneDto,
+  LatestAnalogsResponse,
+  ZoneAnalogs,
+} from '@newtown-energy/types';
 import { getSeverityOrder } from '../../utils/alarmHelpers';
 import { ESTOP_ALARM_NUM } from '../../utils/estopApi';
 import { resolveAlarmSeverity } from '../../config/siteConfig';
@@ -55,6 +61,47 @@ function resolveAlarmTargets(
   return zoneIds(components, zone);
 }
 
+/**
+ * API field name -> the display slot the SLD elements read.
+ *
+ * The wire format uses the client spreadsheet's names (`state_of_energy`) and
+ * the elements use display names (`soc`); this table is the seam between them.
+ * Keeping them distinct is deliberate — the backend stays checkable against the
+ * client spec, and renaming a gauge here does not mean renaming a wire field.
+ */
+const ANALOG_FIELD_TO_SLOT = {
+  state_of_energy: 'soc',
+  max_battery_temperature: 'stackTemp',
+  ac_voltage: 'outputVoltage',
+} as const;
+
+/**
+ * Turn one zone's payload into the element's analog slots.
+ *
+ * A field the API reported as `null` is carried through as `null` rather than
+ * dropped: the slot exists but has no reading, which the elements render as
+ * `--`. Omitting the key entirely would look identical, but `null` says it
+ * explicitly and keeps the slot list stable between polls.
+ */
+function slotsForZone(zone: ZoneAnalogs): Record<string, number | null> {
+  // Named through the table above rather than by repeating the slot names,
+  // so renaming a slot cannot leave the mapping and the assignment disagreeing.
+  // These come from the top-level fields, which are present even on readings
+  // stored before the raw register block was kept.
+  const slots: Record<string, number | null> = {
+    [ANALOG_FIELD_TO_SLOT.state_of_energy]: zone.state_of_energy,
+    [ANALOG_FIELD_TO_SLOT.max_battery_temperature]: zone.max_battery_temperature,
+    [ANALOG_FIELD_TO_SLOT.ac_voltage]: zone.ac_voltage,
+  };
+  // Everything else in the block, under its spreadsheet name, so an element
+  // can start showing a measurement without another round through the API.
+  for (const point of zone.points) {
+    if (point.name in ANALOG_FIELD_TO_SLOT) continue;
+    slots[point.name] = point.value;
+  }
+  return slots;
+}
+
 // --- Actions ---
 
 export type SldAction =
@@ -62,6 +109,7 @@ export type SldAction =
   | { type: 'TOGGLE_BREAKER'; componentId: string }
   | { type: 'SET_SWITCH_POSITION'; componentId: string; position: 'open' | 'closed' }
   | { type: 'SET_POWER_FLOW'; wireId: string; direction: PowerFlowDirection }
+  | { type: 'UPDATE_ANALOGS'; analogs: LatestAnalogsResponse }
   | { type: 'MARK_STALE' };
 
 // --- Helpers ---
@@ -221,6 +269,23 @@ export function sldReducer(
           },
         },
       };
+    }
+
+    case 'UPDATE_ANALOGS': {
+      const updated: Record<string, SldComponentState> = { ...state.components };
+      for (const [zone, values] of Object.entries(action.analogs.zones)) {
+        if (!values) continue;
+        const slots = slotsForZone(values);
+        // Routed by the component's own zone rather than a layout's
+        // zone-to-id table: that keeps the reducer independent of any
+        // particular diagram, and matches how alarms already find their
+        // targets. A zone the diagram does not draw yields no ids and is
+        // skipped — the API reports the site, not this layout.
+        for (const id of zoneIds(state.components, zone as AlarmZoneDto)) {
+          updated[id] = { ...updated[id], analogs: slots };
+        }
+      }
+      return { ...state, components: updated };
     }
 
     case 'MARK_STALE':
