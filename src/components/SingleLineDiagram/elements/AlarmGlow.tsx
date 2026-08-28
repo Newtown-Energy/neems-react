@@ -23,11 +23,11 @@ interface AlarmGlowProps {
  * local coordinate space (assumes the parent has already translated to the
  * entity's center) so callers only need to provide the entity's half-size.
  *
- * The glow pulses only while at least one currently-active alarm is still
- * unacknowledged (`status === 'Active'`). Once every active alarm on the
- * component has been acknowledged (`AcknowledgedActive`), the glow renders
- * without its pulse animation so the operator isn't visually pestered — the
- * static color remains as a findable cue that the alarm is still present.
+ * The glow pulses only while at least one currently-firing alarm is still
+ * unacknowledged. Once every firing alarm on the component has been
+ * acknowledged, the glow renders without its pulse animation so the operator
+ * isn't visually pestered — the static color remains as a findable cue that
+ * the condition is still present.
  */
 const AlarmGlow: React.FC<AlarmGlowProps> = ({
   state,
@@ -45,10 +45,11 @@ const AlarmGlow: React.FC<AlarmGlowProps> = ({
   if (!shouldPulse) return null;
 
   const color = severityColor(state.highestSeverity, theme);
-  // Pulse only while something is still firing AND unacknowledged. A
-  // ReturnedUnacknowledged alarm is no longer firing, so it doesn't drive the
-  // pulsing glow (the AlarmIndicator badge carries its distinct cue instead).
-  const animate = state.activeAlarms.some((a) => a.status === 'Active');
+  // Pulse only while something is still firing AND unacknowledged. An alarm
+  // that has returned to normal without being acknowledged is no longer
+  // firing, so it doesn't drive the pulsing glow (the AlarmIndicator badge
+  // carries its distinct cue instead).
+  const animate = state.activeAlarms.some((a) => a.dataActive && !a.acknowledged);
 
   // No stroke on the glow — the parent entity already renders a severity-tinted
   // stroke via useStatusColors, so an outlined halo here would read as a

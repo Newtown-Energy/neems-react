@@ -57,8 +57,9 @@ export async function fetchDemoAlarmState(): Promise<DemoAlarmStateResponse> {
  *
  * This writes a real data-state transition, so it behaves like the RTAC feed
  * would: deactivating an alarm does NOT hide it. An alarm that has not been
- * acknowledged since it fired stays visible as `ReturnedUnacknowledged` until
- * an operator acknowledges it, which is the point of the latch.
+ * acknowledged since it fired stays visible — no longer firing, still owed an
+ * acknowledgement — until an operator acknowledges it, which is the point of
+ * the latch.
  */
 export async function setDemoAlarmState(
   alarmNum: number,

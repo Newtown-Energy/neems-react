@@ -40,7 +40,6 @@ import type {
   AlarmDefinitionDto,
   AlarmHistoryEntry,
   AlarmSeverityDto,
-  AlarmStatusDto,
   AlarmZoneDto,
 } from '@newtown-energy/types';
 import {
@@ -84,15 +83,18 @@ interface AlarmRow {
   /** The alarm is outstanding: the backend still reports it, because it is
    *  firing now *or* it returned to normal without being acknowledged.
    *
-   *  Deliberately not called `active` — a latched `ReturnedUnacknowledged`
-   *  alarm has `data_active: false` and is not firing, but still demands the
-   *  operator's attention, so it sorts, filters and colours like one. Read
-   *  `status` when you need to know whether the condition is present. */
+   *  Deliberately not called `active` — an alarm that returned to normal
+   *  unacknowledged is not firing, but still demands the operator's attention,
+   *  so it sorts, filters and colours like one. Read [dataActive] when you need
+   *  to know whether the condition is present. */
   visible: boolean;
-  /** Server-authoritative acknowledgement status when the alarm is currently
-   *  visible (active or latched); `null` for an inactive definition row. */
-  status: AlarmStatusDto | null;
-  /** Email of the most recent acknowledger, for display; `null` if unacked. */
+  /** Whether the condition is physically present right now. Meaningful only
+   *  when [visible]; `false` for an inactive definition row. */
+  dataActive: boolean;
+  /** Whether an operator has acknowledged the alarm since it last went active.
+   *  Orthogonal to [dataActive], and meaningful only when [visible]. */
+  acknowledged: boolean;
+  /** Email of the acknowledger, for display; `null` if unacknowledged. */
   acknowledgedByEmail: string | null;
   /** Number of activations in the last [HISTORY_WINDOW_DAYS] days. */
   activations30d: number;
@@ -104,27 +106,6 @@ type HistoryState =
   | { kind: 'error'; message: string };
 
 const HISTORY_WINDOW_DAYS = 30;
-
-/** The alarm's data state — whether the condition is physically present.
- *
- *  Acknowledgement is a separate, orthogonal axis: acking an alarm records that
- *  someone has seen it, and does nothing to the condition itself. Labelling an
- *  acknowledged-but-still-firing alarm "Acknowledged" implied it had stopped,
- *  so the two are reported independently — this label, plus [isAcknowledged]. */
-function dataStateLabel(status: AlarmStatusDto): string {
-  switch (status) {
-    case 'Active':
-    case 'AcknowledgedActive':
-      return 'Active';
-    case 'ReturnedUnacknowledged':
-      return 'Cleared';
-  }
-}
-
-/** Whether the alarm has been acknowledged since it last went active. */
-function isAcknowledged(status: AlarmStatusDto): boolean {
-  return status === 'AcknowledgedActive';
-}
 
 type SortKey = 'activations' | 'name' | 'severity' | 'zone';
 type SortDir = 'asc' | 'desc';
@@ -262,7 +243,8 @@ const AlarmsPage: React.FC = () => {
         message: def.message ?? null,
         severity: resolveAlarmSeverity(def.alarm_num, def.severity),
         visible: activeAlarm != null,
-        status: activeAlarm?.status ?? null,
+        dataActive: activeAlarm?.data_active ?? false,
+        acknowledged: activeAlarm?.acknowledged ?? false,
         acknowledgedByEmail: activeAlarm?.acknowledged_by_email ?? null,
         activations30d: activationCounts[def.alarm_num] ?? 0,
       };
@@ -546,6 +528,12 @@ const AlarmsPage: React.FC = () => {
             {rows.map((alarm) => {
               const isExpanded = expanded.has(alarm.alarm_num);
               const rowHistory = history[alarm.alarm_num];
+              // The two axes drive the two cues independently. Acknowledgement
+              // is not the same as clearing, so the chip reports the condition
+              // and the badge beside it reports whether anyone has seen it.
+              const firing = alarm.visible && alarm.dataActive && !alarm.acknowledged;
+              const returned = alarm.visible && !alarm.dataActive && !alarm.acknowledged;
+              const needsAck = alarm.visible && !alarm.acknowledged;
               return (
                 <React.Fragment key={alarm.alarm_num}>
                   <TableRow
@@ -566,25 +554,20 @@ const AlarmsPage: React.FC = () => {
                     <TableCell>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <Chip
-                          label={alarm.status ? dataStateLabel(alarm.status) : 'OK'}
+                          label={alarm.visible ? (alarm.dataActive ? 'Active' : 'Cleared') : 'OK'}
                           color={alarm.visible ? getSeverityColor(alarm.severity) : 'default'}
                           // Solid only while currently firing AND unacked. Acked
                           // and returned-but-unacked alarms render hollow; the
                           // returned blip additionally gets a dashed border so it
                           // reads apart from a currently-active alarm.
-                          variant={alarm.status === 'Active' ? 'filled' : 'outlined'}
+                          variant={firing ? 'filled' : 'outlined'}
                           size="small"
-                          sx={
-                            alarm.status === 'ReturnedUnacknowledged'
-                              ? { borderStyle: 'dashed' }
-                              : undefined
-                          }
+                          sx={returned ? { borderStyle: 'dashed' } : undefined}
                         />
-                        {alarm.status && isAcknowledged(alarm.status) && (
+                        {alarm.visible && alarm.acknowledged && (
                           <Chip label="Acknowledged" size="small" variant="outlined" />
                         )}
-                        {(alarm.status === 'Active' ||
-                          alarm.status === 'ReturnedUnacknowledged') && (
+                        {needsAck && (
                           <Button
                             size="small"
                             variant="contained"
@@ -595,7 +578,7 @@ const AlarmsPage: React.FC = () => {
                           </Button>
                         )}
                       </Box>
-                      {alarm.status === 'AcknowledgedActive' && alarm.acknowledgedByEmail && (
+                      {alarm.visible && alarm.acknowledged && alarm.acknowledgedByEmail && (
                         <Typography variant="caption" color="text.secondary" component="div">
                           by {alarm.acknowledgedByEmail}
                         </Typography>

@@ -33,8 +33,8 @@ function alarm(partial: Partial<ActiveAlarmDto> & Pick<ActiveAlarmDto, 'alarm_nu
     severity: 'Warning',
     message: null,
     sld_targets: [],
-    status: 'Active',
     data_active: true,
+    acknowledged: false,
     acknowledged_at: null,
     acknowledged_by_user_id: null,
     acknowledged_by_email: null,
@@ -90,15 +90,17 @@ describe('sldReducer alarm routing', () => {
         alarm_num: 101,
         zone: 'BreakerRelay',
         sld_targets: ['52-MAIN-1'],
-        status: 'AcknowledgedActive',
         data_active: true,
+        acknowledged: true,
         acknowledged_by_email: 'operator@example.com',
         acknowledged_at: '2026-06-19T01:23:45Z',
       }),
     ]);
     const summary = state.components['switch-89l-1'].activeAlarms[0];
-    expect(summary.status).toBe('AcknowledgedActive');
+    // Acknowledged and still firing: the two axes travel independently, so an
+    // acknowledged alarm must not read as though the condition went away.
     expect(summary.dataActive).toBe(true);
+    expect(summary.acknowledged).toBe(true);
     expect(summary.acknowledgedByEmail).toBe('operator@example.com');
     expect(summary.acknowledgedAt).toBe('2026-06-19T01:23:45Z');
   });
@@ -109,13 +111,15 @@ describe('sldReducer alarm routing', () => {
         alarm_num: 101,
         zone: 'BreakerRelay',
         sld_targets: ['52-MAIN-1'],
-        status: 'ReturnedUnacknowledged',
         data_active: false,
+        acknowledged: false,
       }),
     ]);
     const summary = state.components['switch-89l-1'].activeAlarms[0];
-    expect(summary.status).toBe('ReturnedUnacknowledged');
+    // No longer firing, still owed an acknowledgement — the case the latch
+    // exists for, so it must survive the mapping intact.
     expect(summary.dataActive).toBe(false);
+    expect(summary.acknowledged).toBe(false);
   });
 
   test('falls back to zone matching when no token maps to a component', () => {
