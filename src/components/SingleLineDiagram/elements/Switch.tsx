@@ -1,8 +1,10 @@
 import React from 'react';
 import { useTheme } from '@mui/material';
+import type { ControlRequestView } from '../../../utils/useSiteControls';
 import type { SldComponentState, SwitchVisualState } from '../types';
 import AlarmIndicator from './AlarmIndicator';
 import AlarmGlow from './AlarmGlow';
+import ControlRequestBadge from './ControlRequestBadge';
 import { SLD_FONT } from '../sldTypography';
 
 interface SwitchProps {
@@ -12,6 +14,8 @@ interface SwitchProps {
   visualState: SwitchVisualState;
   label?: string;
   onClick?: () => void;
+  /** What became of the operator's last click here; see SldElementProps. */
+  request?: ControlRequestView | null;
 }
 
 /**
@@ -29,6 +33,7 @@ const Switch: React.FC<SwitchProps> = ({
   visualState,
   label,
   onClick,
+  request = null,
 }) => {
   const theme = useTheme();
 
@@ -141,6 +146,7 @@ const Switch: React.FC<SwitchProps> = ({
         </text>
       )}
       <AlarmIndicator state={state} offsetX={halfW + 4} offsetY={-halfH - 4} />
+      <ControlRequestBadge request={request} offsetX={halfW + 6} offsetY={halfH + 8} />
     </g>
   );
 };

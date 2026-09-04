@@ -4,6 +4,7 @@ import type { SldElementProps } from '../types';
 import { useStatusColors } from './useStatusColors';
 import AlarmIndicator from './AlarmIndicator';
 import AlarmGlow from './AlarmGlow';
+import ControlRequestBadge from './ControlRequestBadge';
 import { SLD_FONT } from '../sldTypography';
 
 /**
@@ -19,6 +20,7 @@ const LockoutRelay: React.FC<SldElementProps> = ({
   state,
   label = 'Lockout',
   onClick,
+  request = null,
 }) => {
   const theme = useTheme();
   const { stroke, strokeWidth } = useStatusColors(state);
@@ -91,6 +93,7 @@ const LockoutRelay: React.FC<SldElementProps> = ({
         </text>
       )}
       <AlarmIndicator state={state} offsetX={w / 2 + 4} offsetY={-h / 2 - 4} />
+      <ControlRequestBadge request={request} offsetX={w / 2 + 6} offsetY={h / 2 + 6} />
     </g>
   );
 };

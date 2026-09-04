@@ -18,7 +18,7 @@
         "recharts": "^3.8.1",
       },
       "devDependencies": {
-        "@newtown-energy/types": "0.7.0",
+        "@newtown-energy/types": "0.8.0",
         "@types/jest": "^30.0.0",
         "@types/node": "^24.0.10",
         "@types/react": "^19.1.8",
@@ -331,7 +331,7 @@
 
     "@napi-rs/wasm-runtime": ["@napi-rs/wasm-runtime@0.2.12", "", { "dependencies": { "@emnapi/core": "^1.4.3", "@emnapi/runtime": "^1.4.3", "@tybys/wasm-util": "^0.10.0" } }, "sha512-ZVWUcfwY4E/yPitQJl481FjFo3K22D6qF0DuFH6Y/nbnE11GY5uguDxZMGXPQ8WQ0128MXQD7TnfHyK4oWoIJQ=="],
 
-    "@newtown-energy/types": ["@newtown-energy/types@0.7.0", "https://npm.pkg.github.com/download/@newtown-energy/types/0.7.0/4ef1de0810ec563d022777f67b2a4c2eeab9d530", {}, "sha512-1yDkjjFECFRUwYQ8zmRdJwkZjxV2WGEPKVhHiA5q99GNaH6Gy8HEWgPWq1Fk3lxwPIIOv4u3Gwyap/J2ay/UcQ=="],
+    "@newtown-energy/types": ["@newtown-energy/types@0.8.0", "https://npm.pkg.github.com/download/@newtown-energy/types/0.8.0/4b3ed42bc899fb82b48c5ae39f6c8721a76b9a33", {}, "sha512-1/ohSyOJ9H7VOxQ8KXy1X6NPy9Zf3oy5Q3MBzdeRT9Jy6qrYKGu8porb99mm27ByVDpwz1nVu6rwYH63nCwxmg=="],
 
     "@parcel/watcher": ["@parcel/watcher@2.5.6", "", { "dependencies": { "detect-libc": "^2.0.3", "is-glob": "^4.0.3", "node-addon-api": "^7.0.0", "picomatch": "^4.0.3" }, "optionalDependencies": { "@parcel/watcher-android-arm64": "2.5.6", "@parcel/watcher-darwin-arm64": "2.5.6", "@parcel/watcher-darwin-x64": "2.5.6", "@parcel/watcher-freebsd-x64": "2.5.6", "@parcel/watcher-linux-arm-glibc": "2.5.6", "@parcel/watcher-linux-arm-musl": "2.5.6", "@parcel/watcher-linux-arm64-glibc": "2.5.6", "@parcel/watcher-linux-arm64-musl": "2.5.6", "@parcel/watcher-linux-x64-glibc": "2.5.6", "@parcel/watcher-linux-x64-musl": "2.5.6", "@parcel/watcher-win32-arm64": "2.5.6", "@parcel/watcher-win32-ia32": "2.5.6", "@parcel/watcher-win32-x64": "2.5.6" } }, "sha512-tmmZ3lQxAe/k/+rNnXQRawJ4NjxO2hqiOLTHvWchtGZULp4RyFeh6aU4XdOYBFe2KE1oShQTv4AblOs2iOrNnQ=="],
 

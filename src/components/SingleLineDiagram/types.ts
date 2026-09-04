@@ -1,5 +1,7 @@
 import type { AlarmSeverityDto, AlarmZoneDto } from '@newtown-energy/types';
 
+import type { ControlRequestView } from '../../utils/useSiteControls';
+
 /** Summary of a single active alarm on a component */
 export interface ActiveAlarmSummary {
   /** Stable alarm identifier — matches AlarmDefinitionDto.alarm_num. Needed
@@ -104,6 +106,13 @@ export interface SldElementProps {
   state: SldComponentState;
   label?: string;
   onClick?: () => void;
+  /**
+   * What became of the operator's last click on this element, if anything.
+   * Orthogonal to [SldComponentState.switchPosition]: the request says whether
+   * the ask got out, the position says where the equipment is, and neither
+   * answers the other.
+   */
+  request?: ControlRequestView | null;
 }
 
 /** Props for wire elements */
