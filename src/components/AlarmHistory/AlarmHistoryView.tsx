@@ -38,6 +38,7 @@ import {
 import { resolveAlarmSeverity } from '../../config/siteConfig';
 import { downloadCsv, toCsv } from '../../utils/csv';
 import { errorLog } from '../../utils/debug';
+import { effectiveAlarmNums } from './alarmHistoryFilter';
 
 /** Operator-facing label per event kind.
  *
@@ -78,6 +79,9 @@ export interface AlarmHistoryViewProps {
   title: string;
   /** One-paragraph explanation under the heading. */
   description: string;
+  /** Restrict the page to these alarms — both the query and the filter
+   *  dropdown. Omit to cover every alarm. */
+  restrictToAlarmNums?: readonly number[];
   /** Leading component of the exported CSV filename. */
   csvFilePrefix: string;
 }
@@ -87,10 +91,14 @@ export interface AlarmHistoryViewProps {
  * user-chosen date range, optionally filtered by alarm. The most recent
  * transition for each alarm is visually set off and tagged "CURRENT" when it
  * matches the alarm's present active/cleared state.
+ *
+ * Shared by the general Alarm History page and by FDNY, which is this same
+ * view restricted to the fire-related alarms.
  */
 const AlarmHistoryView: React.FC<AlarmHistoryViewProps> = ({
   title,
   description,
+  restrictToAlarmNums,
   csvFilePrefix,
 }) => {
   const [from, setFrom] = useState<Date>(() => startOfDaysAgo(7));
@@ -116,14 +124,30 @@ const AlarmHistoryView: React.FC<AlarmHistoryViewProps> = ({
       .catch((err) => errorLog('Error loading alarm definitions:', err));
   }, []);
 
+  /** The alarms this page offers in its filter dropdown. On a restricted page
+   *  the operator narrows within the subject, never back out of it. */
+  const selectableDefinitions = useMemo(() => {
+    if (!restrictToAlarmNums) return definitions;
+    const allowed = new Set(restrictToAlarmNums);
+    return definitions.filter((d) => allowed.has(d.alarm_num));
+  }, [definitions, restrictToAlarmNums]);
+
+  const queryAlarmNums = useMemo(
+    () => effectiveAlarmNums(restrictToAlarmNums, alarmNumFilter),
+    [restrictToAlarmNums, alarmNumFilter],
+  );
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [history, active] = await Promise.all([
-        fetchAlarmHistory(from, to, alarmNumFilter.length > 0 ? alarmNumFilter : undefined),
-        fetchActiveAlarms(),
-      ]);
+      // An empty list means the selection lies entirely outside this page's
+      // subject: no rows can match, and asking would fetch everything.
+      const historyPromise =
+        queryAlarmNums && queryAlarmNums.length === 0
+          ? Promise.resolve({ entries: [] })
+          : fetchAlarmHistory(from, to, queryAlarmNums);
+      const [history, active] = await Promise.all([historyPromise, fetchActiveAlarms()]);
       setEntries(history.entries);
       // Only alarms whose condition is physically present. `/Alarms/Active`
       // also returns latched ones (`data_active: false`, still unacknowledged)
@@ -140,7 +164,7 @@ const AlarmHistoryView: React.FC<AlarmHistoryViewProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [from, to, alarmNumFilter]);
+  }, [from, to, queryAlarmNums]);
 
   useEffect(() => {
     load();
@@ -290,7 +314,7 @@ const AlarmHistoryView: React.FC<AlarmHistoryViewProps> = ({
                     : `${selected.length} selected`
                 }
               >
-                {definitions.map((d) => (
+                {selectableDefinitions.map((d) => (
                   <MenuItem key={d.alarm_num} value={d.alarm_num}>
                     {formatAlarmName(d.name)}
                     <Typography

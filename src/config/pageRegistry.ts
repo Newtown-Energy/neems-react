@@ -1,3 +1,4 @@
+import { pageConfig as alarmHistoryConfig } from '../pages/AlarmHistoryPage';
 import { pageConfig as alarmsConfig } from '../pages/AlarmsPage';
 import { pageConfig as fdnyConfig } from '../pages/FDNYPage';
 import { pageConfig as reportsConfig } from '../pages/ReportsPage';
@@ -14,6 +15,7 @@ export interface PageConfig {
 
 export const pageRegistry: Record<string, PageConfig> = {
   [alarmsConfig.id]: alarmsConfig,
+  [alarmHistoryConfig.id]: alarmHistoryConfig,
   [fdnyConfig.id]: fdnyConfig,
   [reportsConfig.id]: reportsConfig,
   [schedulerConfig.id]: schedulerConfig,
