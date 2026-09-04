@@ -8,6 +8,7 @@ import type {
 import { getSeverityOrder } from '../../utils/alarmHelpers';
 import { ESTOP_ALARM_NUM } from '../../utils/estopApi';
 import { resolveAlarmSeverity } from '../../config/siteConfig';
+import { derivePositions, readbackUsable } from './readbackPositions';
 import type {
   ActiveAlarmSummary,
   OperationalMode,
@@ -106,8 +107,6 @@ function slotsForZone(zone: ZoneAnalogs): Record<string, number | null> {
 
 export type SldAction =
   | { type: 'UPDATE_ALARMS'; alarms: ActiveAlarmsResponse }
-  | { type: 'TOGGLE_BREAKER'; componentId: string }
-  | { type: 'SET_SWITCH_POSITION'; componentId: string; position: 'open' | 'closed' }
   | { type: 'SET_POWER_FLOW'; wireId: string; direction: PowerFlowDirection }
   | { type: 'UPDATE_ANALOGS'; analogs: LatestAnalogsResponse }
   | { type: 'MARK_STALE' };
@@ -203,14 +202,30 @@ function applyAlarms(
     ? 'e-stop-active'
     : 'normal';
 
+  // Switch and breaker positions come from the site's own readback points, on
+  // the same update that lights the alarms — so the position drawn and the
+  // alarms drawn can never disagree about which reading they came from. When
+  // the feed is too old to trust, every position reads `unknown` rather than
+  // falling back to whatever it last was.
+  const dataAgeSeconds =
+    alarms.data_age_seconds != null ? Number(alarms.data_age_seconds) : null;
+  const activeAlarmNums = new Set(alarms.alarms.map((a) => a.alarm_num));
+  const positions = derivePositions(
+    activeAlarmNums,
+    readbackUsable(dataAgeSeconds, false),
+  );
+  for (const [id, position] of Object.entries(positions)) {
+    const comp = updatedComponents[id];
+    if (comp) updatedComponents[id] = { ...comp, switchPosition: position };
+  }
+
   return {
     ...state,
     components: updatedComponents,
     border,
     operationalMode,
     lastAlarmUpdate: alarms.timestamp,
-    dataAgeSeconds:
-      alarms.data_age_seconds != null ? Number(alarms.data_age_seconds) : null,
+    dataAgeSeconds,
     dataStale: false,
   };
 }
@@ -224,37 +239,6 @@ export function sldReducer(
   switch (action.type) {
     case 'UPDATE_ALARMS':
       return applyAlarms(state, action.alarms);
-
-    case 'TOGGLE_BREAKER': {
-      const comp = state.components[action.componentId];
-      if (!comp || comp.switchPosition === undefined) return state;
-      return {
-        ...state,
-        components: {
-          ...state.components,
-          [action.componentId]: {
-            ...comp,
-            switchPosition:
-              comp.switchPosition === 'closed' ? 'open' : 'closed',
-          },
-        },
-      };
-    }
-
-    case 'SET_SWITCH_POSITION': {
-      const comp = state.components[action.componentId];
-      if (!comp || comp.switchPosition === undefined) return state;
-      return {
-        ...state,
-        components: {
-          ...state.components,
-          [action.componentId]: {
-            ...comp,
-            switchPosition: action.position,
-          },
-        },
-      };
-    }
 
     case 'SET_POWER_FLOW': {
       const wire = state.wires[action.wireId];
@@ -288,8 +272,17 @@ export function sldReducer(
       return { ...state, components: updated };
     }
 
-    case 'MARK_STALE':
-      return { ...state, dataStale: true };
+    case 'MARK_STALE': {
+      // A failed poll is not evidence that anything is still where we last saw
+      // it. Positions go unknown with the feed; alarms are left alone, since
+      // the last-known alarm list is still the last thing the site said.
+      const components: Record<string, SldComponentState> = {};
+      for (const [id, comp] of Object.entries(state.components)) {
+        components[id] =
+          comp.switchPosition === undefined ? comp : { ...comp, switchPosition: 'unknown' };
+      }
+      return { ...state, components, dataStale: true };
+    }
   }
 }
 

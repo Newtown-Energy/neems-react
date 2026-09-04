@@ -21,8 +21,16 @@ const CircuitBreaker: React.FC<SldElementProps> = ({
   request = null,
 }) => {
   const theme = useTheme();
-  const isOpen = state.switchPosition === 'open';
-  const color = isOpen ? theme.palette.success.main : theme.palette.error.main;
+  const position = state.switchPosition ?? 'unknown';
+  const isUnknown = position === 'unknown';
+  // Grey, with a question mark, when the site has not told us where this is.
+  // Never falls through to the closed colour: a red square reads as a live
+  // closed breaker, which is the one thing an unknown position must not claim.
+  const color = isUnknown
+    ? theme.palette.text.disabled
+    : position === 'open'
+      ? theme.palette.success.main
+      : theme.palette.error.main;
   const stubColor = theme.palette.text.primary;
 
   const size = 14; // half-size
@@ -90,6 +98,20 @@ const CircuitBreaker: React.FC<SldElementProps> = ({
             {label}
           </text>
         </>
+      )}
+      {isUnknown && (
+        <text
+          x={0}
+          y={5}
+          textAnchor="middle"
+          fontSize={SLD_FONT.header}
+          fontFamily="monospace"
+          fontWeight="bold"
+          fill={theme.palette.background.paper}
+          style={{ pointerEvents: 'none' }}
+        >
+          ?
+        </text>
       )}
       <AlarmIndicator state={state} offsetX={size + 4} offsetY={-size - 4} />
       <ControlRequestBadge request={request} offsetX={size + 6} offsetY={size + 2} />

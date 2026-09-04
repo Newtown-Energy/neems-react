@@ -24,7 +24,11 @@ const LockoutRelay: React.FC<SldElementProps> = ({
 }) => {
   const theme = useTheme();
   const { stroke, strokeWidth } = useStatusColors(state);
-  const isTripped = state.switchPosition === 'open';
+  const position = state.switchPosition ?? 'unknown';
+  const isTripped = position === 'open';
+  // An unknown position must not render as the normal, untripped handle — that
+  // is the reading an operator would take as "all clear" on no evidence.
+  const isUnknown = position === 'unknown';
 
   const lineColor = state.status === 'normal' ? theme.palette.text.primary : stroke;
   const faceColor = theme.palette.background.paper;
@@ -34,7 +38,8 @@ const LockoutRelay: React.FC<SldElementProps> = ({
 
   // Handle pivots around the bottom-center of the face.
   // TRIP = handle rotated down-left, CLOSE = handle down-right.
-  const handleAngle = isTripped ? -35 : 35;
+  // Mid-travel when unknown: the handle asserts neither TRIP nor CLOSE.
+  const handleAngle = isUnknown ? 0 : isTripped ? -35 : 35;
 
   return (
     <g
@@ -61,7 +66,13 @@ const LockoutRelay: React.FC<SldElementProps> = ({
         y={-h / 2 + 4}
         width={8}
         height={5}
-        fill={isTripped ? theme.palette.error.main : theme.palette.action.disabled}
+        fill={
+          isUnknown
+            ? theme.palette.text.disabled
+            : isTripped
+              ? theme.palette.error.main
+              : theme.palette.action.disabled
+        }
         stroke={lineColor}
         strokeWidth={0.5}
         rx={1}

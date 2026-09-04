@@ -138,4 +138,19 @@ describe('chooseAction', () => {
     expect(chooseAction(undefined, 'closed')).toBeNull();
     expect(chooseAction(control({ actions: [] }), 'closed')).toBeNull();
   });
+
+  // A breaker showing `?` cannot imply "the opposite of what it shows", and
+  // guessing would send a real command to plant on a reading we just admitted
+  // we do not have.
+  test('an unknown position offers no positional action', () => {
+    expect(chooseAction(control(), 'unknown')).toBeNull();
+    expect(chooseAction(control(), undefined)).toBeNull();
+  });
+
+  // But a control with one unambiguous action still offers it: tripping a
+  // lockout relay means the same thing whatever position it is showing.
+  test('a single-action control stays available with an unknown position', () => {
+    const lockout = control({ id: 'lockout-relay', actions: ['trip'] });
+    expect(chooseAction(lockout, 'unknown')).toBe('trip');
+  });
 });

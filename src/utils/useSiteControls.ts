@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ControlRequestDto, SiteControlDto } from '@newtown-energy/types';
 
+import type { SwitchPosition } from '../components/SingleLineDiagram/types';
+
 import { fetchSiteControls, requestControlAction } from './controlApi';
 import { errorLog } from './debug';
 import { useSiteContext } from './SiteContext';
@@ -52,7 +54,7 @@ export interface SiteControlsState {
    * what the click implies. Callers should leave an element unclickable rather
    * than send a request the backend will refuse.
    */
-  actionFor: (controlId: string, position: 'open' | 'closed' | undefined) => string | null;
+  actionFor: (controlId: string, position: SwitchPosition | undefined) => string | null;
   /**
    * The most recent failure to surface to the operator, with the label of the
    * element it belongs to. `null` once dismissed.
@@ -72,23 +74,29 @@ function parseUtc(timestamp: string | null | undefined): number | null {
  * The action a click asks for, chosen against what the control actually
  * accepts.
  *
- * The position on the diagram says what the click *means* — a closed breaker
- * is asking to open. But the position is not yet driven by the site
- * (neems-react#113), and the set of actions a control accepts is the
- * backend's to state, so the implied action is a proposal that has to be
- * checked rather than an answer.
+ * The position says what the click *means* — a closed breaker is asking to
+ * open — and the backend says what the control accepts, so the implied action
+ * is a proposal that has to be checked rather than an answer. A position of
+ * `unknown` implies nothing at all.
  *
  * `null` means "do not offer this click at all": better an element that does
  * nothing than one that sends a request the backend is going to refuse.
  */
 export function chooseAction(
   control: SiteControlDto | undefined,
-  position: 'open' | 'closed' | undefined,
+  position: SwitchPosition | undefined,
 ): string | null {
   if (!control || control.actions.length === 0) return null;
 
-  const implied = position === 'closed' ? 'open' : 'close';
-  if (control.actions.includes(implied)) return implied;
+  // A position we do not have cannot imply anything. "The opposite of what it
+  // shows" is meaningless for a breaker showing `?`, and guessing would send a
+  // real command to plant on the strength of a reading we just admitted we do
+  // not have. The single-action rule below still applies: tripping a lockout
+  // relay means the same thing whatever its current position.
+  if (position === 'open' || position === 'closed') {
+    const implied = position === 'closed' ? 'open' : 'close';
+    if (control.actions.includes(implied)) return implied;
+  }
 
   // A control with exactly one action has no ambiguity to resolve — the
   // lockout relay accepts `trip` and nothing else, and a click on it can only
@@ -240,7 +248,7 @@ export function useSiteControls(enabled = true): SiteControlsState {
   const now = Date.now();
   const actionFor = (
     controlId: string,
-    position: 'open' | 'closed' | undefined,
+    position: SwitchPosition | undefined,
   ): string | null => chooseAction(byId[controlId], position);
 
   const viewFor = (controlId: string): ControlRequestView | null => {
