@@ -144,6 +144,9 @@ function computeSwitchVisualState(
   );
   if (hasLockout) return 'locked-out';
   const pos = state.components[switchId]?.switchPosition;
+  // `unknown` is carried through rather than collapsed: a switch we have no
+  // reading for must not be drawn as closed just because it is not open.
+  if (pos === 'unknown' || pos === undefined) return 'unknown';
   return pos === 'open' ? 'open' : 'closed';
 }
 

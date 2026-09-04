@@ -28,15 +28,25 @@ export interface ActiveAlarmSummary {
 /** The visual state of a single SLD component */
 export type ComponentStatus = 'normal' | 'alarm' | 'warning' | 'offline';
 
-/** Switch/breaker position */
-export type SwitchPosition = 'open' | 'closed';
+/**
+ * Switch/breaker position, as reported by the site.
+ *
+ * `unknown` is a first-class answer, not a missing one: the readback feed can
+ * be stale, absent, or contradicting itself, and in all three cases the diagram
+ * must say so rather than fall back to a position. Anything that renders a
+ * position must handle it — defaulting `unknown` to `closed` would put a
+ * confident-looking breaker on screen with nothing behind it.
+ */
+export type SwitchPosition = 'open' | 'closed' | 'unknown';
 
 /**
  * Derived visual state for knife-switch-style elements.
  * `locked-out` forces the switch to render grey + open regardless of `switchPosition`
- * (used for E-stop, fire alarm, lockout relay).
+ * (used for E-stop, fire alarm, lockout relay). `unknown` means the site has not
+ * told us where the switch is — distinct from `locked-out`, which is a state the
+ * site *has* reported.
  */
-export type SwitchVisualState = 'closed' | 'open' | 'locked-out';
+export type SwitchVisualState = 'closed' | 'open' | 'locked-out' | 'unknown';
 
 /** Site-level operational mode driven by E-stop */
 export type OperationalMode = 'normal' | 'e-stop-active';

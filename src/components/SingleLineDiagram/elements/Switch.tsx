@@ -43,6 +43,8 @@ const Switch: React.FC<SwitchProps> = ({
         return theme.palette.error.main;
       case 'open':
         return theme.palette.success.main;
+      case 'unknown':
+        return theme.palette.text.disabled;
       case 'locked-out':
         return theme.palette.action.disabled;
     }
@@ -143,6 +145,24 @@ const Switch: React.FC<SwitchProps> = ({
           fill={theme.palette.text.primary}
         >
           {label}
+        </text>
+      )}
+      {/* Both `unknown` and `locked-out` render grey, because neither is
+          carrying a position we can vouch for — but they mean different things
+          (we have no reading vs. the site reported a lockout), so the unknown
+          case is marked rather than left to the colour alone. */}
+      {visualState === 'unknown' && (
+        <text
+          x={0}
+          y={5}
+          textAnchor="middle"
+          fontSize={SLD_FONT.header}
+          fontFamily="monospace"
+          fontWeight="bold"
+          fill={color}
+          style={{ pointerEvents: 'none' }}
+        >
+          ?
         </text>
       )}
       <AlarmIndicator state={state} offsetX={halfW + 4} offsetY={-halfH - 4} />
