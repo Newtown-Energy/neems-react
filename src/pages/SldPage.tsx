@@ -81,8 +81,11 @@ const SldPage: React.FC = () => {
           </Typography>
           <Typography variant="body2" color="text.secondary">
             {PROJECT_INFO.name} — click a line switch (89L-1/89L-2) or feeder
-            breaker to toggle its position. The red E-STOP button requests a
-            site-wide emergency stop; clearing one is done at the panel on site.
+            breaker to request that it open or close; the diagram shows what
+            became of the request. Drawn switch positions are not yet live —
+            they do not follow the site, so read them as a schematic rather
+            than as current state. The red E-STOP button requests a site-wide
+            emergency stop; clearing one is done at the panel on site.
           </Typography>
         </Box>
         <ProjectInfoCard />

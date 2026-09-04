@@ -1,7 +1,7 @@
 import React from 'react';
 import type { AlarmZoneDto } from '@newtown-energy/types';
-import type { SldDiagramState, SwitchVisualState } from '../types';
-import type { SldAction } from '../sldState';
+import type { ControlRequestView } from '../../../utils/useSiteControls';
+import type { SldDiagramState, SwitchPosition, SwitchVisualState } from '../types';
 import UtilityConnection from '../elements/UtilityConnection';
 import Meter from '../elements/Meter';
 import CircuitBreaker from '../elements/CircuitBreaker';
@@ -41,11 +41,26 @@ export const ZONE_TO_COMPONENT: Record<AlarmZoneDto, string> = {
 
 interface NewtownLayoutProps {
   state: SldDiagramState;
-  dispatch: React.Dispatch<SldAction>;
   /** Called when the E-stop button is clicked. Owner displays the confirm dialog. */
   onEStopClicked: () => void;
   /** An E-stop request is recorded but its signal has not reached the site yet. */
   eStopPending?: boolean;
+  /**
+   * Ask a control to do something. A click is a *request to send a signal*, so
+   * this is all a click does — the drawn position is not the diagram's to
+   * change, and moves only when the site reports that it moved.
+   */
+  onControlRequested: (controlId: string, action: string) => void;
+  /** What became of the last request against a control, for its badge. */
+  controlRequestFor: (controlId: string) => ControlRequestView | null;
+  /**
+   * The action a click on this element should ask for, or `null` if the
+   * backend does not offer one — in which case the element takes no click at
+   * all rather than sending a request that will be refused. Also `null` before
+   * the first poll returns, so nothing is clickable until we know what the
+   * site accepts.
+   */
+  controlActionFor: (controlId: string, position: SwitchPosition | undefined) => string | null;
 }
 
 // --- Layout coordinates (viewBox 1200x800) ---
@@ -134,13 +149,25 @@ function computeSwitchVisualState(
 
 const NewtownLayout: React.FC<NewtownLayoutProps> = ({
   state,
-  dispatch,
   onEStopClicked,
   eStopPending = false,
+  onControlRequested,
+  controlRequestFor,
+  controlActionFor,
 }) => {
   const comp = (id: string) => state.components[id];
   const wire = (id: string) => state.wires[id];
   const siteConfig = useSiteConfig();
+
+  /**
+   * The click handler for one control, or `undefined` when the backend offers
+   * no action for it — which leaves the element inert rather than sending a
+   * request that would be refused.
+   */
+  const clickFor = (controlId: string): (() => void) | undefined => {
+    const action = controlActionFor(controlId, comp(controlId)?.switchPosition);
+    return action ? () => onControlRequested(controlId, action) : undefined;
+  };
 
   const sw1Visual = computeSwitchVisualState(state, 'switch-89l-1');
   const sw2Visual = computeSwitchVisualState(state, 'switch-89l-2');
@@ -350,14 +377,8 @@ const NewtownLayout: React.FC<NewtownLayoutProps> = ({
         state={comp('switch-89l-1')}
         visualState={sw1Visual}
         label="89L-1"
-        onClick={() => {
-          const cur = comp('switch-89l-1').switchPosition;
-          dispatch({
-            type: 'SET_SWITCH_POSITION',
-            componentId: 'switch-89l-1',
-            position: cur === 'closed' ? 'open' : 'closed',
-          });
-        }}
+        request={controlRequestFor('switch-89l-1')}
+        onClick={clickFor('switch-89l-1')}
       />
       <Switch
         x={SW_R_X}
@@ -365,14 +386,8 @@ const NewtownLayout: React.FC<NewtownLayoutProps> = ({
         state={comp('switch-89l-2')}
         visualState={sw2Visual}
         label="89L-2"
-        onClick={() => {
-          const cur = comp('switch-89l-2').switchPosition;
-          dispatch({
-            type: 'SET_SWITCH_POSITION',
-            componentId: 'switch-89l-2',
-            position: cur === 'closed' ? 'open' : 'closed',
-          });
-        }}
+        request={controlRequestFor('switch-89l-2')}
+        onClick={clickFor('switch-89l-2')}
       />
 
       {/* Transformers */}
@@ -391,12 +406,8 @@ const NewtownLayout: React.FC<NewtownLayoutProps> = ({
                 y={FEEDER_Y}
                 state={comp(feederBreakerIds[feederIdx])}
                 label={`52-${mpLabel}`}
-                onClick={() =>
-                  dispatch({
-                    type: 'TOGGLE_BREAKER',
-                    componentId: feederBreakerIds[feederIdx],
-                  })
-                }
+                request={controlRequestFor(feederBreakerIds[feederIdx])}
+                onClick={clickFor(feederBreakerIds[feederIdx])}
               />
               <Megapack
                 x={fx}
@@ -418,17 +429,11 @@ const NewtownLayout: React.FC<NewtownLayoutProps> = ({
           x={LOCKOUT_X}
           y={LOCKOUT_Y}
           state={comp('lockout-relay')}
+          request={controlRequestFor('lockout-relay')}
+          // Trip only — that is what the backend offers for this control, so
+          // the shared derivation reaches it without the layout hardcoding it.
           onClick={
-            siteConfig.lockout.remoteTriggerEnabled
-              ? () => {
-                  const cur = comp('lockout-relay').switchPosition;
-                  dispatch({
-                    type: 'SET_SWITCH_POSITION',
-                    componentId: 'lockout-relay',
-                    position: cur === 'closed' ? 'open' : 'closed',
-                  });
-                }
-              : undefined
+            siteConfig.lockout.remoteTriggerEnabled ? clickFor('lockout-relay') : undefined
           }
         />
       )}

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState } from 'react';
 import {
+  Alert,
   Box,
   Button,
   Dialog,
@@ -7,6 +8,7 @@ import {
   DialogContent,
   DialogContentText,
   DialogTitle,
+  Snackbar,
   useTheme,
 } from '@mui/material';
 import { visuallyHidden } from '@mui/utils';
@@ -32,6 +34,7 @@ import type { EstopState } from '../../utils/useEstop';
 import { SldAlarmRefetchContext } from './SldAlarmRefetchContext';
 import NewtownLayout from './layouts/NewtownLayout';
 import { useSiteContext } from '../../utils/SiteContext';
+import { useSiteControls } from '../../utils/useSiteControls';
 import CurtailmentBadge from './CurtailmentBadge';
 
 const DIAGRAM_WIDTH = 1200;
@@ -180,6 +183,12 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({
   // feed must still light its alarms.
   useSldAnalogs(dispatch, selectedSite?.id ?? null);
 
+  // Operator requests against the switches, breakers and lockout relay. Kept
+  // apart from the alarm and analog feeds because it answers a different
+  // question: not what the site is doing, but what someone asked it to do and
+  // whether that ask got out.
+  const controls = useSiteControls();
+
   useEffect(() => {
     onDispatchReady?.(dispatch);
   }, [dispatch, onDispatchReady]);
@@ -266,9 +275,13 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({
             <SldAlarmRefetchContext.Provider value={refetchAlarms}>
               <NewtownLayout
                 state={state}
-                dispatch={dispatch}
                 onEStopClicked={() => setEStopDialogOpen(true)}
                 eStopPending={estop.pending || estop.submitting}
+                onControlRequested={(controlId, action) => {
+                  void controls.request(controlId, action);
+                }}
+                controlRequestFor={controls.viewFor}
+                controlActionFor={controls.actionFor}
               />
             </SldAlarmRefetchContext.Provider>
           </svg>
@@ -301,6 +314,33 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* A request that never reached the site. The badge on the element says
+          *that* it failed; this says *why*, in words, because a click that goes
+          nowhere is otherwise indistinguishable from one the diagram ignored.
+          Not auto-dismissed: an operator has to have actually seen it. */}
+      <Snackbar
+        open={controls.failure != null}
+        // Only the explicit close button dismisses this. MUI's default fires
+        // `onClose` with reason `clickaway` on any click anywhere on the page,
+        // which silently retracts the one message telling an operator their
+        // command never left the building.
+        onClose={(_event, reason) => {
+          if (reason !== 'clickaway') controls.dismissFailure();
+        }}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          severity="error"
+          variant="filled"
+          onClose={controls.dismissFailure}
+          data-testid="control-request-failure"
+        >
+          {controls.failure
+            ? `${controls.failure.label}: ${controls.failure.reason}`
+            : ''}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

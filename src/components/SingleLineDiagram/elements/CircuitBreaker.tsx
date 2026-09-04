@@ -3,6 +3,7 @@ import { useTheme } from '@mui/material';
 import type { SldElementProps } from '../types';
 import AlarmIndicator from './AlarmIndicator';
 import AlarmGlow from './AlarmGlow';
+import ControlRequestBadge from './ControlRequestBadge';
 import { SLD_FONT } from '../sldTypography';
 
 /**
@@ -17,6 +18,7 @@ const CircuitBreaker: React.FC<SldElementProps> = ({
   state,
   label,
   onClick,
+  request = null,
 }) => {
   const theme = useTheme();
   const isOpen = state.switchPosition === 'open';
@@ -90,6 +92,7 @@ const CircuitBreaker: React.FC<SldElementProps> = ({
         </>
       )}
       <AlarmIndicator state={state} offsetX={size + 4} offsetY={-size - 4} />
+      <ControlRequestBadge request={request} offsetX={size + 6} offsetY={size + 2} />
     </g>
   );
 };
