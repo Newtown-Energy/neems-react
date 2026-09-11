@@ -45,8 +45,9 @@ export interface EstopState {
    */
   sent: boolean;
   /**
-   * The signal went out and the site still reports no trip. Not a failure of
-   * this system, but the operator needs to know the plant has not stopped.
+   * The signal went out and the site has not tripped since — see
+   * [isSentWithoutTrip]. Not a failure of this system, but the operator needs
+   * to know the plant has not stopped.
    */
   sentWithoutTrip: boolean;
   /**
@@ -72,6 +73,20 @@ export function isAwaitingSignal(request: EstopRequestDto | null): boolean {
 /** The signal reached the RTAC, which is all this system undertakes to do. */
 export function hasBeenSent(request: EstopRequestDto | null): boolean {
   return request?.status === 'dispatched';
+}
+
+/**
+ * The signal went out and the site has not tripped at any moment since.
+ *
+ * Not merely "not tripped now": a trip reset at the panel after the request —
+ * or, on a demo, from the drawer — also leaves `observed_active` false, and
+ * reading that alone told the operator the site "has not reported a trip…
+ * escalate" about a site that did stop. `tripped_since_request` is the backend
+ * saying whether alarm 104 was up at any point after the request went out.
+ */
+export function isSentWithoutTrip(status: EstopStatusResponse | null): boolean {
+  if (!hasBeenSent(status?.request ?? null)) return false;
+  return !status?.observed_active && !status?.tripped_since_request;
 }
 
 /**
@@ -102,7 +117,11 @@ export function shouldPollQuickly(
 ): boolean {
   const request = status?.request ?? null;
   if (isAwaitingSignal(request)) return true;
-  if (!hasBeenSent(request) || status?.observed_active) return false;
+  // Once it has tripped — now, or since and reset — there is nothing left to
+  // watch for.
+  if (!hasBeenSent(request) || status?.observed_active || status?.tripped_since_request) {
+    return false;
+  }
 
   const sentAt = parseUtc(request?.dispatched_at);
   return sentAt != null && now - sentAt < WATCH_FOR_TRIP_MS;
@@ -197,7 +216,7 @@ export function useEstop(enabled = true): EstopState {
     request,
     pending: isAwaitingSignal(request),
     sent,
-    sentWithoutTrip: sent && !observedActive,
+    sentWithoutTrip: isSentWithoutTrip(status),
     failure: deliveryFailure(request),
     submitting,
     error,

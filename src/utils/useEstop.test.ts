@@ -18,6 +18,7 @@ import {
   deliveryFailure,
   hasBeenSent,
   isAwaitingSignal,
+  isSentWithoutTrip,
   shouldPollQuickly,
 } from './useEstop';
 
@@ -47,6 +48,7 @@ function status(overrides: Partial<EstopStatusResponse> = {}): EstopStatusRespon
     observed_at: null,
     observed_age_seconds: null,
     request: null,
+    tripped_since_request: false,
     ...overrides,
   };
 }
@@ -116,5 +118,41 @@ describe('poll cadence', () => {
     expect(shouldPollQuickly(status(), now)).toBe(false);
     expect(shouldPollQuickly(null, now)).toBe(false);
     expect(shouldPollQuickly(status({ request: request({ status: 'failed' }) }), now)).toBe(false);
+  });
+});
+
+describe('sent without a trip', () => {
+  const sent = request({ status: 'dispatched', dispatched_at: naiveUtcAgo(5) });
+
+  test('the signal went out and the site never tripped: warn', () => {
+    expect(isSentWithoutTrip(status({ request: sent }))).toBe(true);
+  });
+
+  test('the site is tripped now: no warning', () => {
+    expect(isSentWithoutTrip(status({ request: sent, observed_active: true }))).toBe(false);
+  });
+
+  // The bug this fixes: tripped by the request, then reset at the panel (or,
+  // on a demo, from the drawer). `observed_active` is false again, and on its
+  // own that read exactly like a signal the site ignored.
+  test('the site tripped and has been reset since: no warning', () => {
+    expect(
+      isSentWithoutTrip(status({ request: sent, observed_active: false, tripped_since_request: true })),
+    ).toBe(false);
+  });
+
+  test('nothing was sent: no warning', () => {
+    expect(isSentWithoutTrip(status())).toBe(false);
+    expect(isSentWithoutTrip(status({ request: request({ status: 'pending' }) }))).toBe(false);
+    expect(isSentWithoutTrip(null)).toBe(false);
+  });
+});
+
+describe('poll cadence after a trip that has been reset', () => {
+  test('stops watching for a trip that already happened', () => {
+    const sent = request({ status: 'dispatched', dispatched_at: naiveUtcAgo(5) });
+    expect(
+      shouldPollQuickly(status({ request: sent, tripped_since_request: true }), Date.now()),
+    ).toBe(false);
   });
 });
