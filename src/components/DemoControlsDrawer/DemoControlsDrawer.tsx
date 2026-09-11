@@ -50,6 +50,8 @@ import {
   setDemoAlarmState,
 } from '../../utils/alarmApi';
 import { injectDemoHistory } from '../../utils/demoApi';
+import { fetchSiteControls } from '../../utils/controlApi';
+import { drawerAlarmNums, positionAlarmNums } from './drawerAlarms';
 import { getSeverityColor } from '../../utils/alarmHelpers';
 import { errorLog } from '../../utils/debug';
 
@@ -120,7 +122,26 @@ const DemoControlsDrawer: React.FC<DemoControlsDrawerProps> = ({
   // an alarm here lowers the condition; it does not erase it. An alarm nobody
   // acknowledged stays visible as "returned, needs ack" until someone does.
   const [alarmDefs, setAlarmDefs] = useState<AlarmDefinitionDto[]>([]);
+  /** The demo's whole active alarm set, as the backend reports it. */
   const [forcedAlarmNums, setForcedAlarmNums] = useState<number[]>([]);
+  /** Points that are breaker/switch positions the diagram owns — see
+   *  [positionAlarmNums]. Never listed, raised or reset from here. Kept with
+   *  the site they were loaded for, so another site's positions can never
+   *  apply here: a site switch discards them without a window in which none
+   *  are known, and reopening on the same site keeps them. */
+  const [loadedPositions, setLoadedPositions] = useState<{
+    siteId: number;
+    nums: ReadonlySet<number>;
+  } | null>(null);
+  const selectedSiteId = selectedSite?.id ?? null;
+  const positionsKnown = selectedSiteId == null || loadedPositions?.siteId === selectedSiteId;
+  const positionNums = React.useMemo<ReadonlySet<number>>(
+    () =>
+      loadedPositions && loadedPositions.siteId === selectedSiteId
+        ? loadedPositions.nums
+        : new Set(),
+    [loadedPositions, selectedSiteId]
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -135,10 +156,29 @@ const DemoControlsDrawer: React.FC<DemoControlsDrawerProps> = ({
         errorLog('failed to load demo alarm state', err);
       }
     })();
+    // Separately, so a failure here cannot blank the alarm list.
+    if (selectedSiteId != null) {
+      void (async () => {
+        try {
+          const controls = await fetchSiteControls(selectedSiteId);
+          if (!cancelled) {
+            setLoadedPositions({ siteId: selectedSiteId, nums: positionAlarmNums(controls) });
+          }
+        } catch (err) {
+          errorLog('failed to load site controls for the demo drawer', err);
+        }
+      })();
+    }
     return () => {
       cancelled = true;
     };
-  }, [open]);
+  }, [open, selectedSiteId]);
+
+  /** What the drawer lists and resets: the active set without positions. */
+  const drawerAlarms = React.useMemo(
+    () => drawerAlarmNums(forcedAlarmNums, positionNums),
+    [forcedAlarmNums, positionNums]
+  );
 
   /** Raise or lower one alarm, optimistically reflecting it in the drawer. */
   /** Sequence number of the most recently issued alarm write.
@@ -183,14 +223,16 @@ const DemoControlsDrawer: React.FC<DemoControlsDrawerProps> = ({
 
   const handleReset = useCallback(() => {
     reset();
-    const raised = forcedAlarmNums;
+    // Positions are left exactly where the operator put them: resetting the
+    // demo's staged alarms must not open every breaker they closed.
+    const raised = drawerAlarms;
     if (raised.length === 0) return;
 
     // Lower each raised alarm individually; they latch rather than vanish.
     // Sequentially, then reconcile once: firing them together let responses
     // land out of order, and since each carries the whole active set the last
     // one to arrive could reinstate an alarm that had already been lowered.
-    setForcedAlarmNums([]);
+    setForcedAlarmNums(prev => prev.filter(n => positionNums.has(n)));
     alarmWriteSeq.current += 1;
     const seq = alarmWriteSeq.current;
     void (async () => {
@@ -204,7 +246,7 @@ const DemoControlsDrawer: React.FC<DemoControlsDrawerProps> = ({
         errorLog('failed to reset demo alarms', err);
       }
     })();
-  }, [reset, forcedAlarmNums]);
+  }, [reset, drawerAlarms, positionNums]);
 
   // Inject simulated history. Unlike the tab-local overrides above, this asks
   // the backend to generate SoC + alarm readings for the selected site so the
@@ -241,12 +283,12 @@ const DemoControlsDrawer: React.FC<DemoControlsDrawerProps> = ({
   const availableDefs = React.useMemo(
     () =>
       [...alarmDefs]
-        .filter(d => !forcedAlarmNums.includes(d.alarm_num))
+        .filter(d => !forcedAlarmNums.includes(d.alarm_num) && !positionNums.has(d.alarm_num))
         .sort((a, b) => a.alarm_num - b.alarm_num),
-    [alarmDefs, forcedAlarmNums]
+    [alarmDefs, forcedAlarmNums, positionNums]
   );
 
-  const hasOverridesOrAlarms = hasAnyOverride || forcedAlarmNums.length > 0;
+  const hasOverridesOrAlarms = hasAnyOverride || drawerAlarms.length > 0;
 
   if (!isAdmin) return null;
 
@@ -483,7 +525,7 @@ const DemoControlsDrawer: React.FC<DemoControlsDrawerProps> = ({
                 </Select>
               </FormControl>
               <Stack direction="row" flexWrap="wrap" gap={1} sx={{ mt: 1 }}>
-                {forcedAlarmNums.map(num => {
+                {drawerAlarms.map(num => {
                   const d = defByNum.get(num);
                   const label = d ? `#${num} ${d.name}` : `#${num}`;
                   const color = d ? getSeverityColor(d.severity) : 'default';
@@ -497,7 +539,7 @@ const DemoControlsDrawer: React.FC<DemoControlsDrawerProps> = ({
                     />
                   );
                 })}
-                {forcedAlarmNums.length === 0 && (
+                {drawerAlarms.length === 0 && (
                   <Typography variant="caption" color="text.secondary">
                     No alarms forced. Pick one above to drive the SLD glow / indicator and the /alarms list.
                   </Typography>
@@ -553,7 +595,13 @@ const DemoControlsDrawer: React.FC<DemoControlsDrawerProps> = ({
 
             <Divider />
 
-            <Button onClick={handleReset} disabled={!hasOverridesOrAlarms} color="warning">
+            {/* Reset has to know which points are positions before it can
+                promise to leave them alone. */}
+            <Button
+              onClick={handleReset}
+              disabled={!hasOverridesOrAlarms || !positionsKnown}
+              color="warning"
+            >
               Reset all overrides
             </Button>
           </Stack>
