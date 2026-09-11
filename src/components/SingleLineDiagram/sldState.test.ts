@@ -147,7 +147,7 @@ describe('sldReducer alarm routing', () => {
     const state = apply([
       alarm({ alarm_num: 103, zone: 'BreakerRelay', severity: 'Critical', sld_targets: ['LOR', 'Border'] }),
     ]);
-    expect(state.border).toEqual({ severity: 'Critical' });
+    expect(state.border).toEqual({ severity: 'Critical', firing: true });
     // The non-Border token still routes to the lockout relay.
     expect(state.components['lockout-relay'].activeAlarmCount).toBe(1);
   });
@@ -168,7 +168,7 @@ describe('sldReducer alarm routing', () => {
     const state = apply([
       alarm({ alarm_num: 103, zone: 'BreakerRelay', severity: 'Critical', sld_targets: ['Border'] }),
     ]);
-    expect(state.border).toEqual({ severity: 'Critical' });
+    expect(state.border).toEqual({ severity: 'Critical', firing: true });
     expect(state.components['breaker-main'].activeAlarmCount).toBe(0);
     expect(state.components['switch-89l-1'].activeAlarmCount).toBe(0);
     expect(state.components['lockout-relay'].activeAlarmCount).toBe(0);
@@ -181,7 +181,7 @@ describe('sldReducer alarm routing', () => {
       alarm({ alarm_num: 401, zone: 'Facp', severity: 'Emergency', sld_targets: ['FACP'], message: 'FIRE!!' }),
       alarm({ alarm_num: 103, zone: 'BreakerRelay', severity: 'Critical', sld_targets: ['Border'] }),
     ]);
-    expect(state.border).toEqual({ severity: 'Emergency' });
+    expect(state.border).toEqual({ severity: 'Emergency', firing: true });
     expect(state.components['fire-alarm-panel'].activeAlarms[0].message).toBe('FIRE!!');
   });
 
@@ -454,5 +454,54 @@ describe('diagramFrame with the demo bypass', () => {
 
   test('no data at all still raises the emergency frame', () => {
     expect(diagramFrame(applyAged([], null), true)?.severity).toBe('Emergency');
+  });
+});
+
+// A latched alarm — returned to normal, still owed an acknowledgement — still
+// raises the frame, because it needs an operator. It must not be announced as
+// active, because the site says it has cleared.
+describe('diagramFrame wording for latched alarms', () => {
+  const estop = (data_active: boolean) =>
+    alarm({
+      alarm_num: 104,
+      zone: 'BreakerRelay',
+      name: 'estop',
+      severity: 'Critical',
+      sld_targets: ['Estop', 'Border'],
+      data_active,
+    });
+
+  test('a firing site-level alarm is announced as active', () => {
+    const frame = diagramFrame(apply([estop(true)]));
+    expect(frame?.severity).toBe('Critical');
+    expect(frame?.announcement).toBe('Site-level critical alarm active');
+  });
+
+  test('a latched site-level alarm still raises the frame, announced as needing acknowledgement', () => {
+    const frame = diagramFrame(apply([estop(false)]));
+    expect(frame?.severity).toBe('Critical');
+    expect(frame?.announcement).toBe('Site-level critical alarm needs acknowledgement');
+  });
+
+  test('one firing alarm at the frame severity makes it active', () => {
+    const other = alarm({
+      alarm_num: 3,
+      zone: 'Site',
+      severity: 'Critical',
+      sld_targets: ['Border'],
+      data_active: true,
+    });
+    expect(diagramFrame(apply([estop(false), other]))?.announcement).toBe(
+      'Site-level critical alarm active',
+    );
+  });
+
+  // The frame takes the highest severity; what it announces is whether *that*
+  // severity is firing. A firing warning does not make a latched critical active.
+  test('a firing lower-severity alarm does not make a latched higher one active', () => {
+    const warning = alarm({ alarm_num: 3, zone: 'Site', severity: 'Warning', sld_targets: ['Border'] });
+    const frame = diagramFrame(apply([estop(false), warning]));
+    expect(frame?.severity).toBe('Critical');
+    expect(frame?.announcement).toBe('Site-level critical alarm needs acknowledgement');
   });
 });

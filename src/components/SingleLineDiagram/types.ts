@@ -95,7 +95,12 @@ export interface SldWireState {
  * critical fault reads red/orange rather than an unintuitive blue. `null` = no
  * frame.
  */
-export type SldBorderState = { severity: AlarmSeverityDto } | null;
+export type SldBorderState = {
+  severity: AlarmSeverityDto;
+  /** Whether an alarm raising the frame at this severity is firing now, as
+   *  opposed to latched: returned to normal, still owed an acknowledgement. */
+  firing: boolean;
+} | null;
 
 /** Top-level diagram state */
 export interface SldDiagramState {
