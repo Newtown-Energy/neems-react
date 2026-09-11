@@ -5,6 +5,7 @@ import Sidebar from './components/Sidebar/Sidebar';
 import FDNYPage from './pages/FDNYPage';
 import AdminPage from './pages/AdminPage';
 import AlarmsPage from './pages/AlarmsPage';
+import AlarmHistoryPage from './pages/AlarmHistoryPage';
 import ReportsPage from './pages/ReportsPage';
 import SchedulerPage from './pages/SchedulerPage';
 import LibraryPage from './pages/LibraryPage';
@@ -75,6 +76,7 @@ const AppContent: React.FC = () => {
               <Route path="/" element={<Navigate to="/sld" replace />} />
               <Route path="/overview" element={<Navigate to="/reports" replace />} />
               <Route path="/alarms" element={<AlarmsPage />} />
+              <Route path="/alarm-history" element={<AlarmHistoryPage />} />
               <Route path="/fdny" element={<FDNYPage />} />
               <Route path="/reports" element={<ReportsPage />} />
               <Route path="/scheduler" element={<SchedulerPage />} />

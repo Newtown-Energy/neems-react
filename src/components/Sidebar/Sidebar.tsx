@@ -24,6 +24,7 @@ const Sidebar: React.FC<SidebarProps> = () => { // Removed unused className
     const path = location.pathname;
     if (path === '/' || path === '/sld') return 'sld';
     if (path === '/alarms') return 'alarms';
+    if (path === '/alarm-history') return 'alarm-history';
     if (path === '/fdny') return 'fdny';
     if (path === '/reports') return 'reports';
     if (path === '/scheduler' || path.startsWith('/library')) return 'scheduler';
@@ -34,7 +35,7 @@ const Sidebar: React.FC<SidebarProps> = () => { // Removed unused className
 
   const showAdminPanel = isAdmin(userInfo?.roles);
 
-  const enabledPageIds = ['sld', 'scheduler', 'alarms', 'reports', 'fdny'];
+  const enabledPageIds = ['sld', 'scheduler', 'alarms', 'alarm-history', 'reports', 'fdny'];
   
   const navItems = enabledPageIds.map(pageId => {
     const config = getPageConfig(pageId);
