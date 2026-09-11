@@ -6,29 +6,24 @@
  * from the read-only points the RTAC reports instead — the only authority on
  * where a breaker sits.
  *
- * The awkward part is that absence is ambiguous: a breaker reports
- * `ac_breaker_closed` when closed and reports nothing when open, which is
- * indistinguishable from a feed that has stopped. Hence [readbackUsable] —
- * every position is `unknown` unless we can show the feed is current. A stale
- * feed rendering as "open" would be a quieter version of the bug this replaces.
+ * A position is held, not withdrawn, when the feed goes quiet: the diagram keeps
+ * drawing the last thing the site reported. What changes is that the whole
+ * picture is flagged as stale — as an emergency, see `utils/staleness` — so a
+ * held position is never mistaken for a current one. That is how a SCADA
+ * display treats a lost feed, and it tells an operator strictly more than a
+ * field of question marks would.
  *
- * Presence is ambiguous too, and in the other direction: `/Alarms/Active` lists
- * more than the points that are set, because an alarm that has returned to
- * normal stays listed until it is acknowledged. So the caller filters on
- * `data_active` before building the set these read — see [derivePosition].
+ * `unknown` is kept for the cases where there is genuinely nothing to hold: no
+ * reading has ever arrived, a control has no readback point, or the site
+ * reports its own feedback as irrational.
+ *
+ * Presence in the alarm list is ambiguous, too: `/Alarms/Active` lists more
+ * than the points that are set, because an alarm that has returned to normal
+ * stays listed until it is acknowledged. So the caller filters on `data_active`
+ * before building the set these read — see [derivePosition].
  */
 
 import type { SwitchPosition } from './types';
-
-/**
- * How long a reading stays good enough to draw a position from.
- *
- * The collector persists at 1 Hz and the diagram polls every 10s, so a reading
- * older than this means the feed has stopped rather than that it is between
- * ticks. Deliberately not generous: the cost of being wrong is a diagram
- * asserting a breaker position from stale data.
- */
-export const MAX_READBACK_AGE_SECONDS = 30;
 
 /** What a control's readback point means when its bit is set. */
 type WhenActive = 'closed' | 'open';
@@ -69,21 +64,6 @@ export const READBACKS: Record<string, ReadbackSpec> = {
 };
 
 /**
- * Whether a reading is current enough to draw positions from.
- *
- * `null` age means no reading carried alarm data at all — not that the site is
- * quiet. Both that and an over-age reading make every position `unknown`.
- */
-export function readbackUsable(
-  ageSeconds: number | null | undefined,
-  stale: boolean,
-): boolean {
-  if (stale) return false;
-  if (ageSeconds == null) return false;
-  return ageSeconds >= 0 && ageSeconds <= MAX_READBACK_AGE_SECONDS;
-}
-
-/**
  * The position one control is in, given the points currently set.
  *
  * `activeAlarmNums` must hold only the points the site is reporting *now* —
@@ -92,17 +72,18 @@ export function readbackUsable(
  * equipment has already left. Filtering on `data_active` is the caller's job
  * because the caller is the one holding the DTOs.
  *
- * `unknown` whenever we cannot honestly say: no reading, an old reading, a
- * control with no readback point, or the site reporting its own feedback as
- * irrational.
+ * `unknown` whenever there is nothing to draw from: no reading has ever arrived
+ * (`hasReading` false), the control has no readback point, or the site reports
+ * its own feedback as irrational. An *old* reading is not one of these — it is
+ * held, and its age is the staleness flag's business, not this function's.
  */
 export function derivePosition(
   controlId: string,
   activeAlarmNums: ReadonlySet<number>,
-  usable: boolean,
+  hasReading: boolean,
 ): SwitchPosition {
   const spec = READBACKS[controlId];
-  if (!spec || !usable) return 'unknown';
+  if (!spec || !hasReading) return 'unknown';
   if (spec.irrationalAlarmNum != null && activeAlarmNums.has(spec.irrationalAlarmNum)) {
     return 'unknown';
   }
@@ -115,11 +96,11 @@ export function derivePosition(
 /** Every control's position, for folding into diagram state in one pass. */
 export function derivePositions(
   activeAlarmNums: ReadonlySet<number>,
-  usable: boolean,
+  hasReading: boolean,
 ): Record<string, SwitchPosition> {
   const out: Record<string, SwitchPosition> = {};
   for (const controlId of Object.keys(READBACKS)) {
-    out[controlId] = derivePosition(controlId, activeAlarmNums, usable);
+    out[controlId] = derivePosition(controlId, activeAlarmNums, hasReading);
   }
   return out;
 }

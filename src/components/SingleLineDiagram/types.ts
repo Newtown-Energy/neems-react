@@ -105,7 +105,10 @@ export interface SldDiagramState {
   border: SldBorderState;
   lastAlarmUpdate: string | null;
   dataAgeSeconds: number | null;
+  /** The most recent alarm poll failed; everything shown is last-known. */
   dataStale: boolean;
+  /** Whether any alarm poll has answered yet, successfully or not. */
+  alarmsLoaded: boolean;
   operationalMode: OperationalMode;
 }
 

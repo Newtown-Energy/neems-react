@@ -59,10 +59,6 @@ const SldPage: React.FC = () => {
   const [diagramState, setDiagramState] = useState<SldDiagramState | null>(null);
   const estop = useEstop();
 
-  const noData =
-    diagramState != null &&
-    !diagramState.dataStale &&
-    diagramState.lastAlarmUpdate == null;
   // Read from alarm 104 via the alarm feed, not from anything this page did.
   const eStopActive = diagramState?.operationalMode === 'e-stop-active';
 
@@ -84,10 +80,13 @@ const SldPage: React.FC = () => {
             breaker to request that it open or close; the diagram shows what
             became of the request. Positions come from the site's own readback
             points, so they change when the equipment does and not when you
-            click. A grey <strong>?</strong> means the site has not told us
-            where something is — a stale feed, or feedback the site reports as
-            contradicting itself. The red E-STOP button requests a site-wide
-            emergency stop; clearing one is done at the panel on site.
+            click. A grey <strong>?</strong> means the site has never told us
+            where something is, or reports its own feedback as contradicting
+            itself. If the site's data goes stale, the diagram keeps showing
+            the last state it reported inside a flashing red frame — do not
+            trust it until the frame clears. The red E-STOP button requests a
+            site-wide emergency stop; clearing one is done at the panel on
+            site.
           </Typography>
         </Box>
         <ProjectInfoCard />
@@ -137,14 +136,9 @@ const SldPage: React.FC = () => {
         </Alert>
       )}
 
-      {/* Stale-data and unreachable-service warnings now render once,
-          app-wide, via SiteStatePanel, so they're not duplicated here. */}
-
-      {noData && (
-        <Alert severity="info" sx={{ mb: 2 }}>
-          No alarm data available yet. The diagram shows default (normal) state.
-        </Alert>
-      )}
+      {/* Stale-data, no-data and unreachable-service warnings render once,
+          app-wide, via SiteStatePanel, so they're not duplicated here. The
+          diagram carries its own flashing frame for the same conditions. */}
 
       <Box
         sx={{

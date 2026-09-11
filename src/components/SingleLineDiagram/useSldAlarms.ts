@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { fetchActiveAlarms } from '../../utils/alarmApi';
 import { errorLog } from '../../utils/debug';
+import { createPollSequence } from '../../utils/pollSequence';
 import type { SldAction } from './sldState';
 
 const POLL_INTERVAL_MS = 10_000;
@@ -12,6 +13,11 @@ const POLL_INTERVAL_MS = 10_000;
  *
  * Returns a `refetch` function so callers (e.g. the Acknowledge button) can
  * force an immediate refresh rather than waiting for the next poll tick.
+ *
+ * Only the most recently *issued* poll may publish its result (see
+ * [createPollSequence]). Polls overlap — one every 10s, plus any `refetch` —
+ * and a late `MARK_STALE` would otherwise raise the stale-data emergency over
+ * data that is in fact current.
  */
 export function useSldAlarms(
   dispatch: React.Dispatch<SldAction>,
@@ -19,16 +25,19 @@ export function useSldAlarms(
   pollIntervalMs = POLL_INTERVAL_MS,
 ): { refetch: () => Promise<void> } {
   const mountedRef = useRef(true);
+  const sequence = useRef(createPollSequence());
 
   const load = useCallback(async () => {
+    const isLatest = sequence.current.begin();
+    const current = () => mountedRef.current && isLatest();
     try {
       const response = await fetchActiveAlarms();
-      if (mountedRef.current) {
+      if (current()) {
         dispatch({ type: 'UPDATE_ALARMS', alarms: response });
       }
     } catch (err) {
       errorLog('SLD alarm poll failed:', err);
-      if (mountedRef.current) {
+      if (current()) {
         dispatch({ type: 'MARK_STALE' });
       }
     }

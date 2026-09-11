@@ -2,48 +2,20 @@
  * Unit tests for deriving equipment position from the site's readback points.
  *
  * The property being pinned down throughout is that the diagram never asserts a
- * position it cannot source. Every path that loses confidence — a stale feed,
- * no feed, a control with no readback, or the site calling its own feedback
- * irrational — has to land on `unknown` rather than on a position that happens
- * to be the falsy default.
+ * position it has nothing to source from. A control with no readback, the site
+ * calling its own feedback irrational, and no reading ever having arrived all
+ * have to land on `unknown` rather than on a position that happens to be the
+ * falsy default. An *old* reading is not in that list: it is held, and flagged
+ * as stale elsewhere (`utils/staleness`).
  *
  * Run with `bun test src/components/SingleLineDiagram/readbackPositions.test.ts`.
  */
 
 import { describe, expect, test } from 'bun:test';
 
-import {
-  MAX_READBACK_AGE_SECONDS,
-  derivePosition,
-  derivePositions,
-  readbackUsable,
-} from './readbackPositions';
+import { derivePosition, derivePositions } from './readbackPositions';
 
 const fresh = (nums: number[]) => derivePositions(new Set(nums), true);
-
-describe('readbackUsable', () => {
-  test('a current reading is usable', () => {
-    expect(readbackUsable(0, false)).toBe(true);
-    expect(readbackUsable(MAX_READBACK_AGE_SECONDS, false)).toBe(true);
-  });
-
-  // The failure this guards: the collector stops, the last reading ages, and
-  // the diagram keeps drawing the positions it happened to see last.
-  test('an aged-out reading is not usable', () => {
-    expect(readbackUsable(MAX_READBACK_AGE_SECONDS + 1, false)).toBe(false);
-  });
-
-  // `null` means no reading carried alarm data at all — not that the site is
-  // quiet, which is exactly the conflation that would draw every breaker open.
-  test('an absent reading is not usable', () => {
-    expect(readbackUsable(null, false)).toBe(false);
-    expect(readbackUsable(undefined, false)).toBe(false);
-  });
-
-  test('a failed poll is not usable however fresh the last age looked', () => {
-    expect(readbackUsable(0, true)).toBe(false);
-  });
-});
 
 describe('derivePosition', () => {
   // The two halves of the site read in opposite directions, which is the thing
@@ -78,10 +50,13 @@ describe('derivePosition', () => {
     expect(derivePosition('feeder-1a', new Set([615]), true)).toBe('unknown');
   });
 
-  test('an unusable feed makes every position unknown', () => {
+  // No reading ever arrived, so there is nothing to hold — and an empty set
+  // must not be read as "every point clear", which would draw the feeders
+  // open and the switches closed from nothing at all.
+  test('with no reading at all, every position is unknown', () => {
     const positions = derivePositions(new Set([607, 101]), false);
     for (const [id, position] of Object.entries(positions)) {
-      expect(position, `${id} must not be drawn from an unusable feed`).toBe('unknown');
+      expect(position, `${id} must not be drawn without a reading`).toBe('unknown');
     }
   });
 

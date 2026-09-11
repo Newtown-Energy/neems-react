@@ -8,7 +8,8 @@
  *    overrides (breaker trips, low SoC, curtailment, …), and
  *  - live alarm-feed warnings (stale data, emergency/critical alarms)
  *    polled globally so they show everywhere, not only on the SLD or
- *    Alarms pages.
+ *    Alarms pages. Stale data is raised at the same severity as an
+ *    emergency alarm.
  *
  * Renders nothing when the site is healthy, so it adds no visual weight
  * in the common case.
@@ -21,16 +22,7 @@ import { useSiteContext } from '../../utils/SiteContext';
 import { useDemoOverrides } from '../../utils/demoOverrides';
 import { evaluateSiteState } from '../../utils/scheduleWarnings';
 import { useActiveAlarmStatus } from '../../utils/useActiveAlarmStatus';
-
-// Match the threshold used by the SLD and Alarms pages.
-const STALE_THRESHOLD_SECONDS = 60;
-
-interface BannerAlert {
-  key: string;
-  severity: 'error' | 'warning' | 'info';
-  title: string;
-  message: string;
-}
+import { alarmFeedAlerts } from './alarmFeedAlerts';
 
 const SiteStatePanel: React.FC = () => {
   const { selectedSite } = useSiteContext();
@@ -47,49 +39,13 @@ const SiteStatePanel: React.FC = () => {
     });
   }, [selectedSite, overrides]);
 
-  // Live alarm-feed warnings. These mirror the per-page banners on the SLD
-  // and Alarms pages but live here so they appear on every view.
-  const alarmAlerts = useMemo<BannerAlert[]>(() => {
-    const out: BannerAlert[] = [];
-    // Can't reach the service at all — supersedes the age-based warning,
-    // since the age is unknown / growing while we're offline.
-    if (unreachable) {
-      out.push({
-        key: 'alarm-service-unreachable',
-        severity: 'warning',
-        title: 'Alarm service unreachable',
-        message: 'Unable to reach the alarm service. Displayed alarm state may be outdated.'
-      });
-    } else if (
-      alarmStatus?.data_age_seconds != null &&
-      alarmStatus.data_age_seconds > STALE_THRESHOLD_SECONDS
-    ) {
-      out.push({
-        key: 'stale-alarm-data',
-        severity: 'warning',
-        title: 'Stale alarm data',
-        message: `Alarm data is ${alarmStatus.data_age_seconds} seconds old. The RTAC connection may be down.`
-      });
-    }
-    // Surface a known emergency/critical even while unreachable — it was
-    // real as of the last successful poll.
-    if (alarmStatus?.has_emergency) {
-      out.push({
-        key: 'emergency-alarms',
-        severity: 'error',
-        title: 'Emergency alarms active',
-        message: 'EMERGENCY alarms are active — immediate action required.'
-      });
-    } else if (alarmStatus?.has_critical) {
-      out.push({
-        key: 'critical-alarms',
-        severity: 'warning',
-        title: 'Critical alarms active',
-        message: 'Critical alarms are active — attention required.'
-      });
-    }
-    return out;
-  }, [alarmStatus, unreachable]);
+  // Live alarm-feed warnings, polled globally so they show on every page.
+  // Stale data is an emergency here, not only on the SLD — see
+  // [alarmFeedAlerts].
+  const alarmAlerts = useMemo(
+    () => alarmFeedAlerts(alarmStatus, unreachable),
+    [alarmStatus, unreachable]
+  );
 
   if (issues.length === 0 && alarmAlerts.length === 0) return null;
 
