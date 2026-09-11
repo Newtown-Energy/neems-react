@@ -100,6 +100,9 @@ const SeverityShape: React.FC<{
  * so it reads as distinct from a currently-active alarm. Clicking opens a
  * popover listing the alarms with per-alarm acknowledgement.
  */
+/** Radius of the badge's click target: the largest drawn shape plus a margin. */
+const BADGE_HIT_RADIUS = 13;
+
 const AlarmIndicator: React.FC<AlarmIndicatorProps> = ({ state, offsetX, offsetY }) => {
   const theme = useTheme();
   const badgeRef = useRef<SVGGElement>(null);
@@ -160,28 +163,43 @@ const AlarmIndicator: React.FC<AlarmIndicatorProps> = ({ state, offsetX, offsetY
 
   return (
     <g transform={`translate(${offsetX}, ${offsetY})`}>
-      {animate && (
-        <circle cx={0} cy={0} r={12} fill={color} opacity={0.3}>
-          <animate
-            attributeName="r"
-            values="10;16;10"
-            dur="1.5s"
-            repeatCount="indefinite"
-          />
-          <animate
-            attributeName="opacity"
-            values="0.3;0.05;0.3"
-            dur="1.5s"
-            repeatCount="indefinite"
-          />
-        </circle>
-      )}
-      {/* Clickable severity-shaped badge */}
+      {/* Clickable severity-shaped badge. Everything visibly part of the badge
+          lives inside this group, because the badge can sit inside an
+          element's own clickable group — a switch's — and anything here that
+          is *not* the badge passes its click up to the element instead. A
+          click aimed at an alarm must open the alarm, never move equipment. */}
       <g
         ref={badgeRef}
         style={{ cursor: 'pointer' }}
         onClick={handleClick}
       >
+        {/* The pulse halo. Inside the group, so a click on the visibly
+            pulsing ring — the thing an operator is most likely to aim at —
+            opens the alarm rather than sending the switch beneath an open or
+            close request. */}
+        {animate && (
+          <circle cx={0} cy={0} r={12} fill={color} opacity={0.3}>
+            <animate
+              attributeName="r"
+              values="10;16;10"
+              dur="1.5s"
+              repeatCount="indefinite"
+            />
+            <animate
+              attributeName="opacity"
+              values="0.3;0.05;0.3"
+              dur="1.5s"
+              repeatCount="indefinite"
+            />
+          </circle>
+        )}
+        {/* The click target, independent of how the badge is painted. A
+            returned-needs-ack badge is hollow and dashed, and an SVG shape
+            with no fill only takes clicks on its painted stroke — mostly gaps —
+            so without this the badge an operator most needs to acknowledge was
+            the one they could not open. Slightly larger than the drawn badge,
+            so a near-miss opens the alarm rather than the element beside it. */}
+        <circle cx={0} cy={0} r={BADGE_HIT_RADIUS} fill="transparent" />
         <SeverityShape
           severity={state.highestSeverity}
           color={color}
