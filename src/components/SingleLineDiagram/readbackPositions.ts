@@ -6,12 +6,16 @@
  * from the read-only points the RTAC reports instead — the only authority on
  * where a breaker sits.
  *
- * The awkward part is that `/Alarms/Active` lists only the points that are
- * *set*, so absence is ambiguous: a breaker reports `ac_breaker_closed` when
- * closed and reports nothing when open, which is indistinguishable from a feed
- * that has stopped. Hence [readbackUsable] — every position is `unknown` unless
- * we can show the feed is current. A stale feed rendering as "open" would be a
- * quieter version of the bug this replaces.
+ * The awkward part is that absence is ambiguous: a breaker reports
+ * `ac_breaker_closed` when closed and reports nothing when open, which is
+ * indistinguishable from a feed that has stopped. Hence [readbackUsable] —
+ * every position is `unknown` unless we can show the feed is current. A stale
+ * feed rendering as "open" would be a quieter version of the bug this replaces.
+ *
+ * Presence is ambiguous too, and in the other direction: `/Alarms/Active` lists
+ * more than the points that are set, because an alarm that has returned to
+ * normal stays listed until it is acknowledged. So the caller filters on
+ * `data_active` before building the set these read — see [derivePosition].
  */
 
 import type { SwitchPosition } from './types';
@@ -81,6 +85,12 @@ export function readbackUsable(
 
 /**
  * The position one control is in, given the points currently set.
+ *
+ * `activeAlarmNums` must hold only the points the site is reporting *now* —
+ * `/Alarms/Active` also lists points that have returned to normal and are still
+ * owed an acknowledgement, and passing those in reports the position the
+ * equipment has already left. Filtering on `data_active` is the caller's job
+ * because the caller is the one holding the DTOs.
  *
  * `unknown` whenever we cannot honestly say: no reading, an old reading, a
  * control with no readback point, or the site reporting its own feedback as

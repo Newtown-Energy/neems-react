@@ -218,3 +218,83 @@ describe('sldReducer E-stop mode', () => {
     expect(state.operationalMode).toBe('normal');
   });
 });
+
+describe('sldReducer readback positions', () => {
+  // A latched alarm is the normal state of a readback point that has moved,
+  // not an edge case: every open/close cycle leaves one behind. These pin that
+  // the position follows the data axis and ignores the acknowledgement axis.
+
+  test('a point that is set reports its position', () => {
+    // 101 (bps_89l1_open) means open when set.
+    const state = apply([
+      alarm({ alarm_num: 101, zone: 'BreakerRelay', sld_targets: ['52-MAIN-1'] }),
+    ]);
+    expect(state.components['switch-89l-1'].switchPosition).toBe('open');
+  });
+
+  test('a returned-unacknowledged readback reports the new position', () => {
+    // 89L-1 was opened and closed again. The alarm is still listed because
+    // nobody has acknowledged it, but the site is no longer reporting the
+    // switch as open — so the diagram must draw it closed. Drawing it open
+    // would assert a position the equipment has already left, which is the
+    // failure the readback rewrite existed to prevent.
+    const state = apply([
+      alarm({
+        alarm_num: 101,
+        zone: 'BreakerRelay',
+        sld_targets: ['52-MAIN-1'],
+        data_active: false,
+        acknowledged: false,
+      }),
+    ]);
+    expect(state.components['switch-89l-1'].switchPosition).toBe('closed');
+  });
+
+  test('acknowledging is not what moves a switch', () => {
+    // The mirror of the case above: still firing, now acknowledged. An
+    // acknowledgement says an operator has seen it, and says nothing about
+    // where the switch is.
+    const state = apply([
+      alarm({
+        alarm_num: 101,
+        zone: 'BreakerRelay',
+        sld_targets: ['52-MAIN-1'],
+        data_active: true,
+        acknowledged: true,
+      }),
+    ]);
+    expect(state.components['switch-89l-1'].switchPosition).toBe('open');
+  });
+
+  test('the same rule holds for a point that reads the other way round', () => {
+    // 607 (ac_breaker_closed) means *closed* when set, so a latched-but-
+    // cleared 607 must read open — the opposite direction from 101, from the
+    // identical input.
+    const firing = apply([alarm({ alarm_num: 607, zone: 'Mp1a', sld_targets: ['MP-1A'] })]);
+    expect(firing.components['feeder-1a'].switchPosition).toBe('closed');
+
+    const latched = apply([
+      alarm({ alarm_num: 607, zone: 'Mp1a', sld_targets: ['MP-1A'], data_active: false }),
+    ]);
+    expect(latched.components['feeder-1a'].switchPosition).toBe('open');
+  });
+
+  test('the alarm stays visible on the element whose position moved on', () => {
+    // The fix must not be "stop listing the alarm". A cleared-but-
+    // unacknowledged alarm is still owed an acknowledgement and still belongs
+    // on the element; only the position stops following it.
+    const state = apply([
+      alarm({
+        alarm_num: 101,
+        zone: 'BreakerRelay',
+        sld_targets: ['52-MAIN-1'],
+        data_active: false,
+        acknowledged: false,
+      }),
+    ]);
+    const component = state.components['switch-89l-1'];
+    expect(component.switchPosition).toBe('closed');
+    expect(component.activeAlarmCount).toBe(1);
+    expect(component.activeAlarms[0].dataActive).toBe(false);
+  });
+});

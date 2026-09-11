@@ -207,9 +207,19 @@ function applyAlarms(
   // alarms drawn can never disagree about which reading they came from. When
   // the feed is too old to trust, every position reads `unknown` rather than
   // falling back to whatever it last was.
+  //
+  // Filtered on `data_active`, and that filter is the whole correctness of the
+  // position: `/Alarms/Active` returns more than what is currently firing. A
+  // point that has gone back to normal stays listed until it is acknowledged,
+  // so an unfiltered set would keep reporting the position the equipment has
+  // already left — a breaker that opened and closed again would draw open
+  // until somebody acknowledged the alarm, which says nothing about where it
+  // is. Position is the data axis alone; acknowledgement is the other one.
   const dataAgeSeconds =
     alarms.data_age_seconds != null ? Number(alarms.data_age_seconds) : null;
-  const activeAlarmNums = new Set(alarms.alarms.map((a) => a.alarm_num));
+  const activeAlarmNums = new Set(
+    alarms.alarms.filter((a) => a.data_active).map((a) => a.alarm_num),
+  );
   const positions = derivePositions(
     activeAlarmNums,
     readbackUsable(dataAgeSeconds, false),
