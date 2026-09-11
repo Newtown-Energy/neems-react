@@ -113,7 +113,9 @@ const AlarmHistoryView: React.FC<AlarmHistoryViewProps> = ({
   const [alarmNumFilter, setAlarmNumFilter] = useState<number[]>([]);
   const [definitions, setDefinitions] = useState<AlarmDefinitionDto[]>([]);
   const [entries, setEntries] = useState<AlarmHistoryEntry[]>([]);
-  const [activeAlarmNums, setActiveAlarmNums] = useState<Set<number>>(new Set());
+  /** Alarms physically active right now, or null when that could not be
+   *  loaded — in which case no row can honestly be called CURRENT. */
+  const [activeAlarmNums, setActiveAlarmNums] = useState<Set<number> | null>(new Set());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
@@ -153,7 +155,13 @@ const AlarmHistoryView: React.FC<AlarmHistoryViewProps> = ({
         queryAlarmNums && queryAlarmNums.length === 0
           ? Promise.resolve({ entries: [] })
           : fetchAlarmHistory(from, to, queryAlarmNums);
-      const [history, active] = await Promise.all([historyPromise, fetchActiveAlarms()]);
+      // Present state only decorates the history with CURRENT tags, so failing
+      // to get it costs the tags, not the table.
+      const activePromise = fetchActiveAlarms().catch((err) => {
+        errorLog('Error loading active alarms:', err);
+        return null;
+      });
+      const [history, active] = await Promise.all([historyPromise, activePromise]);
       if (seq !== loadSeq.current) return;
       setEntries(history.entries);
       // Only alarms whose condition is physically present. `/Alarms/Active`
@@ -162,7 +170,9 @@ const AlarmHistoryView: React.FC<AlarmHistoryViewProps> = ({
       // made a cleared alarm's latest transition disagree with present state,
       // costing it the CURRENT tag.
       setActiveAlarmNums(
-        new Set(active.alarms.filter((a) => a.data_active).map((a) => a.alarm_num)),
+        active
+          ? new Set(active.alarms.filter((a) => a.data_active).map((a) => a.alarm_num))
+          : null,
       );
       setLastRefresh(new Date());
     } catch (err) {
@@ -215,7 +225,7 @@ const AlarmHistoryView: React.FC<AlarmHistoryViewProps> = ({
    *  that closed last week is history, not current state. */
   const isCurrentRow = useCallback(
     (entry: AlarmHistoryEntry): boolean => {
-      if (latestByAlarmNum.get(entry.alarm_num) !== entry) return false;
+      if (!activeAlarmNums || latestByAlarmNum.get(entry.alarm_num) !== entry) return false;
       const isActiveNow = activeAlarmNums.has(entry.alarm_num);
       return (entry.event === 'Activated') === isActiveNow;
     },
@@ -359,6 +369,12 @@ const AlarmHistoryView: React.FC<AlarmHistoryViewProps> = ({
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
           {error}
+        </Alert>
+      )}
+
+      {!activeAlarmNums && (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          Could not load present alarm state, so no row is marked CURRENT.
         </Alert>
       )}
 
