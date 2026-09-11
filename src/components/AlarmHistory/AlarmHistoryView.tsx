@@ -237,6 +237,19 @@ const AlarmHistoryView: React.FC<AlarmHistoryViewProps> = ({
     return [...entries].sort((a, b) => b.timestamp.localeCompare(a.timestamp));
   }, [entries]);
 
+  /** Table rows with a React key each. Timestamps are whole seconds, so a
+   *  clear and an ack of one alarm — or two acks of it — can share every
+   *  field a key could be built from; repeats are numbered instead. */
+  const tableRows = useMemo(() => {
+    const seen = new Map<string, number>();
+    return sortedEntries.map((entry) => {
+      const base = `${entry.alarm_num}-${entry.timestamp}-${entry.event}`;
+      const n = seen.get(base) ?? 0;
+      seen.set(base, n + 1);
+      return { entry, key: n === 0 ? base : `${base}-${n}` };
+    });
+  }, [sortedEntries]);
+
   const definitionsByNum = useMemo(() => {
     const m = new Map<number, AlarmDefinitionDto>();
     for (const d of definitions) m.set(d.alarm_num, d);
@@ -406,7 +419,7 @@ const AlarmHistoryView: React.FC<AlarmHistoryViewProps> = ({
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {sortedEntries.map((entry) => {
+                    {tableRows.map(({ entry, key }) => {
                       const current = isCurrentRow(entry);
                       const def = definitionsByNum.get(entry.alarm_num);
                       const severity = resolveAlarmSeverity(
@@ -415,7 +428,7 @@ const AlarmHistoryView: React.FC<AlarmHistoryViewProps> = ({
                       );
                       return (
                         <TableRow
-                          key={`${entry.alarm_num}-${entry.timestamp}-${entry.active}`}
+                          key={key}
                           sx={current ? { bgcolor: 'action.selected' } : undefined}
                         >
                           <TableCell>{new Date(entry.timestamp).toLocaleString()}</TableCell>
