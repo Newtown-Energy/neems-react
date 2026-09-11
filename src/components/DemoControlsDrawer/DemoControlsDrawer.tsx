@@ -51,7 +51,14 @@ import {
 } from '../../utils/alarmApi';
 import { injectDemoHistory } from '../../utils/demoApi';
 import { fetchSiteControls } from '../../utils/controlApi';
-import { drawerAlarmNums, positionAlarmNums } from './drawerAlarms';
+import { ESTOP_ALARM_NUM, fetchEstopStatus } from '../../utils/estopApi';
+import { createPollSequence } from '../../utils/pollSequence';
+import {
+  drawerAlarmNums,
+  listedAlarmNums,
+  positionAlarmNums,
+  resetAlarmNums
+} from './drawerAlarms';
 import { getSeverityColor } from '../../utils/alarmHelpers';
 import { errorLog } from '../../utils/debug';
 
@@ -94,6 +101,10 @@ function isoToDatetimeLocal(iso: string | null): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+/** How often the drawer re-reads the E-stop, drawer open or closed. Matches
+ *  the diagram's idle poll: a trip reaches the launcher within one cadence. */
+const ESTOP_POLL_MS = 10_000;
+
 const DemoControlsDrawer: React.FC<DemoControlsDrawerProps> = ({
   breakerNames = DEFAULT_BREAKERS,
   megapackNames = DEFAULT_MEGAPACKS
@@ -133,8 +144,19 @@ const DemoControlsDrawer: React.FC<DemoControlsDrawerProps> = ({
     siteId: number;
     nums: ReadonlySet<number>;
   } | null>(null);
+  /** Whether the site is tripped, from `/EmergencyStop` — the same authority
+   *  the page uses — rather than the drawer's alarm list, which cannot see a
+   *  trip that arrived in seeded history. Kept with its site, like the
+   *  positions, so a reply for one site can never describe another. */
+  const [loadedEstop, setLoadedEstop] = useState<{ siteId: number; tripped: boolean } | null>(
+    null
+  );
+  const [resettingEstop, setResettingEstop] = useState(false);
   const selectedSiteId = selectedSite?.id ?? null;
   const positionsKnown = selectedSiteId == null || loadedPositions?.siteId === selectedSiteId;
+  /** `null` until a status read for the current site has succeeded. */
+  const estopTripped: boolean | null =
+    loadedEstop && loadedEstop.siteId === selectedSiteId ? loadedEstop.tripped : null;
   const positionNums = React.useMemo<ReadonlySet<number>>(
     () =>
       loadedPositions && loadedPositions.siteId === selectedSiteId
@@ -179,6 +201,8 @@ const DemoControlsDrawer: React.FC<DemoControlsDrawerProps> = ({
     () => drawerAlarmNums(forcedAlarmNums, positionNums),
     [forcedAlarmNums, positionNums]
   );
+  /** The chips: the drawer's alarms without the E-stop, which has its own section. */
+  const listedAlarms = React.useMemo(() => listedAlarmNums(drawerAlarms), [drawerAlarms]);
 
   /** Raise or lower one alarm, optimistically reflecting it in the drawer. */
   /** Sequence number of the most recently issued alarm write.
@@ -221,12 +245,66 @@ const DemoControlsDrawer: React.FC<DemoControlsDrawerProps> = ({
     [updateAlarm]
   );
 
+  /** Latest-wins ordering across polls and post-reset refreshes alike. */
+  const estopReads = useRef(createPollSequence());
+
+  /**
+   * Read the site's E-stop state. The only thing that ever changes it: the
+   * drawer never assumes a trip or a reset happened, so a write that failed
+   * cannot leave it saying "not tripped" and hide the way to reset.
+   */
+  const refreshEstop = useCallback(async (siteId: number) => {
+    const isLatest = estopReads.current.begin();
+    try {
+      const status = await fetchEstopStatus(siteId);
+      if (isLatest()) setLoadedEstop({ siteId, tripped: status.observed_active });
+    } catch (err) {
+      errorLog('failed to load E-stop status for the demo drawer', err);
+    }
+  }, []);
+
+  // Polled while the app is up, not read once when the drawer opens: a trip
+  // made from the diagram with the drawer closed has to reach the launcher,
+  // which is how the reset gets found.
+  useEffect(() => {
+    if (!isAdmin || selectedSiteId == null) return;
+    const siteId = selectedSiteId;
+    void refreshEstop(siteId);
+    const timer = setInterval(() => {
+      void refreshEstop(siteId);
+    }, ESTOP_POLL_MS);
+    return () => clearInterval(timer);
+  }, [isAdmin, selectedSiteId, refreshEstop]);
+
+  /**
+   * The demo's stand-in for the reset at the panel on site: lower alarm 104.
+   *
+   * Only lowers it. The trip's alarm stays latched until someone acknowledges
+   * it, as after a real reset — acknowledging is an operator's act, and folding
+   * it in here would make the demo quieter than the thing it demonstrates.
+   */
+  const handleResetEstop = useCallback(async () => {
+    if (selectedSiteId == null) return;
+    const siteId = selectedSiteId;
+    setResettingEstop(true);
+    try {
+      await updateAlarm(ESTOP_ALARM_NUM, false);
+    } finally {
+      // Whether the reset worked is the site's to say: read it back rather
+      // than assuming, so a failed write leaves the reset button up.
+      await refreshEstop(siteId);
+      setResettingEstop(false);
+    }
+  }, [selectedSiteId, updateAlarm, refreshEstop]);
+
   const handleReset = useCallback(() => {
     reset();
     // Positions are left exactly where the operator put them: resetting the
-    // demo's staged alarms must not open every breaker they closed.
-    const raised = drawerAlarms;
+    // demo's staged alarms must not open every breaker they closed. A trip is
+    // cleared however it arrived — see [resetAlarmNums].
+    const raised = resetAlarmNums(drawerAlarms, estopTripped === true);
     if (raised.length === 0) return;
+    const siteId = selectedSiteId;
 
     // Lower each raised alarm individually; they latch rather than vanish.
     // Sequentially, then reconcile once: firing them together let responses
@@ -244,9 +322,12 @@ const DemoControlsDrawer: React.FC<DemoControlsDrawerProps> = ({
         if (seq === alarmWriteSeq.current) setForcedAlarmNums(current.active_alarm_nums);
       } catch (err) {
         errorLog('failed to reset demo alarms', err);
+      } finally {
+        // As with the E-stop's own reset: read the outcome back.
+        if (siteId != null && raised.includes(ESTOP_ALARM_NUM)) await refreshEstop(siteId);
       }
     })();
-  }, [reset, drawerAlarms, positionNums]);
+  }, [reset, drawerAlarms, estopTripped, positionNums, selectedSiteId, refreshEstop]);
 
   // Inject simulated history. Unlike the tab-local overrides above, this asks
   // the backend to generate SoC + alarm readings for the selected site so the
@@ -283,12 +364,19 @@ const DemoControlsDrawer: React.FC<DemoControlsDrawerProps> = ({
   const availableDefs = React.useMemo(
     () =>
       [...alarmDefs]
-        .filter(d => !forcedAlarmNums.includes(d.alarm_num) && !positionNums.has(d.alarm_num))
+        // Not positions, and not the E-stop: a demo trips through the diagram's
+        // E-STOP button, the same request path a real one takes.
+        .filter(
+          d =>
+            !forcedAlarmNums.includes(d.alarm_num) &&
+            !positionNums.has(d.alarm_num) &&
+            d.alarm_num !== ESTOP_ALARM_NUM
+        )
         .sort((a, b) => a.alarm_num - b.alarm_num),
     [alarmDefs, forcedAlarmNums, positionNums]
   );
 
-  const hasOverridesOrAlarms = hasAnyOverride || drawerAlarms.length > 0;
+  const hasOverridesOrAlarms = hasAnyOverride || drawerAlarms.length > 0 || estopTripped === true;
 
   if (!isAdmin) return null;
 
@@ -370,6 +458,44 @@ const DemoControlsDrawer: React.FC<DemoControlsDrawerProps> = ({
                 operator sees when the site's feed stops. With no data at all
                 there is nothing to show — inject history first.
               </Typography>
+            </Box>
+
+            <Divider />
+
+            <Box>
+              <Typography variant="subtitle2" gutterBottom>E-stop</Typography>
+              {estopTripped === null && (
+                <Typography variant="caption" color="text.secondary" component="p">
+                  {selectedSite ? 'Checking…' : 'Select a site to see its E-stop.'}
+                </Typography>
+              )}
+              {estopTripped === false && (
+                <Typography variant="caption" color="text.secondary" component="p">
+                  Not tripped. Trip it with the E-STOP button on the diagram.
+                </Typography>
+              )}
+              {estopTripped === true && (
+                <>
+                  <Stack direction="row" alignItems="center" spacing={1}>
+                    <Chip size="small" color="error" label="Tripped" />
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      color="error"
+                      disabled={resettingEstop}
+                      onClick={() => {
+                        void handleResetEstop();
+                      }}
+                    >
+                      Reset at panel
+                    </Button>
+                  </Stack>
+                  <Typography variant="caption" color="text.secondary" component="p" sx={{ mt: 1 }}>
+                    Stands in for the reset at the panel on site. The trip&apos;s
+                    alarm stays latched until someone acknowledges it.
+                  </Typography>
+                </>
+              )}
             </Box>
 
             <Divider />
@@ -525,7 +651,7 @@ const DemoControlsDrawer: React.FC<DemoControlsDrawerProps> = ({
                 </Select>
               </FormControl>
               <Stack direction="row" flexWrap="wrap" gap={1} sx={{ mt: 1 }}>
-                {drawerAlarms.map(num => {
+                {listedAlarms.map(num => {
                   const d = defByNum.get(num);
                   const label = d ? `#${num} ${d.name}` : `#${num}`;
                   const color = d ? getSeverityColor(d.severity) : 'default';
@@ -539,7 +665,7 @@ const DemoControlsDrawer: React.FC<DemoControlsDrawerProps> = ({
                     />
                   );
                 })}
-                {drawerAlarms.length === 0 && (
+                {listedAlarms.length === 0 && (
                   <Typography variant="caption" color="text.secondary">
                     No alarms forced. Pick one above to drive the SLD glow / indicator and the /alarms list.
                   </Typography>
@@ -596,10 +722,15 @@ const DemoControlsDrawer: React.FC<DemoControlsDrawerProps> = ({
             <Divider />
 
             {/* Reset has to know which points are positions before it can
-                promise to leave them alone. */}
+                promise to leave them alone, and whether the site is tripped
+                before it can promise to clear the trip. */}
             <Button
               onClick={handleReset}
-              disabled={!hasOverridesOrAlarms || !positionsKnown}
+              disabled={
+                !hasOverridesOrAlarms ||
+                !positionsKnown ||
+                (selectedSiteId != null && estopTripped === null)
+              }
               color="warning"
             >
               Reset all overrides

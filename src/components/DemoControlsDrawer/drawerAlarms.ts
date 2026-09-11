@@ -11,6 +11,8 @@
 
 import type { SiteControlDto } from '@newtown-energy/types';
 
+import { ESTOP_ALARM_NUM } from '../../utils/estopApi';
+
 /**
  * Alarm points that are equipment positions the diagram owns.
  *
@@ -38,4 +40,27 @@ export function drawerAlarmNums(
   positions: ReadonlySet<number>,
 ): number[] {
   return active.filter((num) => !positions.has(num));
+}
+
+/**
+ * The alarms shown as chips in the generic list: the drawer's alarms without
+ * the E-stop, which has its own section with its own reset. Listing it twice
+ * would offer two different-looking ways to do one thing.
+ */
+export function listedAlarmNums(drawerAlarms: readonly number[]): number[] {
+  return drawerAlarms.filter((num) => num !== ESTOP_ALARM_NUM);
+}
+
+/**
+ * What the drawer's Reset lowers: its alarms, plus the E-stop whenever the site
+ * is tripped — so Reset returns the demo to normal however the trip arrived.
+ *
+ * The explicit add matters for a trip that arrived in seeded history: that
+ * lives only in a reading, never in the alarm state the drawer's list comes
+ * from, so the list alone would leave the site tripped after a Reset.
+ */
+export function resetAlarmNums(drawerAlarms: readonly number[], estopTripped: boolean): number[] {
+  return estopTripped && !drawerAlarms.includes(ESTOP_ALARM_NUM)
+    ? [...drawerAlarms, ESTOP_ALARM_NUM]
+    : [...drawerAlarms];
 }
