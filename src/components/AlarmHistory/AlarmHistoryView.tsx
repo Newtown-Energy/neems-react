@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Box,
@@ -117,6 +117,10 @@ const AlarmHistoryView: React.FC<AlarmHistoryViewProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
+  /** Identifies the newest `load`. History queries take seconds, so an
+   *  earlier one can resolve after a later one; only the newest may commit,
+   *  or the table would show rows for controls the operator has moved on from. */
+  const loadSeq = useRef(0);
 
   useEffect(() => {
     fetchAlarmDefinitions()
@@ -138,6 +142,8 @@ const AlarmHistoryView: React.FC<AlarmHistoryViewProps> = ({
   );
 
   const load = useCallback(async () => {
+    loadSeq.current += 1;
+    const seq = loadSeq.current;
     setLoading(true);
     setError(null);
     try {
@@ -148,6 +154,7 @@ const AlarmHistoryView: React.FC<AlarmHistoryViewProps> = ({
           ? Promise.resolve({ entries: [] })
           : fetchAlarmHistory(from, to, queryAlarmNums);
       const [history, active] = await Promise.all([historyPromise, fetchActiveAlarms()]);
+      if (seq !== loadSeq.current) return;
       setEntries(history.entries);
       // Only alarms whose condition is physically present. `/Alarms/Active`
       // also returns latched ones (`data_active: false`, still unacknowledged)
@@ -159,10 +166,11 @@ const AlarmHistoryView: React.FC<AlarmHistoryViewProps> = ({
       );
       setLastRefresh(new Date());
     } catch (err) {
+      if (seq !== loadSeq.current) return;
       setError('Failed to load alarm history');
       errorLog('Error loading alarm history:', err);
     } finally {
-      setLoading(false);
+      if (seq === loadSeq.current) setLoading(false);
     }
   }, [from, to, queryAlarmNums]);
 
