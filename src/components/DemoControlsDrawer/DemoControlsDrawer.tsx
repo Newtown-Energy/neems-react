@@ -107,6 +107,7 @@ const DemoControlsDrawer: React.FC<DemoControlsDrawerProps> = ({
     setCurrentSocPercent,
     toggleOpenBreaker,
     toggleOfflineMegapack,
+    setIgnoreStaleData,
     reset,
     hasAnyOverride
   } = useDemoOverrides();
@@ -306,6 +307,31 @@ const DemoControlsDrawer: React.FC<DemoControlsDrawerProps> = ({
           </Typography>
 
           <Stack spacing={3}>
+            {/* First, because on a demo it decides whether anything else is
+                watchable: the demo has no RTAC, so its data is always stale,
+                and stale data is an emergency. */}
+            <Box>
+              <Typography variant="subtitle2" gutterBottom>Site data</Typography>
+              <FormControlLabel
+                control={
+                  <Switch
+                    size="small"
+                    checked={overrides.ignoreStaleData}
+                    onChange={e => setIgnoreStaleData(e.target.checked)}
+                  />
+                }
+                label="Ignore stale data"
+              />
+              <Typography variant="caption" color="text.secondary" component="p">
+                Treats the last reading as current: no stale-data banner and no
+                flashing frame on the diagram. Turn it off to show what an
+                operator sees when the site's feed stops. With no data at all
+                there is nothing to show — inject history first.
+              </Typography>
+            </Box>
+
+            <Divider />
+
             <Box>
               <Typography variant="subtitle2" gutterBottom>Force "now"</Typography>
               <TextField

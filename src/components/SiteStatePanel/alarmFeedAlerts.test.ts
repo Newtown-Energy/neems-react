@@ -95,3 +95,42 @@ describe('alarmFeedAlerts', () => {
     ).toEqual(['stale-alarm-data', 'emergency-alarms']);
   });
 });
+
+describe('alarmFeedAlerts with the demo bypass', () => {
+  // Just past the threshold, where the bypass has to start working.
+  const stale = status({ data_age_seconds: STALE_AFTER_SECONDS + 1 });
+
+  test('suppresses the stale-data banner', () => {
+    expect(alarmFeedAlerts(stale, false, true)).toEqual([]);
+  });
+
+  test('turning it off shows it again', () => {
+    expect(keys(stale)).toEqual(['stale-alarm-data']);
+  });
+
+  test('never suppresses an unreachable service', () => {
+    expect(alarmFeedAlerts(stale, true, true).map((a) => a.key)).toEqual([
+      'alarm-service-unreachable',
+    ]);
+  });
+
+  test('never suppresses a site that has sent nothing', () => {
+    const empty = status({ data_age_seconds: null, timestamp: null });
+    expect(alarmFeedAlerts(empty, false, true).map((a) => a.key)).toEqual(['no-site-data']);
+  });
+
+  // The bypass is about the feed's age; the alarms it carries are still real
+  // demo alarms and must still be announced.
+  test('leaves emergency and critical alarms alone', () => {
+    const withEmergency = status({ data_age_seconds: STALE_AFTER_SECONDS + 1, has_emergency: true });
+    expect(alarmFeedAlerts(withEmergency, false, true).map((a) => a.key)).toEqual([
+      'emergency-alarms',
+    ]);
+
+    // A separate branch from the emergency one, so it needs its own case.
+    const withCritical = status({ data_age_seconds: STALE_AFTER_SECONDS + 1, has_critical: true });
+    expect(alarmFeedAlerts(withCritical, false, true).map((a) => a.key)).toEqual([
+      'critical-alarms',
+    ]);
+  });
+});

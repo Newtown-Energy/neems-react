@@ -33,16 +33,20 @@ const NOTHING_CURRENT = "Nothing on screen reflects the site's current state.";
  *
  * Nothing is said before the first poll has answered (`status` null and not
  * unreachable): not knowing yet is different from knowing there is nothing.
+ *
+ * `ignoreStaleData` is the demo bypass — see [staleReason] for exactly what it
+ * does and does not hide.
  */
 export function alarmFeedAlerts(
   status: ActiveAlarmsResponse | null,
   unreachable: boolean,
+  ignoreStaleData = false,
 ): BannerAlert[] {
   const out: BannerAlert[] = [];
   if (status == null && !unreachable) return out;
 
   const age = status?.data_age_seconds != null ? Number(status.data_age_seconds) : null;
-  switch (staleReason(age, unreachable)) {
+  switch (staleReason(age, unreachable, ignoreStaleData)) {
     case 'unreachable':
       // With no earlier reading there is no "last thing the site reported" —
       // the first poll can fail before any has arrived.

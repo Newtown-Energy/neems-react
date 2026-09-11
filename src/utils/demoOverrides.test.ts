@@ -28,7 +28,7 @@ if (typeof globalThis.sessionStorage === 'undefined') {
   globalThis.sessionStorage = shim;
 }
 
-import { EMPTY_OVERRIDES } from './demoOverrides';
+import { EMPTY_OVERRIDES, readStored } from './demoOverrides';
 
 function clearSession(): void {
   try {
@@ -44,9 +44,6 @@ function clearSession(): void {
 // EMPTY_OVERRIDES — small, stable, and the thing the rest of the
 // frontend imports as a default.
 //
-// `clearSession` is exposed as a no-op-safe helper in case future
-// pure helpers in this module need a clean storage between tests.
-void clearSession;
 
 describe('EMPTY_OVERRIDES shape', () => {
   test('contains the documented fields with null/empty defaults', () => {
@@ -55,5 +52,39 @@ describe('EMPTY_OVERRIDES shape', () => {
     expect(EMPTY_OVERRIDES.currentSocPercent).toBeNull();
     expect(EMPTY_OVERRIDES.openBreakers).toEqual([]);
     expect(EMPTY_OVERRIDES.offlineMegapacks).toEqual([]);
+    expect(EMPTY_OVERRIDES.ignoreStaleData).toBe(false);
+  });
+});
+
+// `ignoreStaleData` hides a safety signal, so how it is read back matters more
+// than for the scenario overrides: a fresh or corrupted tab has to come up
+// showing staleness.
+describe('ignoreStaleData from sessionStorage', () => {
+  const store = (value: unknown) =>
+    globalThis.sessionStorage.setItem('neems.demoOverrides', JSON.stringify(value));
+
+  test('a fresh tab shows staleness', () => {
+    clearSession();
+    expect(readStored().ignoreStaleData).toBe(false);
+  });
+
+  test('an explicitly stored true is honored', () => {
+    store({ ignoreStaleData: true });
+    expect(readStored().ignoreStaleData).toBe(true);
+    clearSession();
+  });
+
+  test('anything but true leaves staleness showing', () => {
+    for (const value of ['true', 1, 'yes', {}, null]) {
+      store({ ignoreStaleData: value });
+      expect(readStored().ignoreStaleData, `stored ${JSON.stringify(value)}`).toBe(false);
+    }
+    clearSession();
+  });
+
+  test('a corrupted store leaves staleness showing', () => {
+    globalThis.sessionStorage.setItem('neems.demoOverrides', '{not json');
+    expect(readStored().ignoreStaleData).toBe(false);
+    clearSession();
   });
 });
