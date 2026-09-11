@@ -12,8 +12,8 @@
  * true when explicitly stored as `true`, and keeps the launcher visible
  * while it is on.
  *
- * Forced alarms are kept separately — they live on the server (see the
- * `/api/1/Alarms/Forced` endpoint and `alarmApi.ts`) so they surface in
+ * Demo alarms are kept separately — they live on the server (see
+ * `POST /api/1/Demo/AlarmState` and `alarmApi.ts`) so they surface in
  * the SLD, alarms page, and FDNY view through the same path real
  * alarms use.
  *
