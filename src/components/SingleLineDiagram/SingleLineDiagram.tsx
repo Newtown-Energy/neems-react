@@ -35,6 +35,7 @@ import type { EstopState } from '../../utils/useEstop';
 import { SldAlarmRefetchContext } from './SldAlarmRefetchContext';
 import NewtownLayout from './layouts/NewtownLayout';
 import { useSiteContext } from '../../utils/SiteContext';
+import { useDemoOverrides } from '../../utils/demoOverrides';
 import { useSiteControls } from '../../utils/useSiteControls';
 import CurtailmentBadge from './CurtailmentBadge';
 
@@ -130,7 +131,8 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({
   estop,
 }) => {
   const [state, dispatch] = useReducer(sldReducer, INITIAL_STATE);
-  const frame = diagramFrame(state);
+  const { overrides } = useDemoOverrides();
+  const frame = diagramFrame(state, overrides.ignoreStaleData);
   const { selectedSite } = useSiteContext();
   const [eStopDialogOpen, setEStopDialogOpen] = useState(false);
   const theme = useTheme();

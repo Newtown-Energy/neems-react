@@ -435,3 +435,24 @@ describe('diagramFrame', () => {
     expect(diagramFrame(stale)?.severity).toBe('Emergency');
   });
 });
+
+describe('diagramFrame with the demo bypass', () => {
+  test('an old reading raises no frame', () => {
+    expect(diagramFrame(applyAged([], STALE_AFTER_SECONDS + 1), true)).toBe(null);
+  });
+
+  test('a site-level alarm frame still shows through', () => {
+    const borderWarning = alarm({ alarm_num: 3, zone: 'Site', sld_targets: ['Border'] });
+    const frame = diagramFrame(applyAged([borderWarning], STALE_AFTER_SECONDS + 1), true);
+    expect(frame?.severity).toBe('Warning');
+  });
+
+  test('an unreachable service still raises the emergency frame', () => {
+    const frame = diagramFrame(sldReducer(apply([]), { type: 'MARK_STALE' }), true);
+    expect(frame?.severity).toBe('Emergency');
+  });
+
+  test('no data at all still raises the emergency frame', () => {
+    expect(diagramFrame(applyAged([], null), true)?.severity).toBe('Emergency');
+  });
+});

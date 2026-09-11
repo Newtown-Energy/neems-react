@@ -7,6 +7,11 @@
  * breakers, and the set of offline Megapacks. All of these flow into
  * the schedule warning engine via [ScheduleWarningContext].
  *
+ * One override is different in kind: `ignoreStaleData` hides a safety
+ * signal rather than staging a scenario, so it defaults off, is only ever
+ * true when explicitly stored as `true`, and keeps the launcher visible
+ * while it is on.
+ *
  * Forced alarms are kept separately — they live on the server (see the
  * `/api/1/Alarms/Forced` endpoint and `alarmApi.ts`) so they surface in
  * the SLD, alarms page, and FDNY view through the same path real
@@ -44,6 +49,10 @@ export interface DemoOverridesState {
   openBreakers: string[];
   /** Names of Megapacks currently offline. */
   offlineMegapacks: string[];
+  /** Treat the site's newest reading as current however old it is: no
+   *  stale-data banner, no emergency frame. For a demo, whose data is stale
+   *  by construction. Bypasses age only — see `staleReason`. */
+  ignoreStaleData: boolean;
 }
 
 export const EMPTY_OVERRIDES: DemoOverridesState = {
@@ -51,10 +60,11 @@ export const EMPTY_OVERRIDES: DemoOverridesState = {
   curtailmentCeilingKw: null,
   currentSocPercent: null,
   openBreakers: [],
-  offlineMegapacks: []
+  offlineMegapacks: [],
+  ignoreStaleData: false
 };
 
-function readStored(): DemoOverridesState {
+export function readStored(): DemoOverridesState {
   try {
     const raw = sessionStorage.getItem(STORAGE_KEY);
     if (!raw) return EMPTY_OVERRIDES;
@@ -70,7 +80,10 @@ function readStored(): DemoOverridesState {
         : [],
       offlineMegapacks: Array.isArray(parsed.offlineMegapacks)
         ? parsed.offlineMegapacks.filter((v): v is string => typeof v === 'string')
-        : []
+        : [],
+      // Strictly `true`: anything else — absent, malformed, truthy — leaves
+      // the tab showing staleness, because that is the safe way to be wrong.
+      ignoreStaleData: parsed.ignoreStaleData === true
     };
   } catch {
     return EMPTY_OVERRIDES;
@@ -93,6 +106,7 @@ interface DemoOverridesContextValue {
   setCurrentSocPercent: (value: number | null) => void;
   toggleOpenBreaker: (name: string) => void;
   toggleOfflineMegapack: (name: string) => void;
+  setIgnoreStaleData: (value: boolean) => void;
   reset: () => void;
   /** True iff any override is currently active — useful for surfacing
    *  a "demo overrides in effect" indicator in the top bar. */
@@ -144,6 +158,10 @@ export const DemoOverridesProvider: React.FC<{ children: React.ReactNode }> = ({
     });
   }, []);
 
+  const setIgnoreStaleData = useCallback((value: boolean) => {
+    setOverrides(prev => ({ ...prev, ignoreStaleData: value }));
+  }, []);
+
   const reset = useCallback(() => {
     setOverrides(EMPTY_OVERRIDES);
   }, []);
@@ -154,7 +172,8 @@ export const DemoOverridesProvider: React.FC<{ children: React.ReactNode }> = ({
       overrides.curtailmentCeilingKw !== null ||
       overrides.currentSocPercent !== null ||
       overrides.openBreakers.length > 0 ||
-      overrides.offlineMegapacks.length > 0,
+      overrides.offlineMegapacks.length > 0 ||
+      overrides.ignoreStaleData,
     [overrides]
   );
 
@@ -166,6 +185,7 @@ export const DemoOverridesProvider: React.FC<{ children: React.ReactNode }> = ({
       setCurrentSocPercent,
       toggleOpenBreaker,
       toggleOfflineMegapack,
+      setIgnoreStaleData,
       reset,
       hasAnyOverride
     }),
@@ -176,6 +196,7 @@ export const DemoOverridesProvider: React.FC<{ children: React.ReactNode }> = ({
       setCurrentSocPercent,
       toggleOpenBreaker,
       toggleOfflineMegapack,
+      setIgnoreStaleData,
       reset,
       hasAnyOverride
     ]
@@ -221,6 +242,7 @@ export function useDemoOverrides(): DemoOverridesContextValue {
     setCurrentSocPercent: noop,
     toggleOpenBreaker: noop,
     toggleOfflineMegapack: noop,
+    setIgnoreStaleData: noop,
     reset: noop,
     hasAnyOverride: false
   };

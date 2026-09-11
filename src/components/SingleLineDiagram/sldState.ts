@@ -363,11 +363,17 @@ function staleAnnouncement(reason: StaleReason, hadReading: boolean): string {
  *
  * Silent until the first poll has answered, so the frame does not flash on
  * every page load for the instant before there is anything to judge.
+ *
+ * `ignoreStaleData` is the demo bypass — see [staleReason] for exactly what it
+ * does and does not hide. Alarm frames are unaffected by it.
  */
 export function diagramFrame(
   state: Pick<SldDiagramState, 'alarmsLoaded' | 'dataAgeSeconds' | 'dataStale' | 'border'>,
+  ignoreStaleData = false,
 ): { severity: AlarmSeverityDto; announcement: string } | null {
-  const stale = state.alarmsLoaded ? staleReason(state.dataAgeSeconds, state.dataStale) : null;
+  const stale = state.alarmsLoaded
+    ? staleReason(state.dataAgeSeconds, state.dataStale, ignoreStaleData)
+    : null;
   if (stale) {
     return {
       severity: 'Emergency',

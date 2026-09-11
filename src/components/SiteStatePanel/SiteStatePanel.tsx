@@ -43,8 +43,8 @@ const SiteStatePanel: React.FC = () => {
   // Stale data is an emergency here, not only on the SLD — see
   // [alarmFeedAlerts].
   const alarmAlerts = useMemo(
-    () => alarmFeedAlerts(alarmStatus, unreachable),
-    [alarmStatus, unreachable]
+    () => alarmFeedAlerts(alarmStatus, unreachable, overrides.ignoreStaleData),
+    [alarmStatus, unreachable, overrides.ignoreStaleData]
   );
 
   if (issues.length === 0 && alarmAlerts.length === 0) return null;

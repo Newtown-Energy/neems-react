@@ -38,13 +38,25 @@ export type StaleReason = 'unreachable' | 'no-data' | 'old';
  * where `null` means no reading carried alarm data at all. A negative age is a
  * reading timestamped slightly ahead of this clock, which is skew rather than
  * staleness.
+ *
+ * `ignoreAge` is the demo's bypass (the drawer's "Ignore stale data"): the
+ * newest reading is treated as current however old it is. It is applied here,
+ * and only here, so no caller can bypass one staleness signal and forget
+ * another. It bypasses *age* and nothing else:
+ *
+ * - `unreachable` still reports — that is a demo that is broken, not one that
+ *   is staged, and hiding it costs someone an hour at the worst moment.
+ * - `no-data` still reports — there is no reading to treat as current, and the
+ *   banner is what tells the person running the demo to inject some.
  */
 export function staleReason(
   ageSeconds: number | null | undefined,
   unreachable: boolean,
+  ignoreAge = false,
 ): StaleReason | null {
   if (unreachable) return 'unreachable';
   if (ageSeconds == null) return 'no-data';
+  if (ignoreAge) return null;
   if (ageSeconds > STALE_AFTER_SECONDS) return 'old';
   return null;
 }
