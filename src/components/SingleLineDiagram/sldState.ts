@@ -196,8 +196,15 @@ function applyAlarms(
   // RTAC raises when the site is tripped, so the diagram's operational mode
   // follows it directly — the same update that lights the alarm also locks the
   // switches out, keeping the two from ever disagreeing.
+  //
+  // On `data_active`, for the same reason positions are below, and with one
+  // more: the backend already answers this question that way. `observed_active`
+  // on `/EmergencyStop` reads the data axis of alarm 104, so taking mere
+  // presence here would leave the page's own two E-stop indicators contradicting
+  // each other the moment a trip is cleared on site and not yet acknowledged —
+  // one saying the site is stopped, the other that the signal never took.
   const operationalMode: OperationalMode = alarms.alarms.some(
-    (a) => a.alarm_num === ESTOP_ALARM_NUM,
+    (a) => a.alarm_num === ESTOP_ALARM_NUM && a.data_active,
   )
     ? 'e-stop-active'
     : 'normal';

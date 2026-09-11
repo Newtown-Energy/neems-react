@@ -217,6 +217,42 @@ describe('sldReducer E-stop mode', () => {
     ]);
     expect(state.operationalMode).toBe('normal');
   });
+
+  test('operationalMode clears when alarm 104 returns to normal unacknowledged', () => {
+    // The realistic way a trip ends: reset at the panel, so the site stops
+    // reporting 104 — but the alarm stays listed, latched, until somebody
+    // acknowledges it. Holding the diagram in e-stop until then would keep the
+    // switches drawn locked out and the page saying the site is stopped, long
+    // after it started back up. It would also contradict the backend, whose
+    // `observed_active` reads the data axis of this same alarm.
+    const state = apply([
+      alarm({
+        alarm_num: 104,
+        zone: 'BreakerRelay',
+        name: 'estop',
+        severity: 'Critical',
+        data_active: false,
+        acknowledged: false,
+      }),
+    ]);
+    expect(state.operationalMode).toBe('normal');
+  });
+
+  test('an acknowledged E-stop that is still tripped stays in e-stop', () => {
+    // The other axis, and the dangerous direction to get wrong: acknowledging
+    // is an operator saying they have seen it, not the plant starting again.
+    const state = apply([
+      alarm({
+        alarm_num: 104,
+        zone: 'BreakerRelay',
+        name: 'estop',
+        severity: 'Critical',
+        data_active: true,
+        acknowledged: true,
+      }),
+    ]);
+    expect(state.operationalMode).toBe('e-stop-active');
+  });
 });
 
 describe('sldReducer readback positions', () => {
