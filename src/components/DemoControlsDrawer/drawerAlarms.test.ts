@@ -7,7 +7,13 @@
 import { describe, expect, test } from 'bun:test';
 import type { SiteControlDto } from '@newtown-energy/types';
 
-import { drawerAlarmNums, positionAlarmNums } from './drawerAlarms';
+import { ESTOP_ALARM_NUM } from '../../utils/estopApi';
+import {
+  drawerAlarmNums,
+  listedAlarmNums,
+  positionAlarmNums,
+  resetAlarmNums,
+} from './drawerAlarms';
 
 function control(id: string, actions: string[], readback: number | null): SiteControlDto {
   return {
@@ -81,5 +87,38 @@ describe('drawerAlarmNums', () => {
   // old behaviour rather than a list with alarms silently missing.
   test('with no controls known, everything is listed', () => {
     expect(drawerAlarmNums([607, 104], new Set())).toEqual([607, 104]);
+  });
+});
+
+describe('listedAlarmNums', () => {
+  // The E-stop has its own section with its own reset; showing it as a chip too
+  // would offer two different-looking ways to do one thing.
+  test('leaves the E-stop out of the chip list', () => {
+    expect(listedAlarmNums([ESTOP_ALARM_NUM, 103, 401])).toEqual([103, 401]);
+  });
+});
+
+describe('resetAlarmNums', () => {
+  test('lowers the drawer alarms, E-stop included when it is among them', () => {
+    expect(resetAlarmNums([ESTOP_ALARM_NUM, 401], true)).toEqual([ESTOP_ALARM_NUM, 401]);
+  });
+
+  // A trip that arrived in seeded history lives only in a reading, never in the
+  // alarm state the drawer lists — so without this, Reset would leave the site
+  // tripped.
+  test('clears a trip the drawer list cannot see', () => {
+    expect(resetAlarmNums([401], true)).toEqual([401, ESTOP_ALARM_NUM]);
+  });
+
+  test('leaves the E-stop alone when the site is not tripped', () => {
+    expect(resetAlarmNums([401], false)).toEqual([401]);
+  });
+
+  test('never lowers a position', () => {
+    const positions = positionAlarmNums([control('feeder-1a', ['open', 'close'], 607)]);
+    expect(resetAlarmNums(drawerAlarmNums([607, 401], positions), true)).toEqual([
+      401,
+      ESTOP_ALARM_NUM,
+    ]);
   });
 });
