@@ -85,20 +85,55 @@ export function alarmFeedAlerts(
 
   // Surface a known emergency/critical even while unreachable — it was real
   // as of the last successful poll.
-  if (status?.has_emergency) {
-    out.push({
-      key: 'emergency-alarms',
-      severity: 'error',
-      title: 'Emergency alarms active',
-      message: 'EMERGENCY alarms are active — immediate action required.',
-    });
-  } else if (status?.has_critical) {
-    out.push({
-      key: 'critical-alarms',
-      severity: 'warning',
-      title: 'Critical alarms active',
-      message: 'Critical alarms are active — attention required.',
-    });
-  }
+  const severityAlert = alarmSeverityAlert(status);
+  if (severityAlert) out.push(severityAlert);
   return out;
+}
+
+/**
+ * The emergency-or-critical alert for an alarm feed, or `null` when there is
+ * neither. The one place this is decided, so every page that announces it —
+ * the app-wide banner, the Overview — says the same thing.
+ *
+ * `has_emergency` / `has_critical` count every visible alarm, including latched
+ * ones: returned to normal and still owed an acknowledgement. Those still need
+ * an operator, so they still raise an alert — but they are not *active*, and
+ * saying so would tell an operator the condition is present when the site says
+ * it has cleared. Which one it is comes from the alarms' own data state, and
+ * only alarms of that severity count.
+ */
+export function alarmSeverityAlert(status: ActiveAlarmsResponse | null): BannerAlert | null {
+  const firing = (severity: string) =>
+    (status?.alarms ?? []).some((a) => a.severity === severity && a.data_active);
+  if (status?.has_emergency) {
+    return firing('Emergency')
+      ? {
+          key: 'emergency-alarms',
+          severity: 'error',
+          title: 'Emergency alarms active',
+          message: 'EMERGENCY alarms are active — immediate action required.',
+        }
+      : {
+          key: 'emergency-alarms',
+          severity: 'error',
+          title: 'Emergency alarms need acknowledgement',
+          message: 'EMERGENCY alarms have returned to normal but have not been acknowledged.',
+        };
+  }
+  if (status?.has_critical) {
+    return firing('Critical')
+      ? {
+          key: 'critical-alarms',
+          severity: 'warning',
+          title: 'Critical alarms active',
+          message: 'Critical alarms are active — attention required.',
+        }
+      : {
+          key: 'critical-alarms',
+          severity: 'warning',
+          title: 'Critical alarms need acknowledgement',
+          message: 'Critical alarms have returned to normal but have not been acknowledged.',
+        };
+  }
+  return null;
 }

@@ -138,6 +138,10 @@ function applyAlarms(
   // highest severity among those triggering alarms — matching the alarm-badge
   // palette — so a critical fault reads red/orange, not an unintuitive blue.
   let borderSeverity: AlarmSeverityDto | null = null;
+  // Whether any alarm raising the frame at `borderSeverity` is firing, rather
+  // than latched — returned to normal and still owed an acknowledgement. Both
+  // keep the frame up; only one may be announced as active.
+  let borderFiring = false;
 
   for (const alarm of alarms.alarms) {
     // Apply any per-site alarm-level override before computing severity-driven state.
@@ -158,12 +162,13 @@ function applyAlarms(
     const raisesBorder =
       sldTargets.includes(BORDER_TOKEN) ||
       (severity === 'Emergency' && alarm.zone === FIRE_ZONE);
-    if (
-      raisesBorder &&
-      (borderSeverity === null ||
-        getSeverityOrder(severity) < getSeverityOrder(borderSeverity))
-    ) {
-      borderSeverity = severity;
+    if (raisesBorder) {
+      if (borderSeverity === null || getSeverityOrder(severity) < getSeverityOrder(borderSeverity)) {
+        borderSeverity = severity;
+        borderFiring = alarm.data_active;
+      } else if (severity === borderSeverity) {
+        borderFiring ||= alarm.data_active;
+      }
     }
 
     const targetIds = resolveAlarmTargets(updatedComponents, alarm.zone, sldTargets);
@@ -192,7 +197,9 @@ function applyAlarms(
     }
   }
 
-  const border: SldBorderState = borderSeverity ? { severity: borderSeverity } : null;
+  const border: SldBorderState = borderSeverity
+    ? { severity: borderSeverity, firing: borderFiring }
+    : null;
 
   // E-stop is read from the site, never authored here. Alarm 104 is what the
   // RTAC raises when the site is tripped, so the diagram's operational mode
@@ -381,9 +388,14 @@ export function diagramFrame(
     };
   }
   if (state.border) {
+    // A latched alarm still raises the frame — it needs an operator — but it
+    // is not present, and announcing it as active would say otherwise.
+    const level = state.border.severity.toLowerCase();
     return {
       severity: state.border.severity,
-      announcement: `Site-level ${state.border.severity.toLowerCase()} alarm active`,
+      announcement: state.border.firing
+        ? `Site-level ${level} alarm active`
+        : `Site-level ${level} alarm needs acknowledgement`,
     };
   }
   return null;

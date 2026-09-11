@@ -8,6 +8,7 @@ import { formatAlarmName, getSeverityColor, getSeverityOrder, ZONE_DISPLAY_NAMES
 import { useSiteContext } from '../utils/SiteContext';
 import { errorLog } from '../utils/debug';
 import SocMiniChart from '../components/SocMiniChart/SocMiniChart';
+import { alarmSeverityAlert } from '../components/SiteStatePanel/alarmFeedAlerts';
 
 export const pageConfig = {
   id: 'overview',
@@ -45,6 +46,7 @@ const OverviewPage: React.FC = () => {
   // inline, with a "+N more" link to the full list when there's more.
   const TOP_ALARM_LIMIT = 2;
   const totalAlarms = alarmData?.alarms.length ?? 0;
+  const severityAlert = alarmSeverityAlert(alarmData);
   const topAlarms = alarmData
     ? [...alarmData.alarms]
         .sort((a, b) => getSeverityOrder(a.severity) - getSeverityOrder(b.severity))
@@ -104,11 +106,11 @@ const OverviewPage: React.FC = () => {
               </Alert>
             )}
 
-            {alarmData && (alarmData.has_emergency || alarmData.has_critical) && (
-              <Alert severity={alarmData.has_emergency ? 'error' : 'warning'} sx={{ mb: 1 }}>
-                {alarmData.has_emergency
-                  ? 'EMERGENCY alarms active'
-                  : 'Critical alarms active'}
+            {/* Worded by the same rule as the app-wide banner, so a latched
+                alarm is never announced here as active. */}
+            {severityAlert && (
+              <Alert severity={severityAlert.severity} sx={{ mb: 1 }}>
+                {severityAlert.title}
               </Alert>
             )}
 
