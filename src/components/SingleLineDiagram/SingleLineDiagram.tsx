@@ -23,6 +23,7 @@ import type { Tool, Value, ReactSVGPanZoomInstance } from 'react-svg-pan-zoom';
 import {
   sldReducer,
   createInitialState,
+  diagramFrame,
   defComponent,
   defWire,
 } from './sldState';
@@ -129,6 +130,7 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({
   estop,
 }) => {
   const [state, dispatch] = useReducer(sldReducer, INITIAL_STATE);
+  const frame = diagramFrame(state);
   const { selectedSite } = useSiteContext();
   const [eStopDialogOpen, setEStopDialogOpen] = useState(false);
   const theme = useTheme();
@@ -223,23 +225,24 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({
       }}
     >
       <CurtailmentBadge />
-      {/* Main-pane border overlay: a flashing frame raised by site-level faults
-          (alarms targeting the spreadsheet's 'Border' SLD object, plus a fire
-          emergency in the FACP zone). Its color tracks the highest severity
-          among those alarms, matching the alarm-badge palette. The frame is
-          decorative (aria-hidden); the state is announced via the live region. */}
-      {state.border && (
+      {/* Main-pane border overlay: a flashing frame raised by stale site data
+          (at Emergency) or by site-level faults (alarms targeting the
+          spreadsheet's 'Border' SLD object, plus a fire emergency in the FACP
+          zone). Its color tracks the severity, matching the alarm-badge
+          palette. The frame is decorative (aria-hidden); the state is
+          announced via the live region. See [diagramFrame] for the rules. */}
+      {frame && (
         <>
           <Box
             aria-hidden
-            data-testid={`sld-border-${state.border.severity}`}
+            data-testid={`sld-border-${frame.severity}`}
             sx={{
               position: 'absolute',
               inset: 0,
               pointerEvents: 'none',
               zIndex: 5,
               border: '4px solid',
-              borderColor: severityColor(state.border.severity, theme),
+              borderColor: severityColor(frame.severity, theme),
               borderRadius: 1,
               animation: 'sldBorderFlash 1.2s steps(1, end) infinite',
               '@keyframes sldBorderFlash': {
@@ -249,7 +252,7 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({
             }}
           />
           <Box role="status" aria-live="assertive" sx={visuallyHidden}>
-            {`Site-level ${state.border.severity.toLowerCase()} alarm active`}
+            {frame.announcement}
           </Box>
         </>
       )}

@@ -3,6 +3,7 @@ import type { ActiveAlarmsResponse } from '@newtown-energy/types';
 
 import { fetchActiveAlarms } from './alarmApi';
 import { errorLog } from './debug';
+import { createPollSequence } from './pollSequence';
 
 const POLL_INTERVAL_MS = 10_000;
 
@@ -25,6 +26,10 @@ export interface ActiveAlarmStatus {
  * just the ones that happen to fetch alarms.
  *
  * Pass `enabled = false` (e.g. when no site is selected) to skip polling.
+ *
+ * Only the most recently issued poll may publish (see [createPollSequence]):
+ * polls overlap, and a slow failure landing after a newer success would raise
+ * a false "unreachable" emergency banner.
  */
 export function useActiveAlarmStatus(enabled = true): ActiveAlarmStatus {
   const [status, setStatus] = useState<ActiveAlarmsResponse | null>(null);
@@ -37,16 +42,19 @@ export function useActiveAlarmStatus(enabled = true): ActiveAlarmStatus {
       return;
     }
     let mounted = true;
+    const sequence = createPollSequence();
     const load = async () => {
+      const isLatest = sequence.begin();
+      const current = () => mounted && isLatest();
       try {
         const response = await fetchActiveAlarms();
-        if (mounted) {
+        if (current()) {
           setStatus(response);
           setUnreachable(false);
         }
       } catch (err) {
         errorLog('Active alarm status poll failed:', err);
-        if (mounted) setUnreachable(true);
+        if (current()) setUnreachable(true);
       }
     };
     void load();

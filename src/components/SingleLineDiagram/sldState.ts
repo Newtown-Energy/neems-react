@@ -8,7 +8,9 @@ import type {
 import { getSeverityOrder } from '../../utils/alarmHelpers';
 import { ESTOP_ALARM_NUM } from '../../utils/estopApi';
 import { resolveAlarmSeverity } from '../../config/siteConfig';
-import { derivePositions, readbackUsable } from './readbackPositions';
+import { staleReason } from '../../utils/staleness';
+import type { StaleReason } from '../../utils/staleness';
+import { READBACKS, derivePositions } from './readbackPositions';
 import type {
   ActiveAlarmSummary,
   OperationalMode,
@@ -211,9 +213,10 @@ function applyAlarms(
 
   // Switch and breaker positions come from the site's own readback points, on
   // the same update that lights the alarms — so the position drawn and the
-  // alarms drawn can never disagree about which reading they came from. When
-  // the feed is too old to trust, every position reads `unknown` rather than
-  // falling back to whatever it last was.
+  // alarms drawn can never disagree about which reading they came from. An old
+  // reading is held rather than blanked; its age raises the stale emergency
+  // frame instead (see [diagramFrame]). Only with no reading at all is there
+  // nothing to draw.
   //
   // Filtered on `data_active`, and that filter is the whole correctness of the
   // position: `/Alarms/Active` returns more than what is currently firing. A
@@ -227,10 +230,7 @@ function applyAlarms(
   const activeAlarmNums = new Set(
     alarms.alarms.filter((a) => a.data_active).map((a) => a.alarm_num),
   );
-  const positions = derivePositions(
-    activeAlarmNums,
-    readbackUsable(dataAgeSeconds, false),
-  );
+  const positions = derivePositions(activeAlarmNums, dataAgeSeconds != null);
   for (const [id, position] of Object.entries(positions)) {
     const comp = updatedComponents[id];
     if (comp) updatedComponents[id] = { ...comp, switchPosition: position };
@@ -244,6 +244,7 @@ function applyAlarms(
     lastAlarmUpdate: alarms.timestamp,
     dataAgeSeconds,
     dataStale: false,
+    alarmsLoaded: true,
   };
 }
 
@@ -289,17 +290,12 @@ export function sldReducer(
       return { ...state, components: updated };
     }
 
-    case 'MARK_STALE': {
-      // A failed poll is not evidence that anything is still where we last saw
-      // it. Positions go unknown with the feed; alarms are left alone, since
-      // the last-known alarm list is still the last thing the site said.
-      const components: Record<string, SldComponentState> = {};
-      for (const [id, comp] of Object.entries(state.components)) {
-        components[id] =
-          comp.switchPosition === undefined ? comp : { ...comp, switchPosition: 'unknown' };
-      }
-      return { ...state, components, dataStale: true };
-    }
+    case 'MARK_STALE':
+      // A failed poll leaves everything as the site last reported it —
+      // positions and alarms alike — and flags the whole picture instead, as
+      // an emergency (see [diagramFrame]). Held and flagged tells an operator
+      // more than blanked would: what the site last said, and not to trust it.
+      return { ...state, dataStale: true, alarmsLoaded: true };
   }
 }
 
@@ -309,9 +305,15 @@ export function createInitialState(
   components: SldComponentState[],
   wires: SldWireState[],
 ): SldDiagramState {
+  // A readback-driven control starts `unknown`, whatever the layout seeded it
+  // with: its position comes from a reading and from nothing else, and there is
+  // none yet. Holding positions through a failed poll made this matter — if
+  // the first poll fails, the seed is what stays on screen, and a seeded
+  // `closed` would read as the site reporting a breaker closed.
   const componentMap: Record<string, SldComponentState> = {};
   for (const c of components) {
-    componentMap[c.id] = c;
+    componentMap[c.id] =
+      c.id in READBACKS && c.switchPosition !== undefined ? { ...c, switchPosition: 'unknown' } : c;
   }
   const wireMap: Record<string, SldWireState> = {};
   for (const w of wires) {
@@ -324,8 +326,61 @@ export function createInitialState(
     lastAlarmUpdate: null,
     dataAgeSeconds: null,
     dataStale: false,
+    alarmsLoaded: false,
     operationalMode: 'normal',
   };
+}
+
+/**
+ * What the diagram's flashing frame announces to a screen reader.
+ *
+ * Only claims the diagram shows "the last state the site reported" when there
+ * is one: an unreachable service with no earlier reading has nothing to show,
+ * and saying otherwise would lend the empty diagram an authority it lacks.
+ */
+function staleAnnouncement(reason: StaleReason, hadReading: boolean): string {
+  switch (reason) {
+    case 'unreachable':
+      return hadReading
+        ? 'Alarm service unreachable. The diagram shows the last state the site reported.'
+        : 'Alarm service unreachable, and nothing has been received from the site.';
+    case 'no-data':
+      return 'No data has been received from the site.';
+    case 'old':
+      return 'Site data is stale. The diagram shows the last state the site reported.';
+  }
+}
+
+/**
+ * The diagram's flashing emergency frame, and why it is up — or `null`.
+ *
+ * Two things raise it. Stale data, at `Emergency` severity, because a diagram
+ * that is no longer the site's current state is an emergency for the person
+ * reading it. And, when the data is current, site-level alarms (`Border`
+ * targets and fire emergencies) at their own severity. Stale wins: it is the
+ * highest severity, and it qualifies everything else on screen, including
+ * whatever alarm frame the last reading would have raised.
+ *
+ * Silent until the first poll has answered, so the frame does not flash on
+ * every page load for the instant before there is anything to judge.
+ */
+export function diagramFrame(
+  state: Pick<SldDiagramState, 'alarmsLoaded' | 'dataAgeSeconds' | 'dataStale' | 'border'>,
+): { severity: AlarmSeverityDto; announcement: string } | null {
+  const stale = state.alarmsLoaded ? staleReason(state.dataAgeSeconds, state.dataStale) : null;
+  if (stale) {
+    return {
+      severity: 'Emergency',
+      announcement: staleAnnouncement(stale, state.dataAgeSeconds != null),
+    };
+  }
+  if (state.border) {
+    return {
+      severity: state.border.severity,
+      announcement: `Site-level ${state.border.severity.toLowerCase()} alarm active`,
+    };
+  }
+  return null;
 }
 
 /** Helper to create a component definition */

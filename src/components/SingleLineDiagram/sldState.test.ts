@@ -7,7 +7,8 @@
 
 import { describe, expect, test } from 'bun:test';
 import type { ActiveAlarmDto, ActiveAlarmsResponse } from '@newtown-energy/types';
-import { sldReducer, createInitialState, defComponent } from './sldState';
+import { STALE_AFTER_SECONDS } from '../../utils/staleness';
+import { sldReducer, createInitialState, defComponent, diagramFrame } from './sldState';
 
 function makeState() {
   return createInitialState(
@@ -54,6 +55,14 @@ function response(alarms: ActiveAlarmDto[]): ActiveAlarmsResponse {
 
 function apply(alarms: ActiveAlarmDto[]) {
   return sldReducer(makeState(), { type: 'UPDATE_ALARMS', alarms: response(alarms) });
+}
+
+/** Apply alarms carried by a reading of the given age (`null`: no reading). */
+function applyAged(alarms: ActiveAlarmDto[], age: number | null) {
+  return sldReducer(makeState(), {
+    type: 'UPDATE_ALARMS',
+    alarms: { ...response(alarms), data_age_seconds: age, timestamp: age == null ? null : '2026-06-19T00:00:00Z' },
+  });
 }
 
 describe('sldReducer alarm routing', () => {
@@ -332,5 +341,97 @@ describe('sldReducer readback positions', () => {
     expect(component.switchPosition).toBe('closed');
     expect(component.activeAlarmCount).toBe(1);
     expect(component.activeAlarms[0].dataActive).toBe(false);
+  });
+});
+
+describe('sldReducer stale data', () => {
+  const switchOpen = alarm({ alarm_num: 101, zone: 'BreakerRelay', sld_targets: ['52-MAIN-1'] });
+
+  // The behavior this replaces blanked every position to `unknown` once the
+  // reading aged past 30s. Stale data now holds the last reported position and
+  // raises the emergency frame instead.
+  test('an old reading still draws the position the site last reported', () => {
+    const state = applyAged([switchOpen], STALE_AFTER_SECONDS * 100);
+    expect(state.components['switch-89l-1'].switchPosition).toBe('open');
+    expect(state.components['feeder-1a'].switchPosition).toBe('open');
+  });
+
+  test('a failed poll holds every position rather than blanking it', () => {
+    const before = apply([switchOpen]);
+    const after = sldReducer(before, { type: 'MARK_STALE' });
+    expect(after.components['switch-89l-1'].switchPosition).toBe('open');
+    expect(after.dataStale).toBe(true);
+  });
+
+  // The layout seeds these controls `closed`, but a readback-driven position
+  // comes from a reading and from nothing else. Before this, a first poll that
+  // failed left the seed on screen as though the site had reported it.
+  test('readback-driven controls start unknown, whatever the layout seeded', () => {
+    const state = makeState();
+    expect(state.components['switch-89l-1'].switchPosition).toBe('unknown');
+    expect(state.components['feeder-1a'].switchPosition).toBe('unknown');
+    expect(state.components['lockout-relay'].switchPosition).toBe('unknown');
+  });
+
+  test('a first poll that fails leaves positions unknown, not seeded', () => {
+    const state = sldReducer(makeState(), { type: 'MARK_STALE' });
+    expect(state.components['switch-89l-1'].switchPosition).toBe('unknown');
+    expect(state.components['feeder-1a'].switchPosition).toBe('unknown');
+  });
+
+  // Nothing to hold: no reading has ever arrived.
+  test('with no reading at all, positions are unknown', () => {
+    const state = applyAged([], null);
+    expect(state.components['switch-89l-1'].switchPosition).toBe('unknown');
+    expect(state.components['feeder-1a'].switchPosition).toBe('unknown');
+  });
+});
+
+describe('diagramFrame', () => {
+  test('nothing is raised before the first poll has answered', () => {
+    // Initial state has no reading, which would otherwise read as "no data"
+    // and flash the frame for the instant before the first poll lands.
+    expect(diagramFrame(makeState())).toBe(null);
+  });
+
+  test('a current reading with no site-level alarm raises nothing', () => {
+    expect(diagramFrame(apply([]))).toBe(null);
+  });
+
+  test('stale data raises the frame at Emergency', () => {
+    const frame = diagramFrame(applyAged([], STALE_AFTER_SECONDS + 1));
+    expect(frame?.severity).toBe('Emergency');
+    expect(frame?.announcement).toContain('stale');
+  });
+
+  test('no data from the site raises the frame at Emergency', () => {
+    expect(diagramFrame(applyAged([], null))?.severity).toBe('Emergency');
+  });
+
+  test('an unreachable service raises the frame at Emergency', () => {
+    const frame = diagramFrame(sldReducer(apply([]), { type: 'MARK_STALE' }));
+    expect(frame?.severity).toBe('Emergency');
+    expect(frame?.announcement).toContain('unreachable');
+    expect(frame?.announcement).toContain('last state the site reported');
+  });
+
+  // With no earlier reading there is no last state to be showing, and the
+  // announcement must not claim one.
+  test('unreachable before any reading does not claim a last reported state', () => {
+    const frame = diagramFrame(sldReducer(makeState(), { type: 'MARK_STALE' }));
+    expect(frame?.severity).toBe('Emergency');
+    expect(frame?.announcement).toContain('nothing has been received');
+    expect(frame?.announcement).not.toContain('last state');
+  });
+
+  // Staleness qualifies everything on screen, including whichever alarm frame
+  // the last reading would have raised.
+  test('stale data outranks a site-level alarm frame', () => {
+    const borderWarning = alarm({ alarm_num: 3, zone: 'Site', sld_targets: ['Border'] });
+    const fresh = apply([borderWarning]);
+    expect(diagramFrame(fresh)?.severity).toBe('Warning');
+
+    const stale = applyAged([borderWarning], STALE_AFTER_SECONDS + 1);
+    expect(diagramFrame(stale)?.severity).toBe('Emergency');
   });
 });
