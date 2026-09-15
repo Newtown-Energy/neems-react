@@ -191,8 +191,14 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({
   // apart from the alarm and analog feeds because it answers a different
   // question: not what the site is doing, but what someone asked it to do and
   // whether that ask got out. It reads the drawn positions only to know when a
-  // request's badge can go.
-  const controls = useSiteControls((controlId) => state.components[controlId]?.switchPosition);
+  // request's badge can go, and refetches the alarm feed those positions come
+  // from once a request registers, so the badge and the equipment under it
+  // change on the same render rather than a poll apart.
+  const controls = useSiteControls(
+    (controlId) => state.components[controlId]?.switchPosition,
+    true,
+    refetchAlarms,
+  );
 
   useEffect(() => {
     onDispatchReady?.(dispatch);

@@ -12,7 +12,10 @@ const POLL_INTERVAL_MS = 10_000;
  * Follows the same polling pattern as AlarmsPage and OverviewPage.
  *
  * Returns a `refetch` function so callers (e.g. the Acknowledge button) can
- * force an immediate refresh rather than waiting for the next poll tick.
+ * force an immediate refresh rather than waiting for the next poll tick. It
+ * resolves to whether it *published* — a caller waiting on fresh positions
+ * (see [useSiteControls]) must not treat a reached-the-network-and-failed poll,
+ * or one discarded as stale, as an update to the diagram.
  *
  * Only the most recently *issued* poll may publish its result (see
  * [createPollSequence]). Polls overlap — one every 10s, plus any `refetch` —
@@ -23,7 +26,7 @@ export function useSldAlarms(
   dispatch: React.Dispatch<SldAction>,
   enabled = true,
   pollIntervalMs = POLL_INTERVAL_MS,
-): { refetch: () => Promise<void> } {
+): { refetch: () => Promise<boolean> } {
   const mountedRef = useRef(true);
   const sequence = useRef(createPollSequence());
 
@@ -32,14 +35,17 @@ export function useSldAlarms(
     const current = () => mountedRef.current && isLatest();
     try {
       const response = await fetchActiveAlarms();
-      if (current()) {
-        dispatch({ type: 'UPDATE_ALARMS', alarms: response });
-      }
+      if (!current()) return false;
+      dispatch({ type: 'UPDATE_ALARMS', alarms: response });
+      return true;
     } catch (err) {
       errorLog('SLD alarm poll failed:', err);
       if (current()) {
         dispatch({ type: 'MARK_STALE' });
       }
+      // Marking the diagram stale is not an update to it: what it draws is
+      // still the last thing that landed.
+      return false;
     }
   }, [dispatch]);
 
