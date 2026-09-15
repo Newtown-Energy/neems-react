@@ -17,6 +17,8 @@ import {
   hasReachedTarget,
   hasRequestInFlight,
   isRequestVisible,
+  pruneToLatest,
+  unsettledRegistrations,
   recordArrivals,
   requestView,
   targetPosition,
@@ -58,31 +60,48 @@ function control(overrides: Partial<SiteControlDto> = {}): SiteControlDto {
 
 describe('isRequestVisible', () => {
   test('an element nobody has clicked draws nothing', () => {
-    expect(isRequestVisible(null, false)).toBe(false);
+    expect(isRequestVisible(null, false, false)).toBe(false);
   });
 
   test('a request still on its way stays up', () => {
-    expect(isRequestVisible(request({ status: 'pending' }), false)).toBe(true);
+    expect(isRequestVisible(request({ status: 'pending' }), false, false)).toBe(true);
   });
 
   test('a failed request stays up indefinitely', () => {
     const old = request({ status: 'failed', requested_at: naiveUtcAgo(3600) });
-    expect(isRequestVisible(old, false)).toBe(true);
+    expect(isRequestVisible(old, false, false)).toBe(true);
   });
 
   test('a sent request stays up until it registers, however long that takes', () => {
     const longSent = request({ status: 'sent', sent_at: naiveUtcAgo(600) });
-    expect(isRequestVisible(longSent, false)).toBe(true);
+    expect(isRequestVisible(longSent, false, false)).toBe(true);
   });
 
   test('a sent request clears once the diagram has seen it arrive', () => {
-    expect(isRequestVisible(request({ status: 'sent' }), true)).toBe(false);
+    expect(isRequestVisible(request({ status: 'sent' }), true, false)).toBe(false);
   });
 
-  // The reload case: nothing on this page saw the breaker arrive, and it has
-  // since moved back, so its position alone says the request never landed.
-  test('a sent request clears once the backend reports it registered', () => {
-    expect(isRequestVisible(request({ status: 'sent', registered: true }), false)).toBe(false);
+  // The whole point of #153: the backend reads the readback points directly and
+  // reports `registered` before the alarm feed the diagram draws from has been
+  // polled again. Clearing here would end the badge into a diagram still
+  // showing the old position.
+  test('a registered request stays up until the position feed has caught up', () => {
+    expect(isRequestVisible(request({ status: 'sent', registered: true }), false, false)).toBe(
+      true,
+    );
+  });
+
+  // The equipment arrived and moved straight back, so no position will ever
+  // show it there. Once the feed has been refreshed, `registered` is the only
+  // evidence left, and it is enough.
+  test('a registered request clears once the position feed has been refreshed', () => {
+    expect(isRequestVisible(request({ status: 'sent', registered: true }), false, true)).toBe(
+      false,
+    );
+  });
+
+  test('a request the backend has not registered stays up however settled', () => {
+    expect(isRequestVisible(request({ status: 'sent' }), false, true)).toBe(true);
   });
 });
 
@@ -104,15 +123,16 @@ describe('requestView', () => {
   // Each requestView call is one render. recordArrivals is the effect that runs
   // once a render has committed.
   const pending = { status: 'pending', reason: null };
+  const noneSettled = new Set<number>();
 
   test('a sent request clears on the render that draws it arriving, and stays cleared after it moves back', () => {
     const arrived = new Set<number>();
     const open = request({ status: 'sent', action: 'open' });
 
-    expect(requestView(open, 'closed', arrived)).toEqual(pending);
-    expect(requestView(open, 'open', arrived)).toBe(null);
+    expect(requestView(open, 'closed', arrived, noneSettled)).toEqual(pending);
+    expect(requestView(open, 'open', arrived, noneSettled)).toBe(null);
     recordArrivals([control({ latest_request: open })], () => 'open', arrived);
-    expect(requestView(open, 'closed', arrived)).toBe(null);
+    expect(requestView(open, 'closed', arrived, noneSettled)).toBe(null);
   });
 
   // A concurrent render can be thrown away before it commits. An arrival only
@@ -121,8 +141,8 @@ describe('requestView', () => {
     const arrived = new Set<number>();
     const open = request({ status: 'sent', action: 'open' });
 
-    expect(requestView(open, 'open', arrived)).toBe(null);
-    expect(requestView(open, 'closed', arrived)).toEqual(pending);
+    expect(requestView(open, 'open', arrived, noneSettled)).toBe(null);
+    expect(requestView(open, 'closed', arrived, noneSettled)).toEqual(pending);
   });
 
   test('one request arriving does not clear a newer one on the same element', () => {
@@ -131,7 +151,7 @@ describe('requestView', () => {
     recordArrivals([control({ latest_request: older })], () => 'open', arrived);
 
     const newer = request({ id: 2, status: 'sent', action: 'close' });
-    expect(requestView(newer, 'open', arrived)).toEqual(pending);
+    expect(requestView(newer, 'open', arrived, noneSettled)).toEqual(pending);
   });
 
   test('a request still on its way is not recorded as arrived', () => {
@@ -158,12 +178,69 @@ describe('requestView', () => {
     expect(arrived.size).toBe(0);
   });
 
+  // The normal case, and the one the operator sees: the refreshed feed draws
+  // the equipment at its target, which clears the badge on that same render.
+  // `settled` never has to come into it.
+  test('a registered request clears on the render that draws it arriving', () => {
+    const open = request({ status: 'sent', action: 'open', registered: true });
+    expect(requestView(open, 'closed', new Set(), noneSettled)).toEqual(pending);
+    expect(requestView(open, 'open', new Set(), noneSettled)).toBe(null);
+  });
+
   test('a failed request is drawn with its reason', () => {
     const failed = request({ status: 'failed', failure_reason: 'no RTAC point' });
-    expect(requestView(failed, 'closed', new Set())).toEqual({
+    expect(requestView(failed, 'closed', new Set(), noneSettled)).toEqual({
       status: 'failed',
       reason: 'no RTAC point',
     });
+  });
+});
+
+describe('unsettledRegistrations', () => {
+  test('a registered request the feed has not caught up with is listed', () => {
+    const controls = [control({ latest_request: request({ id: 7, status: 'sent', registered: true }) })];
+    expect(unsettledRegistrations(controls, new Set())).toEqual([7]);
+  });
+
+  test('a request already settled is not listed again', () => {
+    const controls = [control({ latest_request: request({ id: 7, status: 'sent', registered: true }) })];
+    expect(unsettledRegistrations(controls, new Set([7]))).toEqual([]);
+  });
+
+  // Nothing to catch up with: the backend has not said the readback moved, so
+  // refreshing the position feed would prove nothing either way.
+  test('requests the backend has not registered are not listed', () => {
+    const controls = [
+      control({ id: 'a', latest_request: request({ id: 1, status: 'sent' }) }),
+      control({ id: 'b', latest_request: request({ id: 2, status: 'pending' }) }),
+      control({ id: 'c', latest_request: request({ id: 3, status: 'failed' }) }),
+      control({ id: 'd', latest_request: null }),
+    ];
+    expect(unsettledRegistrations(controls, new Set())).toEqual([]);
+  });
+});
+
+describe('pruneToLatest', () => {
+  test('ids that are still some control\'s latest survive', () => {
+    const controls = [control({ latest_request: request({ id: 4 }) })];
+    const ids = new Set([4]);
+    pruneToLatest(controls, ids);
+    expect([...ids]).toEqual([4]);
+  });
+
+  // A page left open through a shift settles one request per operation, and
+  // nothing draws the superseded ones. Without this the set only grows.
+  test('ids superseded by a newer request are forgotten', () => {
+    const controls = [control({ latest_request: request({ id: 9 }) })];
+    const ids = new Set([4, 9]);
+    pruneToLatest(controls, ids);
+    expect([...ids]).toEqual([9]);
+  });
+
+  test('clearing the control list empties the set', () => {
+    const ids = new Set([1, 2, 3]);
+    pruneToLatest([], ids);
+    expect(ids.size).toBe(0);
   });
 });
 
