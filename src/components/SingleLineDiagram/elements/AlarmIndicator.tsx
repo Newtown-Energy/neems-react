@@ -321,16 +321,6 @@ const AlarmIndicator: React.FC<AlarmIndicatorProps> = ({ state, offsetX, offsetY
                 </Button>
               </Box>
             )}
-            {unackedCount === 0 && (
-              <Typography
-                variant="caption"
-                color="text.secondary"
-                sx={{ display: 'block', mt: 1.5, fontStyle: 'italic' }}
-              >
-                Flash paused — outline kept so the alarm stays findable while it
-                remains active.
-              </Typography>
-            )}
           </Popover>
         </foreignObject>
       )}
