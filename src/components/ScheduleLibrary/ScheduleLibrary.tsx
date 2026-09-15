@@ -106,18 +106,17 @@ const ScheduleLibrary: React.FC<ScheduleLibraryProps> = ({
     }
   };
 
-  const handleCreate = async (
-    data: {
-      name: string;
-      description: string | null;
-      commands: ScheduleCommandDto[];
-    },
-    changeReason: string,
-  ) => {
+  const handleCreate = async (data: {
+    name: string;
+    description: string | null;
+    commands: ScheduleCommandDto[];
+  }) => {
     setLoading(true);
     setError(null);
     try {
-      await createLibraryItem(siteId, { ...data, change_reason: changeReason });
+      // Creating a schedule changes nothing, so the form doesn't ask why.
+      // The description stands in as the change history row's reason.
+      await createLibraryItem(siteId, { ...data, change_reason: data.description });
       setCreateDialogOpen(false);
       await loadLibraryItems();
     } catch (err) {

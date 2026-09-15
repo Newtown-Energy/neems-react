@@ -19,7 +19,6 @@ interface CreateScheduleDialogProps {
   onClose: () => void;
   onCreate: (
     data: { name: string; description: string | null; commands: ScheduleCommandDto[] },
-    changeReason: string,
   ) => Promise<void>;
   onError?: (message: string) => void;
 }
@@ -33,8 +32,6 @@ const CreateScheduleDialog: React.FC<CreateScheduleDialogProps> = ({
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [commands, setCommands] = useState<ScheduleCommandDto[]>([]);
-  // Required so every new schedule lands in the change history with a why.
-  const [changeReason, setChangeReason] = useState('');
   const [commandDialogOpen, setCommandDialogOpen] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
 
@@ -43,7 +40,6 @@ const CreateScheduleDialog: React.FC<CreateScheduleDialogProps> = ({
       setName('');
       setDescription('');
       setCommands([]);
-      setChangeReason('');
     }
   }, [open]);
 
@@ -79,18 +75,11 @@ const CreateScheduleDialog: React.FC<CreateScheduleDialogProps> = ({
       onError?.('Name is required');
       return;
     }
-    if (!changeReason.trim()) {
-      onError?.('A reason for the change is required');
-      return;
-    }
-    await onCreate(
-      {
-        name: name.trim(),
-        description: description.trim() || null,
-        commands
-      },
-      changeReason.trim(),
-    );
+    await onCreate({
+      name: name.trim(),
+      description: description.trim() || null,
+      commands
+    });
   };
 
   return (
@@ -114,19 +103,6 @@ const CreateScheduleDialog: React.FC<CreateScheduleDialogProps> = ({
               onChange={e => setDescription(e.target.value)}
               multiline
               rows={2}
-              sx={{ mb: 2 }}
-            />
-            <TextField
-              fullWidth
-              required
-              label="Reason for change"
-              placeholder="e.g., new seasonal schedule, operator request, etc."
-              value={changeReason}
-              onChange={e => setChangeReason(e.target.value)}
-              multiline
-              rows={2}
-              error={!changeReason.trim()}
-              helperText="Required — appears in the schedule's change history."
               sx={{ mb: 3 }}
             />
 
@@ -156,7 +132,7 @@ const CreateScheduleDialog: React.FC<CreateScheduleDialogProps> = ({
           <Button
             onClick={handleSubmit}
             variant="contained"
-            disabled={!name.trim() || !changeReason.trim()}
+            disabled={!name.trim()}
           >
             Create
           </Button>
