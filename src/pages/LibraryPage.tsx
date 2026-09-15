@@ -5,7 +5,7 @@
  * Create, edit, and delete schedules. Configure application rules.
  */
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Alert,
   Box,
@@ -16,7 +16,7 @@ import {
   ArrowBack as ArrowBackIcon,
   LibraryBooks as LibraryIcon
 } from '@mui/icons-material';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import ScheduleLibrary from '../components/ScheduleLibrary';
 import ApplicationRuleDialog from '../components/ApplicationRuleDialog';
@@ -34,8 +34,26 @@ export const pageConfig = {
 const LibraryPage: React.FC = () => {
   const navigate = useNavigate();
   const { selectedSiteId, selectedSite } = useSiteContext();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [rulesDialogItem, setRulesDialogItem] = useState<ScheduleLibraryItem | null>(null);
+
+  // `?edit=<id>` (from the calendar's "Edit the original schedule") opens
+  // that schedule's card in edit mode. Read it once, then drop it from the
+  // URL so a reload or Back doesn't reopen the editor.
+  const [initialEditItemId] = useState<number | null>(() => {
+    const id = Number(searchParams.get('edit'));
+    return Number.isInteger(id) && id > 0 ? id : null;
+  });
+
+  useEffect(() => {
+    if (!searchParams.has('edit')) return;
+    setSearchParams(prev => {
+      const params = new URLSearchParams(prev);
+      params.delete('edit');
+      return params;
+    }, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   const handleManageRules = (item: ScheduleLibraryItem) => {
     setRulesDialogItem(item);
@@ -80,6 +98,7 @@ const LibraryPage: React.FC = () => {
         ) : (
           <ScheduleLibrary
             siteId={selectedSiteId}
+            initialEditItemId={initialEditItemId}
             onRequestManageRules={handleManageRules}
           />
         )}

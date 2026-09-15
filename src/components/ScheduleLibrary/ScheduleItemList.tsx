@@ -9,6 +9,8 @@ import ScheduleItemCard from './ScheduleItemCard';
 
 interface ScheduleItemListProps {
   items: ScheduleLibraryItem[];
+  /** Item whose card starts expanded and in edit mode. */
+  initialEditItemId?: number | null;
   rulesByItemId: (itemId: number) => ApplicationRule[];
   onSaveItem: (
     id: number,
@@ -23,6 +25,7 @@ interface ScheduleItemListProps {
 
 const ScheduleItemList: React.FC<ScheduleItemListProps> = ({
   items,
+  initialEditItemId = null,
   rulesByItemId,
   onSaveItem,
   onDeleteItem,
@@ -30,7 +33,7 @@ const ScheduleItemList: React.FC<ScheduleItemListProps> = ({
   onViewSpecificDates,
   onError
 }) => {
-  const [expandedItemId, setExpandedItemId] = useState<number | null>(null);
+  const [expandedItemId, setExpandedItemId] = useState<number | null>(initialEditItemId);
 
   if (items.length === 0) {
     return (
@@ -62,6 +65,7 @@ const ScheduleItemList: React.FC<ScheduleItemListProps> = ({
             rules={rules}
             isDefault={isDefault}
             isExpanded={expandedItemId === item.id}
+            startEditing={item.id === initialEditItemId}
             onToggleExpand={() => setExpandedItemId(expandedItemId === item.id ? null : item.id)}
             onSave={onSaveItem}
             onDelete={onDeleteItem}

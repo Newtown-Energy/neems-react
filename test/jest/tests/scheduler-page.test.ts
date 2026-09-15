@@ -117,4 +117,107 @@ describe('Scheduler Page Tests', () => {
 
     expect(await page.url()).toContain('/library');
   });
+
+  it('should open the Library editor when editing the original schedule', async () => {
+    const today = new Date();
+    const nextMonthName = new Date(today.getFullYear(), today.getMonth() + 1, 1)
+      .toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+    await page.goto(`${baseUrl}/scheduler`);
+    // Wait for the calendar's month header and its next-month button, not
+    // just the page title, which also renders when no site is selected.
+    await page.waitForFunction(
+      () => (Array.from(document.querySelectorAll('h5')) as HTMLElement[]).some(h =>
+        /\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4}\b/
+          .test(h.textContent || '') &&
+        h.parentElement?.querySelector('button svg[data-testid="ChevronRightIcon"]')
+      ),
+      { timeout: 10000 }
+    );
+
+    // Move to next month so the chosen day is never in the past (past
+    // days are read-only and hide the Edit Schedule button).
+    await page.evaluate(() => {
+      const headers = Array.from(document.querySelectorAll('h5')) as HTMLElement[];
+      const monthHeader = headers.find(h =>
+        /\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4}\b/
+          .test(h.textContent || '')
+      );
+      const parent = monthHeader?.parentElement;
+      const buttons = parent ? Array.from(parent.querySelectorAll('button')) : [];
+      const next = buttons.find(b => b.querySelector('svg[data-testid="ChevronRightIcon"]')) as HTMLElement | undefined;
+      next?.click();
+    });
+    await page.waitForFunction(
+      (name) => Array.from(document.querySelectorAll('h5')).some(h => h.textContent === name),
+      { timeout: 10000 },
+      nextMonthName
+    );
+    await page.waitForFunction(
+      () => (Array.from(document.querySelectorAll('div')) as HTMLDivElement[]).some(d =>
+        window.getComputedStyle(d).cursor === 'pointer' &&
+        d.querySelector('.MuiTypography-caption')?.textContent?.trim() === '15'
+      ),
+      { timeout: 10000 }
+    );
+
+    const clicked = await page.evaluate(() => {
+      const allDivs = Array.from(document.querySelectorAll('div')) as HTMLDivElement[];
+      const day15 = allDivs.find(d => {
+        if (window.getComputedStyle(d).cursor !== 'pointer') return false;
+        const caption = d.querySelector('.MuiTypography-caption');
+        return caption?.textContent?.trim() === '15';
+      });
+      day15?.click();
+      return Boolean(day15);
+    });
+    expect(clicked).toBe(true);
+    // Click through the dialogs with DOM clicks: MUI dialogs are still
+    // animating in when their buttons first exist, so coordinate-based
+    // clicks can land on the backdrop.
+    await page.waitForFunction(
+      () => Array.from(document.querySelectorAll('[role="dialog"] button')).some(b =>
+        b.textContent?.includes('Edit Schedule')
+      ),
+      { timeout: 10000 }
+    );
+    await page.evaluate(() => {
+      const buttons = Array.from(document.querySelectorAll('[role="dialog"] button')) as HTMLButtonElement[];
+      buttons.find(b => b.textContent?.includes('Edit Schedule'))?.click();
+    });
+
+    await page.waitForFunction(
+      () => document.body.innerText.includes('Edit the original schedule'),
+      { timeout: 5000 }
+    );
+    // "This day is currently using: <strong>name</strong>"
+    const scheduleName = await page.evaluate(() =>
+      document.querySelector('[role="dialog"] strong')?.textContent?.trim() || null
+    );
+    expect(scheduleName).toBeTruthy();
+    await page.evaluate(() => {
+      const labels = Array.from(document.querySelectorAll('label')) as HTMLLabelElement[];
+      labels.find(l => l.textContent?.includes('Edit the original schedule'))?.click();
+    });
+    await page.evaluate(() => {
+      const buttons = Array.from(document.querySelectorAll('[role="dialog"] button')) as HTMLButtonElement[];
+      buttons.find(b => b.textContent?.includes('Continue'))?.click();
+    });
+
+    // Lands on the Library with the `edit` param already consumed and the
+    // card for the schedule chosen on the calendar in edit mode.
+    await page.waitForFunction(
+      (name) => {
+        if (window.location.pathname !== '/library') return false;
+        if (window.location.search.includes('edit=')) return false;
+        const editingCards = Array.from(document.querySelectorAll('.MuiCard-root')).filter(card =>
+          Array.from(card.querySelectorAll('button')).some(b => b.textContent?.includes('Add Command'))
+        );
+        return editingCards.length === 1 &&
+          Array.from(editingCards[0].querySelectorAll('input')).some(i => i.value === name);
+      },
+      { timeout: 10000 },
+      scheduleName
+    );
+  });
 });
