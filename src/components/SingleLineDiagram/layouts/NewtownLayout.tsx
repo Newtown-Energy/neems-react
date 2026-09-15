@@ -14,6 +14,7 @@ import Sel451Relay from '../elements/Sel451Relay';
 import LockoutRelay from '../elements/LockoutRelay';
 import EStopButton from '../elements/EStopButton';
 import Wire from '../elements/Wire';
+import SiteInfoPanel from '../elements/SiteInfoPanel';
 import { useSiteConfig } from '../../../config/siteConfig';
 
 /**
@@ -99,6 +100,12 @@ const SEL451_Y = 360;
 // overlapping the right line switch / transformer T2.)
 const LOCKOUT_X = 630;
 const LOCKOUT_Y = 420;
+// Site identity block — in the empty band right of the utility label box
+// (which ends at x=318) and above the 26.4 kV bus, laid out wide and short
+// so it uses space the one-line drawing never needs.
+const SITE_INFO_X = 400;
+const SITE_INFO_Y = 30;
+const SITE_INFO_WIDTH = 530;
 const FACP_X = 1130;
 const FACP_Y = 440;
 const ESTOP_X = 1110;
@@ -362,6 +369,9 @@ const NewtownLayout: React.FC<NewtownLayoutProps> = ({
 
       {/* Utility connection */}
       <UtilityConnection x={UTIL_X} y={UTIL_Y} state={comp('site')} label="Utility" />
+
+      {/* Site identity, in the open band right of the utility feed */}
+      <SiteInfoPanel x={SITE_INFO_X} y={SITE_INFO_Y} width={SITE_INFO_WIDTH} />
 
       {/* Meter (SEL-735 with CT tap at main line) */}
       <Meter

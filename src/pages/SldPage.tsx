@@ -1,11 +1,5 @@
 import React, { useState } from 'react';
-import {
-  Alert,
-  Box,
-  Paper,
-  Stack,
-  Typography,
-} from '@mui/material';
+import { Alert, Box } from '@mui/material';
 import AccountTreeIcon from '@mui/icons-material/AccountTree';
 import SingleLineDiagram from '../components/SingleLineDiagram/SingleLineDiagram';
 import type { SldDiagramState } from '../components/SingleLineDiagram/types';
@@ -19,42 +13,6 @@ export const pageConfig = {
   icon: AccountTreeIcon,
 };
 
-// Site identity is intentionally abstracted with placeholder values so the SLD
-// can be shown/demoed without revealing the real site, address, or the
-// utility/developer involved. Replace with real values only in a private build.
-const PROJECT_INFO = {
-  name: 'Demo BESS 1A',
-  address: '123 Example St, Anytown, NY 10001',
-  codDate: 'June 2026',
-  bessRating: '5 MW / 23.5 MWh',
-  utilityProjectCode: '—',
-  developerProjectNumber: '—',
-};
-
-const ProjectInfoCard: React.FC = () => (
-  <Paper
-    variant="outlined"
-    sx={{ p: 2, minWidth: 260, alignSelf: 'flex-start' }}
-  >
-    <Typography variant="subtitle2" gutterBottom>
-      Project Info: {PROJECT_INFO.name}
-    </Typography>
-    <Stack spacing={0.5}>
-      <InfoLine label="Address" value={PROJECT_INFO.address} />
-      <InfoLine label="COD Date" value={PROJECT_INFO.codDate} />
-      <InfoLine label="BESS Rating" value={PROJECT_INFO.bessRating} />
-      <InfoLine label="Utility Project Code" value={PROJECT_INFO.utilityProjectCode} />
-      <InfoLine label="Developer Project #" value={PROJECT_INFO.developerProjectNumber} />
-    </Stack>
-  </Paper>
-);
-
-const InfoLine: React.FC<{ label: string; value: string }> = ({ label, value }) => (
-  <Typography variant="caption" component="div" color="text.secondary">
-    <strong>{label}:</strong> {value}
-  </Typography>
-);
-
 const SldPage: React.FC = () => {
   const [diagramState, setDiagramState] = useState<SldDiagramState | null>(null);
   const estop = useEstop();
@@ -64,36 +22,6 @@ const SldPage: React.FC = () => {
 
   return (
     <Box sx={{ p: 3, overflow: 'auto', flex: 1, minWidth: 0 }}>
-      <Stack
-        direction={{ xs: 'column', md: 'row' }}
-        spacing={2}
-        alignItems="flex-start"
-        justifyContent="space-between"
-        sx={{ mb: 2 }}
-      >
-        <Box>
-          <Typography variant="h2" gutterBottom>
-            Single Line
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            {PROJECT_INFO.name} — click a line switch (89L-1/89L-2) or feeder
-            breaker to request that it open or close. It reads{' '}
-            <strong>PENDING</strong> until the site reports the change, or{' '}
-            <strong>FAILED</strong> if the request could not be sent. Positions
-            come from the site's own readback
-            points, so they change when the equipment does and not when you
-            click. A grey <strong>?</strong> means the site has never told us
-            where something is, or reports its own feedback as contradicting
-            itself. If the site's data goes stale, the diagram keeps showing
-            the last state it reported inside a flashing red frame — do not
-            trust it until the frame clears. The red E-STOP button requests a
-            site-wide emergency stop; clearing one is done at the panel on
-            site.
-          </Typography>
-        </Box>
-        <ProjectInfoCard />
-      </Stack>
-
       {eStopActive && (
         <Alert severity="error" sx={{ mb: 2 }}>
           E-Stop is active. Line switches are shown as locked out. An E-Stop

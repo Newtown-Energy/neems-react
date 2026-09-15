@@ -16,18 +16,24 @@ describe('SLD Page Tests', () => {
 
   it('should land on the SLD page when navigating to root', async () => {
     await page.goto(`${baseUrl}/`);
-    await page.waitForFunction(
-      () => document.body.innerText.includes('Single Line'),
-      { timeout: 20000 }
-    );
+    await page.waitForSelector('[data-testid="sld-estop-button"]', { timeout: 20000 });
     expect(await page.url()).toContain('/sld');
   }, 30000);
 
-  it('should render the project info card', async () => {
-    const content = await page.content();
-    expect(content).toContain('Project Info: Demo BESS 1A');
-    expect(content).toContain('Address');
-    expect(content).toContain('BESS Rating');
+  it('should not render a page heading above the diagram', async () => {
+    const headings = await page.$$eval('h1, h2, h3', els =>
+      els.map(el => el.textContent || '')
+    );
+    expect(headings).not.toContain('Single Line');
+  });
+
+  it('should render the project info inside the diagram', async () => {
+    const diagramText = await page.$$eval('svg text', els =>
+      els.map(el => el.textContent || '')
+    );
+    expect(diagramText).toContain('Demo BESS 1A');
+    expect(diagramText).toContain('Address');
+    expect(diagramText).toContain('BESS Rating');
   });
 
   it('should render the legend chips', async () => {
