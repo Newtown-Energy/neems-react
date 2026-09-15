@@ -188,17 +188,17 @@ interface SiteDefaultsPanelProps {
 
 const FIELD_HELP: Record<string, string> = {
   power_kw:
-    'Nameplate power of the battery system. Drives charge/discharge command sizing and the ramp-rate calculation.',
+    'Nameplate power of the battery system. Charge and discharge commands are sized as a percentage of it, and it is the full power the ramp duration ramps to.',
   capacity_kwh:
-    'Total energy storage capacity. Used for the available-SoC duration warning.',
+    'Total energy storage capacity. With the discharge power, it sets how long the site can run before the battery is empty.',
   ramp_duration_seconds:
     'Time to ramp from 0 to full power. The utility standard is 120 seconds (2-minute full-power ramp).',
   closed_loop_enabled:
     'When on, scheduled commands are sent to the RTAC for execution. When off, schedules are visualized but not enforced.',
   charge_rate_percent:
-    'Percentage of nameplate power used for charge commands. 100% = full power. Drives the calendar bar height.',
+    'Percentage of nameplate power used for charge commands. 100% = full power.',
   discharge_rate_percent:
-    'Percentage of nameplate power used for discharge commands. 100% = full power. Drives the calendar bar height.',
+    'Percentage of nameplate power used for discharge commands. 100% = full power.',
   off_peak_window:
     'Window when the battery is allowed to charge from the grid at the lower tariff. ' +
     'Used for scheduling guidance (not enforcement): charge or trickle-charge commands scheduled outside this window surface a warning, ' +
@@ -210,7 +210,7 @@ const FIELD_HELP: Record<string, string> = {
     'Discharge power commanded in this window cannot exceed the site power limit (or the interconnection cap) and cannot be negative.',
   interconnection_max_output_kw:
     'During a normal peak-season output, this is what you would be discharging. Schedules can be configured to override this value at any specific time. ' +
-    'Used as a soft target (not a clamp): operators will see a warning if scheduled discharge runs above this level. Must be 0 ≤ value ≤ site power.',
+    'Used as a soft target (not a clamp): you will see a warning if scheduled discharge runs above this level. Must be 0 ≤ value ≤ site power.',
   rebound_protection_soc_floor_percent:
     'State-of-charge at which discharge ramps to 0 kW to protect the battery from a deep-discharge rebound.',
   site_variant:
