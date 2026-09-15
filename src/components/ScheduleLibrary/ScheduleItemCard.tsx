@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Box,
   Button,
@@ -36,6 +36,8 @@ interface ScheduleItemCardProps {
   rules: ApplicationRule[];
   isDefault: boolean;
   isExpanded: boolean;
+  /** Mount in edit mode and scroll the card into view. */
+  startEditing?: boolean;
   onToggleExpand: () => void;
   onSave: (
     id: number,
@@ -53,6 +55,7 @@ const ScheduleItemCard: React.FC<ScheduleItemCardProps> = ({
   rules,
   isDefault,
   isExpanded,
+  startEditing = false,
   onToggleExpand,
   onSave,
   onDelete,
@@ -61,10 +64,21 @@ const ScheduleItemCard: React.FC<ScheduleItemCardProps> = ({
   onError
 }) => {
   const navigate = useNavigate();
-  const [isEditing, setIsEditing] = useState(false);
-  const [editName, setEditName] = useState('');
-  const [editDescription, setEditDescription] = useState('');
-  const [editCommands, setEditCommands] = useState<ScheduleCommandDto[]>([]);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [isEditing, setIsEditing] = useState(startEditing);
+  const [editName, setEditName] = useState(startEditing ? item.name : '');
+  const [editDescription, setEditDescription] = useState(
+    startEditing ? item.description || '' : ''
+  );
+  const [editCommands, setEditCommands] = useState<ScheduleCommandDto[]>(
+    startEditing ? [...item.commands] : []
+  );
+
+  useEffect(() => {
+    if (startEditing) {
+      cardRef.current?.scrollIntoView({ block: 'center' });
+    }
+  }, [startEditing]);
   const [commandDialogOpen, setCommandDialogOpen] = useState(false);
   const [editingCommandIndex, setEditingCommandIndex] = useState<number | null>(null);
   // S1c — capture a required reason once per Save click, then persist
@@ -154,6 +168,7 @@ const ScheduleItemCard: React.FC<ScheduleItemCardProps> = ({
 
   return (
     <Card
+      ref={cardRef}
       sx={{
         cursor: isEditing ? 'default' : 'pointer',
         '&:hover': isEditing ? {} : { bgcolor: 'action.hover' },

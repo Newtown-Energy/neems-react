@@ -35,12 +35,15 @@ import ScheduleItemList from './ScheduleItemList';
 
 interface ScheduleLibraryProps {
   siteId: number;
+  /** Library item to open expanded and in edit mode on first load. */
+  initialEditItemId?: number | null;
   onLibraryItemSelect?: (item: ScheduleLibraryItem) => void;
   onRequestManageRules?: (item: ScheduleLibraryItem) => void;
 }
 
 const ScheduleLibrary: React.FC<ScheduleLibraryProps> = ({
   siteId,
+  initialEditItemId = null,
   onRequestManageRules
 }) => {
   const [libraryItems, setLibraryItems] = useState<ScheduleLibraryItem[]>([]);
@@ -182,6 +185,7 @@ const ScheduleLibrary: React.FC<ScheduleLibraryProps> = ({
       <Box sx={{ flexGrow: 1, overflow: 'auto' }}>
         <ScheduleItemList
           items={libraryItems}
+          initialEditItemId={initialEditItemId}
           rulesByItemId={getRulesForItem}
           onSaveItem={handleSaveItem}
           onDeleteItem={(item) => {

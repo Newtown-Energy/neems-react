@@ -58,7 +58,6 @@ const SchedulerPage: React.FC = () => {
 
   // State
   const [libraryItems, setLibraryItems] = useState<ScheduleLibraryItem[]>([]);
-  const [error, setError] = useState<string | null>(null);
 
   // Edit from calendar flow
   const [editConfirmationOpen, setEditConfirmationOpen] = useState(false);
@@ -141,8 +140,10 @@ const SchedulerPage: React.FC = () => {
 
   const handleEditOriginal = () => {
     if (!editLibraryItem) return;
-    // For now, just show a message that they should go to the Library page
-    setError('To edit the original schedule, please go to the Library page.');
+    // Shared schedules are edited in the Library, which already handles
+    // the reason prompt and the save. Land the user on that schedule's
+    // card with its editor open.
+    navigate(`/library?edit=${editLibraryItem.id}`);
   };
 
   const handleApplyDifferent = (date: Date, currentItem: ScheduleLibraryItem | null) => {
@@ -213,12 +214,6 @@ const SchedulerPage: React.FC = () => {
       {closedLoopOff && (
         <Alert severity="warning" sx={{ mb: 2 }}>
           Closed-loop control is disabled for this site — schedules will be visualized but not enforced.
-        </Alert>
-      )}
-
-      {error && (
-        <Alert severity="info" onClose={() => setError(null)} sx={{ mb: 2 }}>
-          {error}
         </Alert>
       )}
 
