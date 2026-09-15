@@ -190,8 +190,9 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({
   // Operator requests against the switches, breakers and lockout relay. Kept
   // apart from the alarm and analog feeds because it answers a different
   // question: not what the site is doing, but what someone asked it to do and
-  // whether that ask got out.
-  const controls = useSiteControls();
+  // whether that ask got out. It reads the drawn positions only to know when a
+  // request's badge can go.
+  const controls = useSiteControls((controlId) => state.components[controlId]?.switchPosition);
 
   useEffect(() => {
     onDispatchReady?.(dispatch);

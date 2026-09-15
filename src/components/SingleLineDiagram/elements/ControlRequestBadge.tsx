@@ -12,12 +12,13 @@ interface ControlRequestBadgeProps {
 }
 
 /**
- * What became of an operator's click, drawn beside the element they clicked.
+ * An operator's click that is still outstanding, drawn beside the element they
+ * clicked: `PENDING` until the site reports the change, `FAILED` if the signal
+ * never got out.
  *
  * This is the *request*, never the equipment. A breaker that has not moved
- * still draws its own position from its readback point; this badge only ever
- * says whether the ask got out. The two are separate axes and the diagram must
- * not let one stand in for the other — which is why this is a distinct mark
+ * still draws its own position from its readback point, and that position only
+ * decides when this badge goes away — which is why this is a distinct mark
  * rather than a change to the symbol's own color or contact.
  */
 const ControlRequestBadge: React.FC<ControlRequestBadgeProps> = ({
@@ -28,17 +29,12 @@ const ControlRequestBadge: React.FC<ControlRequestBadgeProps> = ({
   const theme = useTheme();
   if (!request) return null;
 
-  const { status, action } = request;
-  const color =
-    status === 'failed'
-      ? theme.palette.error.main
-      : status === 'sent'
-        ? theme.palette.success.main
-        : theme.palette.warning.main;
+  const { status } = request;
+  const color = status === 'failed' ? theme.palette.error.main : theme.palette.warning.main;
 
   // Short enough to sit beside a breaker without covering its neighbour. The
   // reason for a failure goes in the banner, where there is room for words.
-  const text = status === 'failed' ? 'FAILED' : status === 'sent' ? 'SENT' : `${action.toUpperCase()}…`;
+  const text = status === 'failed' ? 'FAILED' : 'PENDING';
   const width = text.length * 7.4 + 10;
 
   return (
@@ -58,8 +54,8 @@ const ControlRequestBadge: React.FC<ControlRequestBadgeProps> = ({
         stroke={color}
         strokeWidth={1.5}
       >
-        {/* A request still on its way pulses, so the wait reads as activity
-            rather than as a diagram that has stopped responding. */}
+        {/* A request still waiting on the site pulses, so the wait reads as
+            activity rather than as a diagram that has stopped responding. */}
         {status === 'pending' && (
           <animate
             attributeName="opacity"

@@ -12,7 +12,15 @@
 import { describe, expect, test } from 'bun:test';
 import type { ControlRequestDto, SiteControlDto } from '@newtown-energy/types';
 
-import { chooseAction, hasRequestInFlight, isRequestVisible } from './useSiteControls';
+import {
+  chooseAction,
+  hasReachedTarget,
+  hasRequestInFlight,
+  isRequestVisible,
+  recordArrivals,
+  requestView,
+  targetPosition,
+} from './useSiteControls';
 
 /** A naive-UTC timestamp `secondsAgo` in the past, as the backend renders it. */
 function naiveUtcAgo(secondsAgo: number): string {
@@ -31,6 +39,7 @@ function request(overrides: Partial<ControlRequestDto> = {}): ControlRequestDto 
     sent_at: null,
     resolved_at: null,
     failure_reason: null,
+    registered: false,
     ...overrides,
   };
 }
@@ -49,37 +58,124 @@ function control(overrides: Partial<SiteControlDto> = {}): SiteControlDto {
 
 describe('isRequestVisible', () => {
   test('an element nobody has clicked draws nothing', () => {
-    expect(isRequestVisible(null, Date.now())).toBe(false);
+    expect(isRequestVisible(null, false)).toBe(false);
   });
 
   test('a request still on its way stays up', () => {
-    expect(isRequestVisible(request({ status: 'pending' }), Date.now())).toBe(true);
+    expect(isRequestVisible(request({ status: 'pending' }), false)).toBe(true);
   });
 
-  // The whole reason this path exists: a click that went nowhere has to be
-  // visible until someone looks at it, not fade like a success.
   test('a failed request stays up indefinitely', () => {
-    const old = request({
-      status: 'failed',
-      requested_at: naiveUtcAgo(3600),
-      resolved_at: naiveUtcAgo(3600),
-      failure_reason: 'no RTAC point',
-    });
-    expect(isRequestVisible(old, Date.now())).toBe(true);
+    const old = request({ status: 'failed', requested_at: naiveUtcAgo(3600) });
+    expect(isRequestVisible(old, false)).toBe(true);
   });
 
-  test('a sent request shows briefly and then clears', () => {
-    const justSent = request({ status: 'sent', sent_at: naiveUtcAgo(2) });
-    expect(isRequestVisible(justSent, Date.now())).toBe(true);
-
+  test('a sent request stays up until it registers, however long that takes', () => {
     const longSent = request({ status: 'sent', sent_at: naiveUtcAgo(600) });
-    expect(isRequestVisible(longSent, Date.now())).toBe(false);
+    expect(isRequestVisible(longSent, false)).toBe(true);
   });
 
-  // "Sent" with no timestamp is not evidence of anything, and a badge that
-  // never cleared would sit next to a breaker forever implying it moved.
-  test('a sent request with no timestamp is not drawn', () => {
-    expect(isRequestVisible(request({ status: 'sent', sent_at: null }), Date.now())).toBe(false);
+  test('a sent request clears once the diagram has seen it arrive', () => {
+    expect(isRequestVisible(request({ status: 'sent' }), true)).toBe(false);
+  });
+
+  // The reload case: nothing on this page saw the breaker arrive, and it has
+  // since moved back, so its position alone says the request never landed.
+  test('a sent request clears once the backend reports it registered', () => {
+    expect(isRequestVisible(request({ status: 'sent', registered: true }), false)).toBe(false);
+  });
+});
+
+describe('hasReachedTarget', () => {
+  test('a sent request arrives when the drawn position reaches its target', () => {
+    const open = request({ status: 'sent', action: 'open' });
+    expect(hasReachedTarget(open, 'open')).toBe(true);
+    expect(hasReachedTarget(open, 'closed')).toBe(false);
+    expect(hasReachedTarget(open, 'unknown')).toBe(false);
+    expect(hasReachedTarget(open, undefined)).toBe(false);
+  });
+
+  test('equipment already in place while the signal is on its way has not answered it', () => {
+    expect(hasReachedTarget(request({ status: 'pending', action: 'open' }), 'open')).toBe(false);
+  });
+});
+
+describe('requestView', () => {
+  // Each requestView call is one render. recordArrivals is the effect that runs
+  // once a render has committed.
+  const pending = { status: 'pending', reason: null };
+
+  test('a sent request clears on the render that draws it arriving, and stays cleared after it moves back', () => {
+    const arrived = new Set<number>();
+    const open = request({ status: 'sent', action: 'open' });
+
+    expect(requestView(open, 'closed', arrived)).toEqual(pending);
+    expect(requestView(open, 'open', arrived)).toBe(null);
+    recordArrivals([control({ latest_request: open })], () => 'open', arrived);
+    expect(requestView(open, 'closed', arrived)).toBe(null);
+  });
+
+  // A concurrent render can be thrown away before it commits. An arrival only
+  // it drew was never on screen, so it must not keep the badge cleared.
+  test('an arrival drawn by a render that never commits is not remembered', () => {
+    const arrived = new Set<number>();
+    const open = request({ status: 'sent', action: 'open' });
+
+    expect(requestView(open, 'open', arrived)).toBe(null);
+    expect(requestView(open, 'closed', arrived)).toEqual(pending);
+  });
+
+  test('one request arriving does not clear a newer one on the same element', () => {
+    const arrived = new Set<number>();
+    const older = request({ id: 1, status: 'sent', action: 'open' });
+    recordArrivals([control({ latest_request: older })], () => 'open', arrived);
+
+    const newer = request({ id: 2, status: 'sent', action: 'close' });
+    expect(requestView(newer, 'open', arrived)).toEqual(pending);
+  });
+
+  test('a request still on its way is not recorded as arrived', () => {
+    const arrived = new Set<number>();
+    const onItsWay = request({ status: 'pending', action: 'open' });
+    recordArrivals([control({ latest_request: onItsWay })], () => 'open', arrived);
+    expect(arrived.size).toBe(0);
+  });
+
+  test('a request that is no longer any control\'s latest is forgotten', () => {
+    const arrived = new Set<number>();
+    const older = request({ id: 1, status: 'sent', action: 'open' });
+    recordArrivals([control({ latest_request: older })], () => 'open', arrived);
+    expect(arrived.has(1)).toBe(true);
+
+    const newer = request({ id: 2, status: 'pending', action: 'close' });
+    recordArrivals([control({ latest_request: newer })], () => 'open', arrived);
+    expect(arrived.size).toBe(0);
+  });
+
+  test('a site with no controls loaded forgets every arrival', () => {
+    const arrived = new Set<number>([1, 2, 3]);
+    recordArrivals([], () => undefined, arrived);
+    expect(arrived.size).toBe(0);
+  });
+
+  test('a failed request is drawn with its reason', () => {
+    const failed = request({ status: 'failed', failure_reason: 'no RTAC point' });
+    expect(requestView(failed, 'closed', new Set())).toEqual({
+      status: 'failed',
+      reason: 'no RTAC point',
+    });
+  });
+});
+
+describe('targetPosition', () => {
+  test('open and trip leave equipment open, close leaves it closed', () => {
+    expect(targetPosition('open')).toBe('open');
+    expect(targetPosition('trip')).toBe('open');
+    expect(targetPosition('close')).toBe('closed');
+  });
+
+  test('an action it does not know has no target', () => {
+    expect(targetPosition('explode')).toBe(null);
   });
 });
 
