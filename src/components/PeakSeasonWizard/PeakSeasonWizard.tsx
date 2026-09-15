@@ -700,9 +700,9 @@ const PeakSeasonWizard: React.FC<PeakSeasonWizardProps> = ({ open, onClose, onCo
           {step === 7 && (
             <Stack spacing={2}>
               <Typography variant="body2" color="text.secondary">
-                Review and apply. This will save the site defaults you set above,
-                create a new library item, and apply it across the chosen range
-                as a single specific-date rule.
+                Review and apply. This saves the site defaults you set above,
+                adds the schedule to the Library, and applies it across the
+                chosen range.
               </Typography>
               <Divider />
               <Grid container spacing={2}>
