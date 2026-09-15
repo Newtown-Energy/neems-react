@@ -77,8 +77,10 @@ const SldPage: React.FC = () => {
           </Typography>
           <Typography variant="body2" color="text.secondary">
             {PROJECT_INFO.name} — click a line switch (89L-1/89L-2) or feeder
-            breaker to request that it open or close; the diagram shows what
-            became of the request. Positions come from the site's own readback
+            breaker to request that it open or close. It reads{' '}
+            <strong>PENDING</strong> until the site reports the change, or{' '}
+            <strong>FAILED</strong> if the request could not be sent. Positions
+            come from the site's own readback
             points, so they change when the equipment does and not when you
             click. A grey <strong>?</strong> means the site has never told us
             where something is, or reports its own feedback as contradicting

@@ -125,10 +125,10 @@ export interface SldElementProps {
   label?: string;
   onClick?: () => void;
   /**
-   * What became of the operator's last click on this element, if anything.
-   * Orthogonal to [SldComponentState.switchPosition]: the request says whether
-   * the ask got out, the position says where the equipment is, and neither
-   * answers the other.
+   * The operator's last click on this element, while it is still outstanding.
+   * Drawn beside the symbol and never instead of it: the drawn position still
+   * comes from [SldComponentState.switchPosition] alone, and only decides when
+   * this goes away.
    */
   request?: ControlRequestView | null;
 }

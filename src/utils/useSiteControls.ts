@@ -13,22 +13,13 @@ const POLL_INTERVAL_MS = 10_000;
 /** Cadence while a request is still on its way to the RTAC. */
 const ACTIVE_POLL_INTERVAL_MS = 1_000;
 
-/**
- * How long a `sent` request stays on the diagram.
- *
- * "The signal got out" is worth showing and then worth clearing: it is terminal,
- * so leaving it up would put a permanent badge on every element anyone has ever
- * clicked. Whether the equipment then moved is a different question with a
- * different indicator — the readback-driven position — and a stale "SENT" next
- * to it would read as an answer to it.
- */
-const SENT_VISIBLE_MS = 15_000;
-
 /** What the diagram draws next to one element. */
 export interface ControlRequestView {
-  status: ControlRequestDto['status'];
-  /** The action asked for, for the operator to read back. */
-  action: string;
+  /**
+   * `pending` from the click until the change registers at the site, whether
+   * or not the signal has gone out yet; `failed` when it never will.
+   */
+  status: 'pending' | 'failed';
   /** Why the signal did not get out. Only ever set when `status` is `failed`. */
   reason: string | null;
 }
@@ -36,7 +27,11 @@ export interface ControlRequestView {
 export interface SiteControlsState {
   /** Every interactable element the backend serves, keyed by control id. */
   controls: Record<string, SiteControlDto>;
-  /** What to draw against one element, or `null` when there is nothing to say. */
+  /**
+   * What to draw against one element, or `null` when there is nothing to say.
+   * Judged against the position the diagram is drawing on this render, so a
+   * request clears on the same render that shows the equipment arriving.
+   */
   viewFor: (controlId: string) => ControlRequestView | null;
   /**
    * Ask a control to do something. Resolves once the request has been
@@ -61,13 +56,6 @@ export interface SiteControlsState {
    */
   failure: { controlId: string; label: string; reason: string } | null;
   dismissFailure: () => void;
-}
-
-/** Backend timestamps are naive UTC; see SocMiniChart for the same handling. */
-function parseUtc(timestamp: string | null | undefined): number | null {
-  if (!timestamp) return null;
-  const ms = new Date(`${timestamp}Z`).getTime();
-  return Number.isNaN(ms) ? null : ms;
 }
 
 /**
@@ -105,21 +93,101 @@ export function chooseAction(
 }
 
 /**
+ * Where a request leaves its equipment, mirroring neems-data's
+ * `resulting_position`: tripping leaves a relay open. `null` for an action this
+ * does not know, which then never clears on position alone.
+ */
+export function targetPosition(action: string): SwitchPosition | null {
+  if (action === 'open' || action === 'trip') return 'open';
+  if (action === 'close') return 'closed';
+  return null;
+}
+
+/**
+ * Whether the diagram is drawing a sent request's equipment where it asked to
+ * go.
+ *
+ * Only a `sent` request can arrive: equipment already in place while the signal
+ * is still on its way got there without it.
+ */
+export function hasReachedTarget(
+  request: ControlRequestDto,
+  position: SwitchPosition | undefined,
+): boolean {
+  return request.status === 'sent' && position === targetPosition(request.action);
+}
+
+/**
  * Whether a request is still worth drawing.
  *
- * `pending` and `failed` stay up — one is in progress, the other is an error an
- * operator has to see. `sent` ages out, because it is terminal and says nothing
- * about the equipment.
+ * `failed` stays up, because an operator has to see it, and so does anything
+ * that has not yet got out. A `sent` request stays up until its change has
+ * registered, and there are two ways to know that. `arrived` — the diagram has
+ * drawn the equipment reaching its target at some render since — is what
+ * clears it the moment the equipment gets there. The backend's `registered`
+ * says the same thing, and is what keeps it cleared after a reload, when
+ * nothing on the page saw it arrive.
+ *
+ * Deliberately not a timer. A request the site never acts on stays up.
  */
 export function isRequestVisible(
   request: ControlRequestDto | null | undefined,
-  now: number,
+  arrived: boolean,
 ): boolean {
   if (!request) return false;
   if (request.status !== 'sent') return true;
+  return !(request.registered || arrived);
+}
 
-  const sentAt = parseUtc(request.sent_at);
-  return sentAt != null && now - sentAt < SENT_VISIBLE_MS;
+/**
+ * What to draw for one element's latest request, on one render.
+ *
+ * Pure: `arrived` holds the requests committed renders have already drawn
+ * arriving (see [recordArrivals]), and the position drawn on this render counts
+ * too, so the badge clears on the very render that shows the equipment get
+ * there.
+ */
+export function requestView(
+  request: ControlRequestDto | null,
+  position: SwitchPosition | undefined,
+  arrived: ReadonlySet<number>,
+): ControlRequestView | null {
+  if (!request) return null;
+  const hasArrived = arrived.has(request.id) || hasReachedTarget(request, position);
+  if (!isRequestVisible(request, hasArrived)) return null;
+  return request.status === 'failed'
+    ? { status: 'failed', reason: request.failure_reason }
+    : { status: 'pending', reason: null };
+}
+
+/**
+ * Remember every latest request whose equipment a committed render drew at its
+ * target, so its badge stays cleared if the equipment moves straight back
+ * before the backend's `registered` arrives.
+ *
+ * Forgets any request that is no longer some control's latest: nothing draws it
+ * any more, and keeping it would grow the set by one entry per operation for as
+ * long as the page stays open. So the set holds at most one id per control, and
+ * empties when the site changes and the control list is cleared.
+ *
+ * For an effect, not for render: a render can be discarded before it commits,
+ * and an arrival it drew was never on screen.
+ */
+export function recordArrivals(
+  controls: SiteControlDto[],
+  positionOf: (controlId: string) => SwitchPosition | undefined,
+  arrived: Set<number>,
+): void {
+  const latest = new Set<number>();
+  for (const control of controls) {
+    const request = control.latest_request;
+    if (!request) continue;
+    latest.add(request.id);
+    if (hasReachedTarget(request, positionOf(control.id))) arrived.add(request.id);
+  }
+  for (const id of arrived) {
+    if (!latest.has(id)) arrived.delete(id);
+  }
 }
 
 /** Whether anything is still on its way to the RTAC. */
@@ -134,8 +202,14 @@ export function hasRequestInFlight(controls: SiteControlDto[]): boolean {
  * only what was asked for and whether the signal got out. Where a breaker
  * actually sits comes from its readback point, on its own schedule, and the two
  * must be rendered as separate things.
+ *
+ * `positionOf` is the position the diagram is drawing for a control. It decides
+ * only when a request's badge goes away, never the other way round.
  */
-export function useSiteControls(enabled = true): SiteControlsState {
+export function useSiteControls(
+  positionOf: (controlId: string) => SwitchPosition | undefined,
+  enabled = true,
+): SiteControlsState {
   const { selectedSiteId } = useSiteContext();
   const [controls, setControls] = useState<SiteControlDto[]>([]);
   const [dismissed, setDismissed] = useState<number | null>(null);
@@ -144,6 +218,14 @@ export function useSiteControls(enabled = true): SiteControlsState {
   // cadence does not tear down and restart the interval mid-request.
   const controlsRef = useRef<SiteControlDto[]>([]);
   controlsRef.current = controls;
+
+  // Requests a committed render has drawn arriving. Recorded after commit, never
+  // during render, and kept so equipment that arrives and moves straight back
+  // does not bring its badge back before the next poll returns `registered`.
+  const arrivedRef = useRef<Set<number>>(new Set());
+  useEffect(() => {
+    recordArrivals(controls, positionOf, arrivedRef.current);
+  });
 
   const active = enabled && selectedSiteId != null;
 
@@ -200,6 +282,7 @@ export function useSiteControls(enabled = true): SiteControlsState {
         sent_at: null,
         resolved_at: null,
         failure_reason: null,
+        registered: false,
       };
       setDismissed(null);
       setControls((prev) =>
@@ -241,21 +324,13 @@ export function useSiteControls(enabled = true): SiteControlsState {
   const byId: Record<string, SiteControlDto> = {};
   for (const control of controls) byId[control.id] = control;
 
-  // Evaluated per render rather than on a timer: the poll re-renders at least
-  // every 10s, so a `sent` badge clears within one cadence of its window
-  // expiring. A dedicated timeout would buy a few seconds of precision on a
-  // badge whose whole purpose is to fade.
-  const now = Date.now();
   const actionFor = (
     controlId: string,
     position: SwitchPosition | undefined,
   ): string | null => chooseAction(byId[controlId], position);
 
-  const viewFor = (controlId: string): ControlRequestView | null => {
-    const request = byId[controlId]?.latest_request ?? null;
-    if (!request || !isRequestVisible(request, now)) return null;
-    return { status: request.status, action: request.action, reason: request.failure_reason };
-  };
+  const viewFor = (controlId: string): ControlRequestView | null =>
+    requestView(byId[controlId]?.latest_request ?? null, positionOf(controlId), arrivedRef.current);
 
   // The newest failure is the one worth interrupting an operator about. Older
   // ones stay on their own elements rather than queueing up as banners.
