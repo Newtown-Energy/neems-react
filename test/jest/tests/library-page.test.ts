@@ -41,6 +41,8 @@ describe('Library Page Tests', () => {
     // Dialog should expose Name and Description fields.
     const dialogContent = await page.$eval('[role="dialog"]', el => el.textContent || '');
     expect(dialogContent).toMatch(/Name/i);
+    // Creating a schedule changes nothing, so it asks for no reason.
+    expect(dialogContent).not.toMatch(/Reason for change/i);
 
     // Close via Cancel.
     const cancelButton = await findButtonByText(page, ['Cancel']);
