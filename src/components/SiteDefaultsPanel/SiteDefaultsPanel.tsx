@@ -188,17 +188,17 @@ interface SiteDefaultsPanelProps {
 
 const FIELD_HELP: Record<string, string> = {
   power_kw:
-    'Nameplate power of the battery system. Drives charge/discharge command sizing and the ramp-rate calculation.',
+    'Nameplate power of the battery system. Charge and discharge commands are sized as a percentage of it, and it is the full power the ramp duration ramps to.',
   capacity_kwh:
-    'Total energy storage capacity. Used for the available-SoC duration warning.',
+    'Total energy storage capacity. With the discharge power, it sets how long the site can run before the battery is empty.',
   ramp_duration_seconds:
     'Time to ramp from 0 to full power. The utility standard is 120 seconds (2-minute full-power ramp).',
   closed_loop_enabled:
     'When on, scheduled commands are sent to the RTAC for execution. When off, schedules are visualized but not enforced.',
   charge_rate_percent:
-    'Percentage of nameplate power used for charge commands. 100% = full power. Drives the calendar bar height.',
+    'Percentage of nameplate power used for charge commands. 100% = full power.',
   discharge_rate_percent:
-    'Percentage of nameplate power used for discharge commands. 100% = full power. Drives the calendar bar height.',
+    'Percentage of nameplate power used for discharge commands. 100% = full power.',
   off_peak_window:
     'Window when the battery is allowed to charge from the grid at the lower tariff. ' +
     'Used for scheduling guidance (not enforcement): charge or trickle-charge commands scheduled outside this window surface a warning, ' +
