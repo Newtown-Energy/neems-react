@@ -210,7 +210,7 @@ const FIELD_HELP: Record<string, string> = {
     'Discharge power commanded in this window cannot exceed the site power limit (or the interconnection cap) and cannot be negative.',
   interconnection_max_output_kw:
     'During a normal peak-season output, this is what you would be discharging. Schedules can be configured to override this value at any specific time. ' +
-    'Used as a soft target (not a clamp): operators will see a warning if scheduled discharge runs above this level. Must be 0 ≤ value ≤ site power.',
+    'Used as a soft target (not a clamp): you will see a warning if scheduled discharge runs above this level. Must be 0 ≤ value ≤ site power.',
   rebound_protection_soc_floor_percent:
     'State-of-charge at which discharge ramps to 0 kW to protect the battery from a deep-discharge rebound.',
   site_variant:

@@ -537,7 +537,7 @@ const PeakSeasonWizard: React.FC<PeakSeasonWizardProps> = ({ open, onClose, onCo
               <Typography variant="body2" color="text.secondary">
                 During a normal peak-season output, this is what you would be discharging.
                 Schedules can be configured to override this value at any specific time.
-                Used as a soft target — operators will see a warning if scheduled discharge
+                Used as a soft target — you will see a warning if scheduled discharge
                 runs above this level.
               </Typography>
               <TextField
