@@ -540,6 +540,27 @@ The consumers today are `DayChangeHistoryPane`, `ResultingSchedulePane`,
 pinned by `src/utils/activityDescription.test.ts` — change a sentence
 there and you have changed it everywhere, which is the point.
 
+Order rows with `sortActivityNewestFirst`, never by timestamp alone.
+Activity timestamps resolve to the second, so a burst of saves shares
+one; a plain sort is stable and would leave the *oldest* of that burst
+first, which a collapsed view then presents as the latest change.
+
+**One pane, one stream.** `DayChangeHistoryPane` takes a `source`
+naming the single activity stream to list, and callers pick the one
+their section is about:
+
+| Surface | `source` | Answers |
+|---|---|---|
+| Day-details modal | `application_rules` | which schedule was applied to this day, and why |
+| Library card (`ScheduleItemCard`) | `schedule_templates` | how this schedule itself has been edited |
+
+It used to fetch both and merge them, which rendered the prevailing
+schedule's edits twice in the day modal — once under
+`ResultingSchedulePane`, once below it (#164). Do not reintroduce the
+merged fetch: if a surface needs both, it wants two sections, not one
+list. `libraryItem` is display only — it names and links the schedule in
+each row and does not decide what is fetched.
+
 ### Scheduler System Components
 
 The scheduler system consists of three main components:

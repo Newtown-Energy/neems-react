@@ -1,5 +1,5 @@
 /**
- * Per-day change history.
+ * Change history for one entity, newest first.
  *
  * Demo feedback (2026-05-18): each day in the calendar should show
  * who applied this schedule and when, with the reason inline. The
@@ -8,14 +8,26 @@
  * surface the rule-level activity — which is where the override
  * reason lives.
  *
- * This pane fetches `EntityActivity` rows for the day's prevailing
- * `application_rules` row and renders a compact timeline. Renders
- * nothing when there's no rule (e.g. an unscheduled day).
+ * It used to fetch *both* streams and merge them, which meant the day
+ * modal rendered the prevailing schedule's own edits twice: once under
+ * `ResultingSchedulePane` and again here (#164). `source` now names the
+ * single stream to list, so each caller asks for the one thing its
+ * section is about:
+ *
+ *   - the day modal → the day's `application_rules` row: which schedule
+ *     was applied to this day, when, by whom and why;
+ *   - the Library card → that schedule's own `schedule_templates` edits.
+ *
+ * Long histories collapse to the most recent entry with an in-place
+ * expand. Unlike `ResultingSchedulePane`, which links to
+ * `/library/:itemId/audit` for the rest, there is no per-rule audit
+ * page to send anyone to.
  */
 
 import React, { useEffect, useState } from 'react';
 import {
   Box,
+  Button,
   CircularProgress,
   Link,
   List,
@@ -24,24 +36,42 @@ import {
   Stack,
   Typography
 } from '@mui/material';
+import {
+  ExpandLess as ExpandLessIcon,
+  ExpandMore as ExpandMoreIcon
+} from '@mui/icons-material';
 import { Link as RouterLink } from 'react-router-dom';
 import type { EntityActivityWithUser } from '@newtown-energy/types';
 
 import { getEntityActivity } from '../../utils/scheduleApi';
-import { describeActivity, describeActor } from '../../utils/activityDescription';
+import {
+  describeActivity,
+  describeActor,
+  sortActivityNewestFirst
+} from '../../utils/activityDescription';
 import { errorLog } from '../../utils/debug';
 
+/** The one activity stream a pane lists. */
+export interface ChangeHistorySource {
+  table: 'application_rules' | 'schedule_templates';
+  entityId: number;
+}
+
 interface DayChangeHistoryPaneProps {
-  ruleId: number | null;
-  /** Library item backing this day. Inline command edits (S1b) write
-   *  to `schedule_templates` activity rather than `application_rules`,
-   *  so we fetch both streams and merge them by timestamp. */
+  /** Whose history to list. Null renders nothing — an unscheduled day
+   *  has no rule to report on. */
+  source: ChangeHistorySource | null;
+  /** Schedule to name and link in each row. Display only: it says
+   *  *which* schedule a row is about, and is not what gets fetched. */
   libraryItem: { id: number; name: string } | null;
   /** Surfaced inline so the operator sees the reason next to the
    *  "applied by" rows. May be null when the rule has no recorded
    *  reason (e.g. legacy default rule, day-of-week toggle). */
   overrideReason: string | null;
 }
+
+/** Entries shown before the operator asks for the rest. */
+const PREVIEW_COUNT = 1;
 
 function formatTimestamp(iso: string): string {
   const d = new Date(iso);
@@ -50,36 +80,30 @@ function formatTimestamp(iso: string): string {
 }
 
 const DayChangeHistoryPane: React.FC<DayChangeHistoryPaneProps> = ({
-  ruleId,
+  source,
   libraryItem,
   overrideReason
 }) => {
   const [activity, setActivity] = useState<EntityActivityWithUser[] | null>(null);
   const [loading, setLoading] = useState(false);
-  const libraryItemId = libraryItem?.id ?? null;
+  const [expanded, setExpanded] = useState(false);
+  const sourceTable = source?.table ?? null;
+  const sourceId = source?.entityId ?? null;
 
   useEffect(() => {
-    if (ruleId == null && libraryItemId == null) {
+    if (sourceTable == null || sourceId == null) {
       setActivity(null);
       return;
     }
     let cancelled = false;
     setLoading(true);
+    // Collapse again when the pane switches entities — the previous
+    // day's expansion says nothing about this one.
+    setExpanded(false);
     void (async () => {
       try {
-        // Pull both streams in parallel. The rule's activity carries
-        // the "Applied/Updated" entries (with override_reason); the
-        // library item's activity carries inline command-edit entries
-        // (with change_reason).
-        const requests: Array<Promise<EntityActivityWithUser[]>> = [];
-        if (ruleId != null) {
-          requests.push(getEntityActivity('application_rules', ruleId));
-        }
-        if (libraryItemId != null) {
-          requests.push(getEntityActivity('schedule_templates', libraryItemId));
-        }
-        const results = await Promise.all(requests);
-        if (!cancelled) setActivity(results.flat());
+        const rows = await getEntityActivity(sourceTable, sourceId);
+        if (!cancelled) setActivity(rows);
       } catch (err) {
         errorLog('DayChangeHistoryPane: failed to load activity', err);
         if (!cancelled) setActivity([]);
@@ -88,15 +112,15 @@ const DayChangeHistoryPane: React.FC<DayChangeHistoryPaneProps> = ({
       }
     })();
     return () => { cancelled = true; };
-  }, [ruleId, libraryItemId]);
+  }, [sourceTable, sourceId]);
 
-  // Nothing to show without a rule or library item.
-  if (ruleId == null && libraryItemId == null) return null;
+  if (sourceTable == null || sourceId == null) return null;
 
-  // Show newest first so the most recent change is at eye level.
-  const ordered = activity
-    ? [...activity].sort((a, b) => b.timestamp.localeCompare(a.timestamp))
-    : null;
+  // Newest first, so the most recent change is at eye level — and so
+  // the one entry left after collapsing is the right one.
+  const ordered = activity ? sortActivityNewestFirst(activity) : null;
+  const visible = ordered && !expanded ? ordered.slice(0, PREVIEW_COUNT) : ordered;
+  const hiddenCount = ordered ? ordered.length - PREVIEW_COUNT : 0;
 
   return (
     <Box sx={{ mb: 2 }}>
@@ -113,12 +137,14 @@ const DayChangeHistoryPane: React.FC<DayChangeHistoryPaneProps> = ({
       )}
       {!loading && ordered && ordered.length === 0 && (
         <Typography variant="caption" color="text.secondary">
-          No recorded changes for this day's rule.
+          {sourceTable === 'application_rules'
+            ? "No recorded changes for this day's rule."
+            : 'No recorded changes for this schedule.'}
         </Typography>
       )}
-      {!loading && ordered && ordered.length > 0 && (
+      {!loading && visible && visible.length > 0 && (
         <List dense disablePadding>
-          {ordered.map(row => {
+          {visible.map(row => {
             // Prefer the per-row change_reason captured at API time
             // (S1b); fall back to the rule-level override_reason for
             // the rule's create row (S1's apply-different flow).
@@ -175,6 +201,20 @@ const DayChangeHistoryPane: React.FC<DayChangeHistoryPaneProps> = ({
             );
           })}
         </List>
+      )}
+      {!loading && ordered && hiddenCount > 0 && (
+        <Button
+          size="small"
+          onClick={() => setExpanded(prev => !prev)}
+          startIcon={
+            expanded ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />
+          }
+          sx={{ textTransform: 'none', px: 0 }}
+        >
+          {expanded
+            ? 'Show fewer'
+            : `Show ${hiddenCount} earlier change${hiddenCount === 1 ? '' : 's'}`}
+        </Button>
       )}
     </Box>
   );

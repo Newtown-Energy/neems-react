@@ -12,7 +12,11 @@
 import { describe, expect, test } from 'bun:test';
 import type { ChangeDetails, CommandSnapshot, CommandType } from '@newtown-energy/types';
 
-import { describeActivity, describeActor } from './activityDescription';
+import {
+  describeActivity,
+  describeActor,
+  sortActivityNewestFirst
+} from './activityDescription';
 
 function command(
   offset: number,
@@ -40,7 +44,7 @@ describe('describeActivity — rows with no details', () => {
     expect(describeActivity({ table_name: 'application_rules', operation_type: 'create' }))
       .toEqual({ verb: 'Applied', changes: [] });
     expect(describeActivity({ table_name: 'application_rules', operation_type: 'delete' }))
-      .toEqual({ verb: 'Removed', changes: [] });
+      .toEqual({ verb: 'Removed rule', changes: [] });
   });
 
   test('a detail-less template update does not claim commands changed', () => {
@@ -51,12 +55,10 @@ describe('describeActivity — rows with no details', () => {
       .toEqual({ verb: 'Updated', changes: [] });
   });
 
-  test('a template delete reads the same as a rule delete', () => {
+  test('a template delete reads "Removed" on every surface', () => {
     // ResultingSchedulePane used to say "Deleted" here while every
     // other surface said "Removed". Converging them is the point.
     expect(describeActivity({ table_name: 'schedule_templates', operation_type: 'delete' }).verb)
-      .toBe('Removed');
-    expect(describeActivity({ table_name: 'application_rules', operation_type: 'delete' }).verb)
       .toBe('Removed');
   });
 
@@ -273,7 +275,7 @@ describe('describeActivity — field changes', () => {
     expect(described.changes).toEqual(['Covers 2026-07-04']);
   });
 
-  test('a removed date override still names the date, in the past tense', () => {
+  test('a removed date override says an override went, and which date', () => {
     const described = describeActivity({
       table_name: 'application_rules',
       operation_type: 'delete',
@@ -284,8 +286,25 @@ describe('describeActivity — field changes', () => {
         ]
       })
     });
-    expect(described.verb).toBe('Removed');
+    // A bare "Removed" never said what was removed, nor that the day
+    // now falls back to whatever is underneath the override.
+    expect(described.verb).toBe('Removed override');
     expect(described.changes).toEqual(['Covered 2026-07-04']);
+  });
+
+  test('deletes name the kind of rule, because not every rule is an override', () => {
+    const removed = (ruleType: string) =>
+      describeActivity({
+        table_name: 'application_rules',
+        operation_type: 'delete',
+        change_details: details({ fields: [{ field: 'rule_type', from: ruleType, to: null }] })
+      });
+
+    expect(removed('day_of_week').verb).toBe('Removed day-of-week rule');
+    expect(removed('default').verb).toBe('Removed default rule');
+    // The verb already says it was the default, so the rule_type
+    // sentence would only repeat it.
+    expect(removed('default').changes).toEqual([]);
   });
 
   test('day-of-week rules render through the shared day formatter', () => {
@@ -320,5 +339,40 @@ describe('describeActor', () => {
       .toBe('alice@example.com');
     expect(describeActor({ user_email: null, user_id: 7 })).toBe('user #7');
     expect(describeActor({ user_email: null, user_id: null })).toBe('system');
+  });
+});
+
+describe('sortActivityNewestFirst', () => {
+  test('puts the newest row first', () => {
+    const rows = [
+      { id: 1, timestamp: '2026-09-16T03:33:39Z' },
+      { id: 2, timestamp: '2026-09-16T03:34:10Z' }
+    ];
+    expect(sortActivityNewestFirst(rows).map(r => r.id)).toEqual([2, 1]);
+  });
+
+  test('breaks same-second ties by id, newest first', () => {
+    // Activity timestamps come from SQLite's CURRENT_TIMESTAMP and
+    // resolve to the second, so a burst of edits shares one. Sorting on
+    // timestamp alone is stable, which would preserve the API's
+    // ascending order within the tie — and a surface showing only the
+    // first row would then show the *oldest* edit of the burst as the
+    // latest change. Observed with three saves inside one second.
+    const rows = [
+      { id: 350, timestamp: '2026-09-16T03:33:39Z' },
+      { id: 357, timestamp: '2026-09-16T03:33:47Z' },
+      { id: 362, timestamp: '2026-09-16T03:33:47Z' },
+      { id: 367, timestamp: '2026-09-16T03:33:47Z' }
+    ];
+    expect(sortActivityNewestFirst(rows).map(r => r.id)).toEqual([367, 362, 357, 350]);
+  });
+
+  test('does not mutate the caller\'s array', () => {
+    const rows = [
+      { id: 1, timestamp: '2026-09-16T03:33:39Z' },
+      { id: 2, timestamp: '2026-09-16T03:34:10Z' }
+    ];
+    sortActivityNewestFirst(rows);
+    expect(rows.map(r => r.id)).toEqual([1, 2]);
   });
 });
