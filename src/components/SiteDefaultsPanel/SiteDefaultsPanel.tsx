@@ -402,6 +402,7 @@ const SiteDefaultsPanel: React.FC<SiteDefaultsPanelProps> = ({ onSavingChange, r
         charge_rate_percent: chargeRate,
         discharge_rate_percent: dischargeRate,
         trickle_charge_power_kw: trickleCharge,
+        site_configuration_wizard_completed: null,
       });
       await refresh();
       setSavedAt(Date.now());

@@ -8,8 +8,10 @@
  * across the chosen date range (B4).
  *
  * The wizard is intentionally additive — it doesn't delete or rewrite
- * existing rules, so re-running it just stacks another specific-date
- * rule and another library item alongside whatever was there before.
+ * existing rules. It is also offered once: on success it records the
+ * completion on the site, and `SchedulerPage` stops showing the button
+ * from then on. Settings stay editable in the Site Settings page and
+ * schedules in the Library.
  */
 
 import React, { useEffect, useMemo, useState } from 'react';
@@ -33,7 +35,7 @@ import {
   TextField,
   Typography
 } from '@mui/material';
-import type { Site } from '@newtown-energy/types';
+import type { Site, UpdateSiteRequest } from '@newtown-energy/types';
 
 import { useSiteContext } from '../../utils/SiteContext';
 import { updateSite } from '../../utils/siteApi';
@@ -80,6 +82,34 @@ const STEP_LABELS = [
   'Season dates',
   'Review'
 ] as const;
+
+/**
+ * Every field of the site patch set to "leave alone". The endpoint reads
+ * `null` as "don't touch", so a caller spreads this and names only the
+ * fields it means to write.
+ */
+const UNTOUCHED_SITE_FIELDS: UpdateSiteRequest = {
+  name: null,
+  address: null,
+  latitude: null,
+  longitude: null,
+  company_id: null,
+  ramp_duration_seconds: null,
+  power_kw: null,
+  capacity_kwh: null,
+  closed_loop_enabled: null,
+  off_peak_start_minutes: null,
+  off_peak_end_minutes: null,
+  peak_revenue_start_minutes: null,
+  peak_revenue_end_minutes: null,
+  interconnection_max_output_kw: null,
+  rebound_protection_soc_floor_percent: null,
+  site_variant: null,
+  charge_rate_percent: null,
+  discharge_rate_percent: null,
+  trickle_charge_power_kw: null,
+  site_configuration_wizard_completed: null
+};
 
 function minutesToTimeString(minutes: number | null | undefined): string {
   if (minutes === null || minutes === undefined) return '';
@@ -163,6 +193,11 @@ const PeakSeasonWizard: React.FC<PeakSeasonWizardProps> = ({ open, onClose, onCo
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<{ libraryItemName: string; daysCovered: number } | null>(null);
 
+  // Re-arm when the dialog opens, or when the operator switches site
+  // under it. Keyed on the site's id rather than the object: `refresh()`
+  // hands back a new object for the same site, and re-arming on that
+  // would wipe the success screen the moment the wizard records its own
+  // completion.
   useEffect(() => {
     if (open && selectedSite) {
       setDraft(buildDraft(selectedSite));
@@ -170,7 +205,7 @@ const PeakSeasonWizard: React.FC<PeakSeasonWizardProps> = ({ open, onClose, onCo
       setError(null);
       setResult(null);
     }
-  }, [open, selectedSite]);
+  }, [open, selectedSite?.id]);
 
   const setField = <K extends keyof WizardDraft>(key: K, value: WizardDraft[K]) => {
     setDraft(prev => (prev ? { ...prev, [key]: value } : prev));
@@ -246,14 +281,8 @@ const PeakSeasonWizard: React.FC<PeakSeasonWizardProps> = ({ open, onClose, onCo
       // endpoint reads windows straight off the site, so this must
       // happen before we build the library item.
       await updateSite(selectedSite.id, {
-        name: null,
-        address: null,
-        latitude: null,
-        longitude: null,
-        company_id: null,
-        ramp_duration_seconds: null,
+        ...UNTOUCHED_SITE_FIELDS,
         power_kw: Number.parseFloat(draft.power_kw),
-        capacity_kwh: null,
         closed_loop_enabled: draft.closed_loop_enabled,
         off_peak_start_minutes: timeStringToMinutes(draft.off_peak_start),
         off_peak_end_minutes: timeStringToMinutes(draft.off_peak_end),
@@ -262,11 +291,7 @@ const PeakSeasonWizard: React.FC<PeakSeasonWizardProps> = ({ open, onClose, onCo
         interconnection_max_output_kw: Number.parseFloat(draft.interconnection_max_output_kw),
         rebound_protection_soc_floor_percent: Number.parseFloat(
           draft.rebound_protection_soc_floor_percent
-        ),
-        site_variant: null,
-        charge_rate_percent: null,
-        discharge_rate_percent: null,
-        trickle_charge_power_kw: null,
+        )
       });
       await refresh();
 
@@ -286,6 +311,16 @@ const PeakSeasonWizard: React.FC<PeakSeasonWizardProps> = ({ open, onClose, onCo
         exclude_dates: [],
         override_reason: 'Site configuration wizard'
       });
+
+      // Step 4: record that this site has been onboarded, which is what
+      // hides the wizard. Last, and only on success: a run that died
+      // partway leaves the site half-configured, and the operator needs
+      // the button to finish the job.
+      await updateSite(selectedSite.id, {
+        ...UNTOUCHED_SITE_FIELDS,
+        site_configuration_wizard_completed: true
+      });
+      await refresh();
 
       setResult({ libraryItemName: item.name, daysCovered: fill.applied_dates.length });
       onComplete?.();
