@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useMatch } from 'react-router-dom';
 import { Box } from '@mui/material';
 import Sidebar from './components/Sidebar/Sidebar';
 import FDNYPage from './pages/FDNYPage';
@@ -24,12 +24,26 @@ import { DemoOverridesProvider } from './utils/demoOverrides';
 /** App-wide banner host. Mounted once at the top of every page so the
  *  same content appears in the same spot regardless of route. Lives
  *  inside the Router/providers so SiteStatePanel can read the site +
- *  overrides. */
-const SiteStateBannerSlot: React.FC = () => (
-  <Box sx={{ px: 2, pt: 1 }}>
-    <SiteStatePanel />
-  </Box>
-);
+ *  overrides.
+ *
+ *  The route exception is decided here, where routing already lives,
+ *  rather than in the panel: on the SLD the diagram already flashes the
+ *  emergency from every affected element, and the bar would only push
+ *  the one view that needs the height down the page. Everywhere else it
+ *  is the only thing announcing the emergency, so it stays.
+ *
+ *  Asked through [useMatch] rather than by comparing the pathname, so
+ *  the question is the same one the router answers: `/sld/` and `/SLD`
+ *  both render the diagram, and the banner has to be gone on every URL
+ *  that does. */
+const SiteStateBannerSlot: React.FC = () => {
+  const onSld = useMatch('/sld') != null;
+  return (
+    <Box sx={{ px: 2, pt: 1 }}>
+      <SiteStatePanel hideAlarmSeverityAlert={onSld} />
+    </Box>
+  );
+};
 
 const AppContent: React.FC = () => {
   const { loading, isAuthenticated, setIsAuthenticated, saveUserInfo } = useAuth();
@@ -64,7 +78,7 @@ const AppContent: React.FC = () => {
         <Box component="main" sx={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, overflow: 'hidden' }}>
           {/* App-wide site-state banner. Renders nothing for a healthy
               site; otherwise the same content appears at the top of
-              every page including /sld. */}
+              every page, less the emergency/critical alarm bar on /sld. */}
           <SiteStateBannerSlot />
           {/* Scroll container for the routed page. `minHeight: 0` lets this
               flex child shrink below its content height so `overflow: auto`

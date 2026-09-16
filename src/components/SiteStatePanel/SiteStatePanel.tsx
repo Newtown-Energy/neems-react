@@ -13,6 +13,10 @@
  *
  * Renders nothing when the site is healthy, so it adds no visual weight
  * in the common case.
+ *
+ * One alert is route-dependent: `hideAlarmSeverityAlert` drops the
+ * emergency/critical bar, which the SLD asks for because the diagram
+ * says it already. The caller decides that — see [SiteStateBannerSlot].
  */
 
 import React, { useMemo } from 'react';
@@ -22,9 +26,16 @@ import { useSiteContext } from '../../utils/SiteContext';
 import { useDemoOverrides } from '../../utils/demoOverrides';
 import { evaluateSiteState } from '../../utils/scheduleWarnings';
 import { useActiveAlarmStatus } from '../../utils/useActiveAlarmStatus';
-import { alarmFeedAlerts } from './alarmFeedAlerts';
+import { alarmFeedAlerts, isAlarmSeverityAlert } from './alarmFeedAlerts';
 
-const SiteStatePanel: React.FC = () => {
+interface SiteStatePanelProps {
+  /** Drop the emergency/critical alarm alert, keeping every other banner.
+   *  For the SLD, where the diagram announces an emergency on its own —
+   *  see [isAlarmSeverityAlert]. */
+  hideAlarmSeverityAlert?: boolean;
+}
+
+const SiteStatePanel: React.FC<SiteStatePanelProps> = ({ hideAlarmSeverityAlert = false }) => {
   const { selectedSite } = useSiteContext();
   const { overrides } = useDemoOverrides();
   const { status: alarmStatus, unreachable } = useActiveAlarmStatus(!!selectedSite);
@@ -42,10 +53,10 @@ const SiteStatePanel: React.FC = () => {
   // Live alarm-feed warnings, polled globally so they show on every page.
   // Stale data is an emergency here, not only on the SLD — see
   // [alarmFeedAlerts].
-  const alarmAlerts = useMemo(
-    () => alarmFeedAlerts(alarmStatus, unreachable, overrides.ignoreStaleData),
-    [alarmStatus, unreachable, overrides.ignoreStaleData]
-  );
+  const alarmAlerts = useMemo(() => {
+    const alerts = alarmFeedAlerts(alarmStatus, unreachable, overrides.ignoreStaleData);
+    return hideAlarmSeverityAlert ? alerts.filter(a => !isAlarmSeverityAlert(a)) : alerts;
+  }, [alarmStatus, unreachable, overrides.ignoreStaleData, hideAlarmSeverityAlert]);
 
   if (issues.length === 0 && alarmAlerts.length === 0) return null;
 
