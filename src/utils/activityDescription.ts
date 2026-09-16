@@ -1,5 +1,6 @@
 /**
- * Turning an audit row into something an operator can read.
+ * Presenting audit rows to an operator: what order they go in, and how
+ * each one is worded.
  *
  * Four surfaces render schedule change history — the per-day change
  * pane, the Resulting Schedule pane's provenance summary, the Reports
@@ -50,6 +51,26 @@ export interface ActivityRowLike {
   table_name: string;
   operation_type: string;
   change_details?: ChangeDetails | null;
+}
+
+/** The parts of an activity row needed to put rows in order. */
+export interface OrderableActivityRow {
+  id: number;
+  timestamp: string;
+}
+
+/**
+ * Newest first, with `id` breaking ties.
+ *
+ * The tie-break is not optional. Activity timestamps come from SQLite's
+ * `CURRENT_TIMESTAMP` and resolve to the second, so a burst of edits
+ * routinely shares one. Sorting on timestamp alone is stable, which
+ * preserves the API's *ascending* order within a tie — so a surface
+ * showing only the first row would show the oldest edit of that burst
+ * as though it were the latest change.
+ */
+export function sortActivityNewestFirst<T extends OrderableActivityRow>(rows: readonly T[]): T[] {
+  return [...rows].sort((a, b) => b.timestamp.localeCompare(a.timestamp) || b.id - a.id);
 }
 
 export interface ActivityDescription {
@@ -219,16 +240,39 @@ function templateVerb(operation: string, details: ChangeDetails | null): string 
   return 'Updated';
 }
 
-function ruleVerb(operation: string): string {
-  switch (operation) {
-    case 'create':
-      return 'Applied';
-    case 'update':
-      return 'Updated';
-    case 'delete':
-      return 'Removed';
+/** The rule's type, as recorded on the row. A create carries it under
+ *  `to`, a delete under `from`; either way it says what kind of rule
+ *  this was. Null on rows written before the backend recorded it. */
+function ruleTypeOf(details: ChangeDetails | null): string | null {
+  const field = details?.fields.find(f => f.field === 'rule_type');
+  return field ? field.to ?? field.from ?? null : null;
+}
+
+function ruleVerb(operation: string, details: ChangeDetails | null): string {
+  if (operation === 'create') return 'Applied';
+  if (operation === 'update') return 'Updated';
+  if (operation !== 'delete') return operation;
+
+  // A bare "Removed" left operators asking what was removed, and missed
+  // the consequence: with the rule gone, the day falls back to whatever
+  // is underneath it — usually the site default. Naming the kind of rule
+  // makes that readable.
+  //
+  // Not every rule is an override: "override" is what this product calls
+  // a specific-date rule (see the day modal's "Specific date override"
+  // chip), and calling a default or day-of-week rule one would be wrong.
+  switch (ruleTypeOf(details)) {
+    case 'specific_date':
+      return 'Removed override';
+    case 'day_of_week':
+      return 'Removed day-of-week rule';
+    case 'default':
+      return 'Removed default rule';
     default:
-      return operation;
+      // Pre-#136 rows recorded no type. "Removed rule" is vaguer than
+      // the others but still says what went; guessing "override" would
+      // be wrong a fraction of the time and unfalsifiable from here.
+      return 'Removed rule';
   }
 }
 
@@ -246,15 +290,21 @@ export function describeActivity(row: ActivityRowLike): ActivityDescription {
   const details = row.change_details ?? null;
   const isTemplate = row.table_name === 'schedule_templates';
 
+  // On a rule delete the verb already names the rule's type, so the
+  // `rule_type` sentence would only repeat it.
+  const isRuleDelete = !isTemplate && row.operation_type === 'delete';
+  const fields = isRuleDelete
+    ? (details?.fields ?? []).filter(f => f.field !== 'rule_type')
+    : details?.fields ?? [];
+
   const changes = details
-    ? [
-        ...details.fields.flatMap(describeFieldChange),
-        ...details.commands.flatMap(describeCommandChange)
-      ]
+    ? [...fields.flatMap(describeFieldChange), ...details.commands.flatMap(describeCommandChange)]
     : [];
 
   return {
-    verb: isTemplate ? templateVerb(row.operation_type, details) : ruleVerb(row.operation_type),
+    verb: isTemplate
+      ? templateVerb(row.operation_type, details)
+      : ruleVerb(row.operation_type, details),
     changes
   };
 }

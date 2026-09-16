@@ -175,8 +175,15 @@ const DayDetailsDialog: React.FC<DayDetailsDialogProps> = ({
 
             <ResultingSchedulePane applicableLibraryItems={applicableLibraryItems} />
 
+            {/* Applications only. The prevailing schedule's own edits
+                are the section above's job — listing them here too put
+                the same rows on screen twice (#164). */}
             <DayChangeHistoryPane
-              ruleId={prevailingRuleId}
+              source={
+                prevailingRuleId != null
+                  ? { table: 'application_rules', entityId: prevailingRuleId }
+                  : null
+              }
               libraryItem={libraryItem ? { id: libraryItem.id, name: libraryItem.name } : null}
               overrideReason={overrideReason}
             />

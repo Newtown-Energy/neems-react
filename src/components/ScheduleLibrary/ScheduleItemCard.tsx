@@ -324,7 +324,7 @@ const ScheduleItemCard: React.FC<ScheduleItemCardProps> = ({
             {!isEditing && (
               <Box sx={{ mt: 3 }}>
                 <DayChangeHistoryPane
-                  ruleId={null}
+                  source={{ table: 'schedule_templates', entityId: item.id }}
                   libraryItem={{ id: item.id, name: item.name }}
                   overrideReason={null}
                 />
