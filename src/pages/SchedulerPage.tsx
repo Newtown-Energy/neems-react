@@ -181,6 +181,13 @@ const SchedulerPage: React.FC = () => {
 
   const closedLoopOff = selectedSite !== null && !selectedSite.closed_loop_enabled;
 
+  // The wizard is onboarding, offered once. Running it again would
+  // overwrite the site's settings on its way to failing on the schedule
+  // name it already used (#147). Settings stay editable on Site Settings,
+  // schedules in the Library.
+  const wizardAlreadyRun =
+    selectedSite !== null && selectedSite.site_configuration_wizard_completed_at !== null;
+
   return (
     <Box sx={{ p: 3, height: 'calc(100vh - 100px)' }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
@@ -193,14 +200,16 @@ const SchedulerPage: React.FC = () => {
           </Typography>
         </Box>
         <Stack direction="row" spacing={2} alignItems="center">
-          <Button
-            variant="contained"
-            startIcon={<WizardIcon />}
-            onClick={() => setWizardOpen(true)}
-            disabled={!selectedSite}
-          >
-            Site configuration wizard
-          </Button>
+          {!wizardAlreadyRun && (
+            <Button
+              variant="contained"
+              startIcon={<WizardIcon />}
+              onClick={() => setWizardOpen(true)}
+              disabled={!selectedSite}
+            >
+              Site configuration wizard
+            </Button>
+          )}
           <Button
             variant="outlined"
             startIcon={<LibraryIcon />}
