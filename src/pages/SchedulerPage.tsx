@@ -27,7 +27,7 @@ import {
   CalendarMonth as CalendarIcon,
   LibraryBooks as LibraryIcon
 } from '@mui/icons-material';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
 import CommandCalendar from '../components/CommandCalendar';
 import EditConfirmationDialog from '../components/EditConfirmationDialog';
@@ -53,7 +53,6 @@ export const pageConfig = {
 
 const SchedulerPage: React.FC = () => {
   const navigate = useNavigate();
-  const [, setSearchParams] = useSearchParams();
   const { selectedSiteId, selectedSite } = useSiteContext();
 
   // State
@@ -115,24 +114,11 @@ const SchedulerPage: React.FC = () => {
         change_reason: null
       });
 
-      // Re-open the day details dialog on the newly-cloned schedule.
-      // The "Edit Schedule" path closed the day dialog (stripping `d`
-      // from the URL); we put it back so the calendar remount lands
-      // the user inline-editing the new specific-date copy instead of
-      // making them click the day again.
-      const dateStr = toISODateString(editDate);
-      const monthStr = `${editDate.getFullYear()}-${(editDate.getMonth() + 1)
-        .toString()
-        .padStart(2, '0')}`;
-      setSearchParams(prev => {
-        const params = new URLSearchParams(prev);
-        params.set('d', dateStr);
-        params.set('m', monthStr);
-        return params;
-      });
-
-      // Refresh calendar
-      setCalendarRefreshKey(prev => prev + 1);
+      // The copy exists and is applied, but nothing has been edited yet —
+      // land the user on its card in the Library, open for editing. Same
+      // destination as "Edit the original schedule"; the day dialog is a
+      // read-only view and has nowhere to edit commands.
+      navigate(`/library?edit=${clonedItem.id}`);
     } catch (err) {
       errorLog('Error creating copy:', err);
     }

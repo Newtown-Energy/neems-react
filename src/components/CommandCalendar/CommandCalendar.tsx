@@ -443,11 +443,6 @@ const CommandCalendar: React.FC<CommandCalendarProps> = ({
         onRequestEdit={onRequestEdit}
         onRequestApplyDifferent={onRequestApplyDifferent}
         onSwitchToSchedule={handleSwitchToSchedule}
-        onCommandsChanged={() => {
-          void loadCalendarMonth();
-          void loadLibraryItemsForSite();
-          void loadSelectedDate();
-        }}
       />
 
       <OverrideReasonDialog
