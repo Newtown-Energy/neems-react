@@ -18,6 +18,10 @@
  *     was applied to this day, when, by whom and why;
  *   - the Library card → that schedule's own `schedule_templates` edits.
  *
+ * The day modal lists only the verb and reason for each row. The
+ * rule's field-level changes would restate which days it covers, and
+ * for a peak-scheduler rule that is dozens of dates (#166).
+ *
  * Long histories collapse to the most recent entry with an in-place
  * expand. Unlike `ResultingSchedulePane`, which links to
  * `/library/:itemId/audit` for the rest, there is no per-rule audit
@@ -152,7 +156,8 @@ const DayChangeHistoryPane: React.FC<DayChangeHistoryPaneProps> = ({
               ?? ((row.operation_type === 'create' && row.table_name === 'application_rules')
                 ? overrideReason
                 : null);
-            const { verb, changes } = describeActivity(row);
+            const { verb, changes: allChanges } = describeActivity(row);
+            const changes = sourceTable === 'application_rules' ? [] : allChanges;
             const actor = describeActor(row);
             // A delete has nothing left to link to.
             const showScheduleLink = row.operation_type !== 'delete';

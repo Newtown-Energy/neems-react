@@ -275,6 +275,35 @@ describe('describeActivity — field changes', () => {
     expect(described.changes).toEqual(['Covers 2026-07-04']);
   });
 
+  test('a rule covering many dates is summarized, not listed', () => {
+    const described = describeActivity({
+      table_name: 'application_rules',
+      operation_type: 'create',
+      change_details: details({
+        fields: [
+          { field: 'rule_type', from: null, to: 'specific_date' },
+          {
+            field: 'specific_dates',
+            from: null,
+            to: '2026-06-25,2026-06-24,2026-06-26,2026-09-21'
+          }
+        ]
+      })
+    });
+    expect(described.changes).toEqual(['Covers 4 dates, 2026-06-24 to 2026-09-21']);
+  });
+
+  test('a few dates are still listed in full', () => {
+    const described = describeActivity({
+      table_name: 'application_rules',
+      operation_type: 'create',
+      change_details: details({
+        fields: [{ field: 'specific_dates', from: null, to: '2026-07-04,2026-07-05' }]
+      })
+    });
+    expect(described.changes).toEqual(['Covers 2026-07-04, 2026-07-05']);
+  });
+
   test('a removed date override says an override went, and which date', () => {
     const described = describeActivity({
       table_name: 'application_rules',
