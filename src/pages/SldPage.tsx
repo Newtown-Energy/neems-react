@@ -68,7 +68,9 @@ const SldPage: React.FC = () => {
 
       {/* Stale-data, no-data and unreachable-service warnings render once,
           app-wide, via SiteStatePanel, so they're not duplicated here. The
-          diagram carries its own flashing frame for the same conditions. */}
+          diagram carries its own flashing frame for the same conditions.
+          The emergency/critical alarm bar is deliberately absent on this
+          route — the diagram announces it — see [SiteStateBannerSlot]. */}
 
       <Box
         sx={{

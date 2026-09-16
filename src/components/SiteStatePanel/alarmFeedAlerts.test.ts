@@ -12,7 +12,7 @@ import { describe, expect, test } from 'bun:test';
 import type { ActiveAlarmDto, ActiveAlarmsResponse } from '@newtown-energy/types';
 
 import { STALE_AFTER_SECONDS } from '../../utils/staleness';
-import { alarmFeedAlerts, alarmSeverityAlert } from './alarmFeedAlerts';
+import { alarmFeedAlerts, alarmSeverityAlert, isAlarmSeverityAlert } from './alarmFeedAlerts';
 
 function status(overrides: Partial<ActiveAlarmsResponse> = {}): ActiveAlarmsResponse {
   return {
@@ -231,5 +231,43 @@ describe('alarmSeverityAlert', () => {
     );
     expect(alert?.key).toBe('emergency-alarms');
     expect(alert?.severity).toBe('error');
+  });
+});
+
+// The SLD drops this one alert and keeps the rest, so the predicate has to
+// pick out every variant of it — and nothing that says the data is stale.
+describe('isAlarmSeverityAlert', () => {
+  test('matches every emergency and critical variant, firing or latched', () => {
+    for (const has of [{ has_emergency: true }, { has_critical: true }]) {
+      for (const data_active of [true, false]) {
+        const severity = 'has_emergency' in has ? 'Emergency' : 'Critical';
+        const alert = alarmSeverityAlert(status({ ...has, alarms: [alarmDto({ severity, data_active })] }));
+        expect(alert && isAlarmSeverityAlert(alert)).toBe(true);
+      }
+    }
+  });
+
+  test('matches nothing else the banner raises', () => {
+    const stale = alarmFeedAlerts(status({ data_age_seconds: STALE_AFTER_SECONDS + 1 }), false);
+    const unreachable = alarmFeedAlerts(null, true);
+    expect([...stale, ...unreachable].length).toBeGreaterThan(0);
+    for (const alert of [...stale, ...unreachable]) {
+      expect(isAlarmSeverityAlert(alert)).toBe(false);
+    }
+  });
+
+  test('filtering it out leaves the stale alert that shares the feed', () => {
+    const alerts = alarmFeedAlerts(
+      status({
+        data_age_seconds: STALE_AFTER_SECONDS + 1,
+        has_emergency: true,
+        alarms: [alarmDto({ severity: 'Emergency', data_active: true })],
+      }),
+      false,
+    );
+    expect(alerts.map(a => a.key)).toEqual(['stale-alarm-data', 'emergency-alarms']);
+    expect(alerts.filter(a => !isAlarmSeverityAlert(a)).map(a => a.key)).toEqual([
+      'stale-alarm-data',
+    ]);
   });
 });

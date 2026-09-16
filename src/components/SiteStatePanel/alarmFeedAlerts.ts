@@ -90,6 +90,18 @@ export function alarmFeedAlerts(
   return out;
 }
 
+const EMERGENCY_KEY = 'emergency-alarms';
+const CRITICAL_KEY = 'critical-alarms';
+
+/**
+ * True for the alert [alarmSeverityAlert] produces, so a caller can drop that
+ * one and keep the rest of [alarmFeedAlerts]. The SLD does exactly that: the
+ * diagram already says an emergency is in progress, several times over.
+ */
+export function isAlarmSeverityAlert(alert: BannerAlert): boolean {
+  return alert.key === EMERGENCY_KEY || alert.key === CRITICAL_KEY;
+}
+
 /**
  * The emergency-or-critical alert for an alarm feed, or `null` when there is
  * neither. The one place this is decided, so every page that announces it —
@@ -108,13 +120,13 @@ export function alarmSeverityAlert(status: ActiveAlarmsResponse | null): BannerA
   if (status?.has_emergency) {
     return firing('Emergency')
       ? {
-          key: 'emergency-alarms',
+          key: EMERGENCY_KEY,
           severity: 'error',
           title: 'Emergency alarms active',
           message: 'EMERGENCY alarms are active — immediate action required.',
         }
       : {
-          key: 'emergency-alarms',
+          key: EMERGENCY_KEY,
           severity: 'error',
           title: 'Emergency alarms need acknowledgement',
           message: 'EMERGENCY alarms have returned to normal but have not been acknowledged.',
@@ -123,13 +135,13 @@ export function alarmSeverityAlert(status: ActiveAlarmsResponse | null): BannerA
   if (status?.has_critical) {
     return firing('Critical')
       ? {
-          key: 'critical-alarms',
+          key: CRITICAL_KEY,
           severity: 'warning',
           title: 'Critical alarms active',
           message: 'Critical alarms are active — attention required.',
         }
       : {
-          key: 'critical-alarms',
+          key: CRITICAL_KEY,
           severity: 'warning',
           title: 'Critical alarms need acknowledgement',
           message: 'Critical alarms have returned to normal but have not been acknowledged.',
