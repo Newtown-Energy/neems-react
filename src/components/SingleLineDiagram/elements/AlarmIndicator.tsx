@@ -103,6 +103,20 @@ const SeverityShape: React.FC<{
 /** Radius of the badge's click target: the largest drawn shape plus a margin. */
 const BADGE_HIT_RADIUS = 13;
 
+/**
+ * Keep a mouse event inside the popover. MUI portals the popover out to
+ * `document.body`, but React bubbles a portal's events up the *React* tree, so
+ * without this every click in the popover — the Ack button, and the backdrop
+ * an operator clicks to dismiss it — lands on the enclosing element's
+ * `onClick` and asks the site to move a breaker. The popover's own handlers
+ * sit below this node and have already run by the time it fires; only the
+ * ancestors are cut off, which also spares the pan-zoom viewer from treating a
+ * drag inside the popover as a pan.
+ */
+const containEvent = (e: React.SyntheticEvent): void => {
+  e.stopPropagation();
+};
+
 const AlarmIndicator: React.FC<AlarmIndicatorProps> = ({ state, offsetX, offsetY }) => {
   const theme = useTheme();
   const badgeRef = useRef<SVGGElement>(null);
@@ -223,7 +237,14 @@ const AlarmIndicator: React.FC<AlarmIndicatorProps> = ({ state, offsetX, offsetY
 
       {/* Popover with alarm details (rendered via React portal) */}
       {badgeRef.current && (
-        <foreignObject width={0} height={0} overflow="visible">
+        <foreignObject
+          width={0}
+          height={0}
+          overflow="visible"
+          onClick={containEvent}
+          onMouseDown={containEvent}
+          onMouseUp={containEvent}
+        >
           <Popover
             open={popoverOpen}
             anchorEl={badgeRef.current}
