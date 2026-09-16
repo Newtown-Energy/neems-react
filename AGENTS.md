@@ -512,6 +512,34 @@ import {
 } from '../utils/scheduleHelpers';
 ```
 
+**Activity wording** (`src/utils/activityDescription.ts`):
+
+Every surface that renders schedule change history goes through
+`describeActivity` and `describeActor` — do not write another
+`operation_type` → verb mapping. Four surfaces had their own, and they
+did not agree with each other: the same deletion read "Removed" on three
+and "Deleted" on the fourth.
+
+```typescript
+import { describeActivity, describeActor } from '../utils/activityDescription';
+
+const { verb, changes } = describeActivity(row);  // "Edited commands", [...]
+const actor = describeActor(row);                 // email → "user #7" → "system"
+```
+
+`describeActivity` takes the backend's structured `change_details`
+(neems-core#136) and returns a headline verb plus one sentence per thing
+that changed ("Shortened the 16:00 discharge from 4h to 2h"). Rows
+written before that backend change carry no details, so `changes` is
+empty and every caller must still render from `verb` alone — such a row
+gets "Updated", the honest limit of what is known about it, rather than
+a guess at what moved.
+
+The consumers today are `DayChangeHistoryPane`, `ResultingSchedulePane`,
+`ReportsPage`'s recent-changes feed, and `ScheduleAuditPage`. Wording is
+pinned by `src/utils/activityDescription.test.ts` — change a sentence
+there and you have changed it everywhere, which is the point.
+
 ### Scheduler System Components
 
 The scheduler system consists of three main components:

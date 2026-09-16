@@ -43,6 +43,7 @@ import type {
 } from '@newtown-energy/types';
 
 import { fetchRecentScheduleActivity } from '../utils/reportsApi';
+import { describeActivity, describeActor } from '../utils/activityDescription';
 import { fetchSocHistory } from '../utils/socApi';
 import { useSiteContext } from '../utils/SiteContext';
 import { downloadCsv, toCsv } from '../utils/csv';
@@ -685,16 +686,8 @@ const ReportsPage: React.FC = () => {
               ) : (
                 <List dense disablePadding>
                   {activity.map(row => {
-                    const isTemplate = row.table_name === 'schedule_templates';
-                    const verb = row.operation_type === 'create'
-                      ? (isTemplate ? 'Created' : 'Applied')
-                      : row.operation_type === 'update'
-                        ? (isTemplate ? 'Edited commands' : 'Updated')
-                        : row.operation_type === 'delete'
-                          ? 'Removed'
-                          : row.operation_type;
-                    const actor = row.user_email
-                      ?? (row.user_id !== null ? `user #${row.user_id}` : 'system');
+                    const { verb, changes } = describeActivity(row);
+                    const actor = describeActor(row);
                     return (
                       <ListItem key={`${row.table_name}-${row.id}`} disableGutters sx={{ py: 0.5 }}>
                         <ListItemText
@@ -702,6 +695,15 @@ const ReportsPage: React.FC = () => {
                           secondary={
                             <>
                               {new Date(row.timestamp).toLocaleString()}
+                              {changes.map(change => (
+                                <Box
+                                  key={change}
+                                  component="span"
+                                  sx={{ display: 'block', mt: 0.25 }}
+                                >
+                                  {change}
+                                </Box>
+                              ))}
                               {row.change_reason && (
                                 <Box
                                   component="span"

@@ -28,6 +28,7 @@ import { Link as RouterLink } from 'react-router-dom';
 import type { EntityActivityWithUser } from '@newtown-energy/types';
 
 import { getEntityActivity } from '../../utils/scheduleApi';
+import { describeActivity, describeActor } from '../../utils/activityDescription';
 import { errorLog } from '../../utils/debug';
 
 interface DayChangeHistoryPaneProps {
@@ -46,31 +47,6 @@ function formatTimestamp(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
   return d.toLocaleString();
-}
-
-interface RowParts {
-  verb: string;
-  /** Verb is followed by the schedule reference (when known) so the user
-   *  can see exactly which schedule was applied / edited. */
-  showScheduleLink: boolean;
-  actor: string;
-}
-
-function formatRow(row: EntityActivityWithUser): RowParts {
-  const actor = row.user_email ?? (row.user_id !== null ? `user #${row.user_id}` : 'system');
-  const isTemplate = row.table_name === 'schedule_templates';
-  const verb = row.operation_type === 'create'
-    ? (isTemplate ? 'Created' : 'Applied')
-    : row.operation_type === 'update'
-      ? (isTemplate ? 'Edited commands' : 'Updated')
-      : row.operation_type === 'delete'
-        ? 'Removed'
-        : row.operation_type;
-  return {
-    verb,
-    showScheduleLink: row.operation_type !== 'delete',
-    actor,
-  };
 }
 
 const DayChangeHistoryPane: React.FC<DayChangeHistoryPaneProps> = ({
@@ -150,7 +126,10 @@ const DayChangeHistoryPane: React.FC<DayChangeHistoryPaneProps> = ({
               ?? ((row.operation_type === 'create' && row.table_name === 'application_rules')
                 ? overrideReason
                 : null);
-            const { verb, showScheduleLink, actor } = formatRow(row);
+            const { verb, changes } = describeActivity(row);
+            const actor = describeActor(row);
+            // A delete has nothing left to link to.
+            const showScheduleLink = row.operation_type !== 'delete';
             return (
               <ListItem key={`${row.table_name}-${row.id}`} disableGutters sx={{ py: 0.25 }}>
                 <ListItemText
@@ -175,6 +154,11 @@ const DayChangeHistoryPane: React.FC<DayChangeHistoryPaneProps> = ({
                   secondary={
                     <>
                       {formatTimestamp(row.timestamp)}
+                      {changes.map(change => (
+                        <Box key={change} component="span" sx={{ display: 'block', mt: 0.25 }}>
+                          {change}
+                        </Box>
+                      ))}
                       {inlineReason && (
                         <Box
                           component="span"

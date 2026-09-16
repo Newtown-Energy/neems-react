@@ -9,6 +9,10 @@
  *
  * Path: `/library/:itemId/audit`. Authenticated users can read this
  * surface — the gating mirrors the GET /EntityActivity endpoint.
+ *
+ * Wording of the operation and of what changed comes from the shared
+ * `describeActivity` helper, so this page says the same things the
+ * day-details pane and the Reports feed do.
  */
 
 import React, { useEffect, useState } from 'react';
@@ -33,6 +37,7 @@ import { ArrowBack as ArrowBackIcon } from '@mui/icons-material';
 import type { EntityActivityWithUser, ScheduleLibraryItem } from '@newtown-energy/types';
 
 import { getLibraryItem, getEntityActivity } from '../utils/scheduleApi';
+import { describeActivity, describeActor } from '../utils/activityDescription';
 import { errorLog } from '../utils/debug';
 
 function formatTimestamp(iso: string): string {
@@ -132,27 +137,53 @@ const ScheduleAuditPage: React.FC = () => {
             <TableHead>
               <TableRow>
                 <TableCell>Operation</TableCell>
+                <TableCell>What changed</TableCell>
                 <TableCell>When</TableCell>
                 <TableCell>Actor</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {ordered.map(row => (
-                <TableRow key={row.id}>
-                  <TableCell>
-                    <Chip
-                      label={row.operation_type}
-                      size="small"
-                      color={operationChipColor(row.operation_type)}
-                    />
-                  </TableCell>
-                  <TableCell>{formatTimestamp(row.timestamp)}</TableCell>
-                  <TableCell>
-                    {row.user_email ??
-                      (row.user_id !== null ? `user #${row.user_id}` : 'system')}
-                  </TableCell>
-                </TableRow>
-              ))}
+              {ordered.map(row => {
+                const { verb, changes } = describeActivity(row);
+                return (
+                  <TableRow key={row.id}>
+                    <TableCell>
+                      <Chip
+                        label={verb}
+                        size="small"
+                        color={operationChipColor(row.operation_type)}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      {changes.length === 0 ? (
+                        // Rows written before the backend recorded
+                        // details, and anything no API handler
+                        // mediated. The em dash is the honest answer.
+                        <Typography variant="body2" color="text.secondary">
+                          —
+                        </Typography>
+                      ) : (
+                        changes.map(change => (
+                          <Typography key={change} variant="body2">
+                            {change}
+                          </Typography>
+                        ))
+                      )}
+                      {row.change_reason && (
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          sx={{ display: 'block', mt: 0.25, fontStyle: 'italic' }}
+                        >
+                          Reason: {row.change_reason}
+                        </Typography>
+                      )}
+                    </TableCell>
+                    <TableCell>{formatTimestamp(row.timestamp)}</TableCell>
+                    <TableCell>{describeActor(row)}</TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </TableContainer>
