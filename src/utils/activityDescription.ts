@@ -175,6 +175,23 @@ function parseDayList(value: string): number[] {
     .filter(day => Number.isInteger(day));
 }
 
+/** Dates listed in full before a rule's coverage is summarized. The
+ *  peak scheduler writes rules spanning dozens of dates, and listing
+ *  them all swamps every history they appear in (#166). */
+const MAX_LISTED_DATES = 3;
+
+/** Render the comma-joined ISO dates the backend records, collapsing
+ *  a long list to its count and span. */
+function summarizeDateList(value: string): string {
+  const dates = value
+    .split(',')
+    .map(part => part.trim())
+    .filter(part => part.length > 0)
+    .sort();
+  if (dates.length <= MAX_LISTED_DATES) return dates.join(', ');
+  return `${dates.length} dates, ${dates[0]} to ${dates[dates.length - 1]}`;
+}
+
 function describeFieldChange(field: FieldChange): string[] {
   // A rule's create row records values under `to`, its delete row under
   // `from`. Which one is populated is therefore also the tense.
@@ -192,9 +209,11 @@ function describeFieldChange(field: FieldChange): string[] {
       if (field.from) return ['Changed the description'];
       return ['Added a description'];
 
-    case 'specific_dates':
+    case 'specific_dates': {
       if (!value) return [];
-      return [isRemoval ? `Covered ${value}` : `Covers ${value}`];
+      const dates = summarizeDateList(value);
+      return [isRemoval ? `Covered ${dates}` : `Covers ${dates}`];
+    }
 
     case 'days_of_week': {
       if (!value) return [];
