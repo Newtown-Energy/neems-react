@@ -35,6 +35,7 @@ import {
 import type { EntityActivityWithUser, ScheduleLibraryItem } from '@newtown-energy/types';
 
 import { getEntityActivity } from '../../utils/scheduleApi';
+import { describeActivity, describeActor } from '../../utils/activityDescription';
 import { errorLog } from '../../utils/debug';
 import type { ApplicableLibraryItem } from './DayDetailsDialog';
 
@@ -62,16 +63,12 @@ function formatTimestamp(iso: string): string {
   return d.toLocaleString();
 }
 
+/// This pane previews the two most recent entries; the full sentences
+/// live behind "Show all". So it takes the shared verb — which used to
+/// disagree with the other surfaces, calling a delete "Deleted" where
+/// they said "Removed" — and leaves `changes` to the history views.
 function formatRowSummary(row: EntityActivityWithUser): string {
-  const actor = row.user_email ?? (row.user_id !== null ? `user #${row.user_id}` : 'system');
-  const verb = row.operation_type === 'create'
-    ? 'Created'
-    : row.operation_type === 'update'
-      ? 'Updated'
-      : row.operation_type === 'delete'
-        ? 'Deleted'
-        : row.operation_type;
-  return `${verb} by ${actor}`;
+  return `${describeActivity(row).verb} by ${describeActor(row)}`;
 }
 
 interface ProvenanceProps {
