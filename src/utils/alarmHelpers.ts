@@ -1,21 +1,18 @@
 import type { AlarmSeverityDto, AlarmZoneDto } from '@newtown-energy/types';
+import { activeDesign } from '../designs/active';
 
-export const ZONE_DISPLAY_NAMES: Record<AlarmZoneDto, string> = {
-  Site: 'Site',
-  BreakerRelay: 'Breaker Relay (SEL-451)',
-  Meter: 'Meter (SEL-735)',
-  Transformer1: 'Transformer 1',
-  Transformer2: 'Transformer 2',
-  Rtac: 'RTAC',
-  Facp: 'Fire Alarm Panel',
-  TeslaSiteController: 'Tesla Site Controller',
-  Mp1a: 'Megapack 1A',
-  Mp1b: 'Megapack 1B',
-  Mp1c: 'Megapack 1C',
-  Mp2a: 'Megapack 2A',
-  Mp2b: 'Megapack 2B',
-  Mp2c: 'Megapack 2C',
-};
+/**
+ * How a zone is named to an operator, in the session's site design. The zone
+ * set itself comes from the backend; only the names are per design.
+ */
+export function zoneDisplayName(zone: AlarmZoneDto): string {
+  return activeDesign().alarms.zoneDisplayNames[zone];
+}
+
+/** Every zone the session's site design names, for filters and pickers. */
+export function zoneDisplayNames(): Readonly<Record<AlarmZoneDto, string>> {
+  return activeDesign().alarms.zoneDisplayNames;
+}
 
 /** Convert snake_case alarm name to Title Case */
 export function formatAlarmName(name: string): string {
@@ -74,25 +71,7 @@ export const ALARM_CATEGORY_ORDER: AlarmCategory[] = [
   'Control'
 ];
 
+/** The operator-facing bucket a zone belongs to, in the session's site design. */
 export function getZoneCategory(zone: AlarmZoneDto): AlarmCategory {
-  switch (zone) {
-    case 'Facp':
-      return 'Fire';
-    case 'BreakerRelay':
-    case 'Meter':
-    case 'Transformer1':
-    case 'Transformer2':
-      return 'Electrical';
-    case 'Mp1a':
-    case 'Mp1b':
-    case 'Mp1c':
-    case 'Mp2a':
-    case 'Mp2b':
-    case 'Mp2c':
-    case 'TeslaSiteController':
-      return 'Battery';
-    case 'Site':
-    case 'Rtac':
-      return 'Control';
-  }
+  return activeDesign().alarms.zoneCategories[zone];
 }

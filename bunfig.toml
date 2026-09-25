@@ -1,0 +1,3 @@
+[test]
+# Select the site design unit tests run against; see src/designs/testSetup.ts.
+preload = ["./src/designs/testSetup.ts"]

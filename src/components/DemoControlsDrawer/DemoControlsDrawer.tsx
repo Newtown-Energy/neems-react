@@ -51,7 +51,7 @@ import {
 } from '../../utils/alarmApi';
 import { injectDemoHistory } from '../../utils/demoApi';
 import { fetchSiteControls } from '../../utils/controlApi';
-import { ESTOP_ALARM_NUM } from '../../config/estop';
+import { estopAlarmNum } from '../../config/estop';
 import { fetchEmergencyShutdownStatus } from '../../utils/emergencyShutdownApi';
 import { createPollSequence } from '../../utils/pollSequence';
 import {
@@ -289,7 +289,7 @@ const DemoControlsDrawer: React.FC<DemoControlsDrawerProps> = ({
     const siteId = selectedSiteId;
     setResettingEstop(true);
     try {
-      await updateAlarm(ESTOP_ALARM_NUM, false);
+      await updateAlarm(estopAlarmNum(), false);
     } finally {
       // Whether the reset worked is the site's to say: read it back rather
       // than assuming, so a failed write leaves the reset button up.
@@ -325,7 +325,7 @@ const DemoControlsDrawer: React.FC<DemoControlsDrawerProps> = ({
         errorLog('failed to reset demo alarms', err);
       } finally {
         // As with the E-stop's own reset: read the outcome back.
-        if (siteId != null && raised.includes(ESTOP_ALARM_NUM)) await refreshEstop(siteId);
+        if (siteId != null && raised.includes(estopAlarmNum())) await refreshEstop(siteId);
       }
     })();
   }, [reset, drawerAlarms, estopTripped, positionNums, selectedSiteId, refreshEstop]);
@@ -371,7 +371,7 @@ const DemoControlsDrawer: React.FC<DemoControlsDrawerProps> = ({
           d =>
             !forcedAlarmNums.includes(d.alarm_num) &&
             !positionNums.has(d.alarm_num) &&
-            d.alarm_num !== ESTOP_ALARM_NUM
+            d.alarm_num !== estopAlarmNum()
         )
         .sort((a, b) => a.alarm_num - b.alarm_num),
     [alarmDefs, forcedAlarmNums, positionNums]

@@ -23,12 +23,21 @@
  * before building the set these read — see [derivePosition].
  */
 
+import { activeDesign } from '../../designs/active';
 import type { SwitchPosition } from './types';
 
 /** What a control's readback point means when its bit is set. */
-type WhenActive = 'closed' | 'open';
+export type WhenActive = 'closed' | 'open';
 
-interface ReadbackSpec {
+/**
+ * Where one control's position is read from. Each site design lists one per
+ * interactable element, mirroring neems-data's `SITE_CONTROLS` for that design.
+ *
+ * The direction is data rather than a branch because sites disagree: Newtown's
+ * line switches report *open*, its feeder breakers report *closed*. Getting one
+ * inverted would draw every breaker backwards.
+ */
+export interface ReadbackSpec {
   /** The point reporting this control's state. */
   alarmNum: number;
   /** The position the control is in when that point is set. */
@@ -39,29 +48,6 @@ interface ReadbackSpec {
    */
   irrationalAlarmNum?: number;
 }
-
-/**
- * One entry per interactable element, mirroring neems-data's `SITE_CONTROLS`.
- *
- * Note the two halves read in opposite directions, which is the site's
- * convention rather than ours: the line switches report *open* (101/102
- * `bps_89l_open`), the feeder breakers report *closed* (`ac_breaker_closed`).
- * Getting one inverted would draw every breaker backwards, which is why the
- * direction is data here rather than a branch somewhere.
- */
-export const READBACKS: Record<string, ReadbackSpec> = {
-  'switch-89l-1': { alarmNum: 101, whenActive: 'open' },
-  'switch-89l-2': { alarmNum: 102, whenActive: 'open' },
-  // 86-M1 set means the lockout relay has tripped, which the diagram draws as
-  // the handle in its open position.
-  'lockout-relay': { alarmNum: 103, whenActive: 'open' },
-  'feeder-1a': { alarmNum: 607, whenActive: 'closed', irrationalAlarmNum: 615 },
-  'feeder-1b': { alarmNum: 637, whenActive: 'closed', irrationalAlarmNum: 645 },
-  'feeder-1c': { alarmNum: 667, whenActive: 'closed', irrationalAlarmNum: 675 },
-  'feeder-2a': { alarmNum: 697, whenActive: 'closed', irrationalAlarmNum: 705 },
-  'feeder-2b': { alarmNum: 727, whenActive: 'closed', irrationalAlarmNum: 735 },
-  'feeder-2c': { alarmNum: 757, whenActive: 'closed', irrationalAlarmNum: 765 },
-};
 
 /**
  * The position one control is in, given the points currently set.
@@ -82,7 +68,7 @@ export function derivePosition(
   activeAlarmNums: ReadonlySet<number>,
   hasReading: boolean,
 ): SwitchPosition {
-  const spec = READBACKS[controlId];
+  const spec = activeDesign().diagram.readbacks[controlId];
   if (!spec || !hasReading) return 'unknown';
   if (spec.irrationalAlarmNum != null && activeAlarmNums.has(spec.irrationalAlarmNum)) {
     return 'unknown';
@@ -99,7 +85,7 @@ export function derivePositions(
   hasReading: boolean,
 ): Record<string, SwitchPosition> {
   const out: Record<string, SwitchPosition> = {};
-  for (const controlId of Object.keys(READBACKS)) {
+  for (const controlId of Object.keys(activeDesign().diagram.readbacks)) {
     out[controlId] = derivePosition(controlId, activeAlarmNums, hasReading);
   }
   return out;

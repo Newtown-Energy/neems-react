@@ -6,11 +6,12 @@ import type {
   ZoneAnalogs,
 } from '@newtown-energy/types';
 import { getSeverityOrder } from '../../utils/alarmHelpers';
-import { ESTOP_ALARM_NUM } from '../../config/estop';
+import { estopAlarmNum } from '../../config/estop';
 import { resolveAlarmSeverity } from '../../config/siteConfig';
 import { staleReason } from '../../utils/staleness';
 import type { StaleReason } from '../../utils/staleness';
-import { READBACKS, derivePositions } from './readbackPositions';
+import { derivePositions } from './readbackPositions';
+import { activeDesign } from '../../designs/active';
 import type {
   ActiveAlarmSummary,
   EStopDisplayState,
@@ -202,10 +203,11 @@ function applyAlarms(
     ? { severity: borderSeverity, firing: borderFiring }
     : null;
 
-  // E-stop is read from the site, never authored here. Alarm 104 is what the
-  // RTAC raises when the site is tripped, so the diagram's operational mode
-  // follows it directly — the same update that lights the alarm also locks the
-  // switches out, keeping the two from ever disagreeing.
+  // E-stop is read from the site, never authored here. The design's E-stop
+  // alarm (104 at Newtown) is what the RTAC raises when the site is tripped, so
+  // the diagram's operational mode follows it directly — the same update that
+  // lights the alarm also locks the switches out, keeping the two from ever
+  // disagreeing.
   //
   // On `data_active`, for the same reason positions are below, and with one
   // more: the backend already answers this question that way. `observed_active`
@@ -214,8 +216,9 @@ function applyAlarms(
   // contradicting each other the moment a trip is cleared on site and not yet
   // acknowledged — one saying the site is stopped, the other that the signal
   // never took.
+  const estop = estopAlarmNum();
   const operationalMode: OperationalMode = alarms.alarms.some(
-    (a) => a.alarm_num === ESTOP_ALARM_NUM && a.data_active,
+    (a) => a.alarm_num === estop && a.data_active,
   )
     ? 'e-stop-active'
     : 'normal';
@@ -314,6 +317,7 @@ export function createInitialState(
   components: SldComponentState[],
   wires: SldWireState[],
 ): SldDiagramState {
+  const { readbacks } = activeDesign().diagram;
   // A readback-driven control starts `unknown`, whatever the layout seeded it
   // with: its position comes from a reading and from nothing else, and there is
   // none yet. Holding positions through a failed poll made this matter — if
@@ -322,7 +326,7 @@ export function createInitialState(
   const componentMap: Record<string, SldComponentState> = {};
   for (const c of components) {
     componentMap[c.id] =
-      c.id in READBACKS && c.switchPosition !== undefined ? { ...c, switchPosition: 'unknown' } : c;
+      c.id in readbacks && c.switchPosition !== undefined ? { ...c, switchPosition: 'unknown' } : c;
   }
   const wireMap: Record<string, SldWireState> = {};
   for (const w of wires) {
