@@ -16,7 +16,7 @@ describe('SLD Page Tests', () => {
 
   it('should land on the SLD page when navigating to root', async () => {
     await page.goto(`${baseUrl}/`);
-    await page.waitForSelector('[data-testid="sld-estop-button"]', { timeout: 20000 });
+    await page.waitForSelector('[data-testid="sld-emergency-shutdown-button"]', { timeout: 20000 });
     expect(await page.url()).toContain('/sld');
   }, 30000);
 
@@ -46,23 +46,39 @@ describe('SLD Page Tests', () => {
     expect(chipLabels).toContain('Emergency');
   });
 
-  it('should render the E-Stop button inside the diagram', async () => {
-    await page.waitForSelector('[data-testid="sld-estop-button"]', { timeout: 5000 });
+  it('should render the Emergency Shutdown button inside the diagram', async () => {
+    await page.waitForSelector('[data-testid="sld-emergency-shutdown-button"]', { timeout: 5000 });
+    const text = await page.$eval(
+      '[data-testid="sld-emergency-shutdown-button"]',
+      el => el.textContent || ''
+    );
+    expect(text).toContain('EMERGENCY');
+    expect(text).toContain('SHUTDOWN');
   });
 
-  it('should render the E-Stop button as idle when the site is not tripped', async () => {
-    // The button reports what the site reports. With no E-stop alarm active it
-    // must be actionable rather than showing a trip the RTAC never reported.
+  it('should render the Emergency Shutdown button as idle when the site is not tripped', async () => {
+    // With no E-stop alarm active the button must be actionable rather than
+    // showing a trip the RTAC never reported.
     const state = await page.$eval(
-      '[data-testid="sld-estop-button"]',
-      el => el.getAttribute('data-estop-state')
+      '[data-testid="sld-emergency-shutdown-button"]',
+      el => el.getAttribute('data-shutdown-state')
     );
     expect(state).toBe('idle');
   });
 
-  it('should open the E-Stop confirmation dialog when clicked', async () => {
+  it('should render the E-stop indicator as not tripped', async () => {
+    // Read-only, and driven by alarm 104 alone. `unknown` is allowed: a dev
+    // server with no site data has told us nothing about the E-stop.
+    const state = await page.$eval(
+      '[data-testid="sld-estop-indicator"]',
+      el => el.getAttribute('data-estop-state')
+    );
+    expect(['normal', 'unknown']).toContain(state);
+  });
+
+  it('should open the Emergency Shutdown confirmation dialog when clicked', async () => {
     const rect = await page.evaluate(() => {
-      const target = document.querySelector('[data-testid="sld-estop-button"]');
+      const target = document.querySelector('[data-testid="sld-emergency-shutdown-button"]');
       if (!target) return null;
       const r = target.getBoundingClientRect();
       return { x: r.x, y: r.y, width: r.width, height: r.height };
@@ -73,13 +89,13 @@ describe('SLD Page Tests', () => {
     await page.waitForSelector('[role="dialog"]', { timeout: 5000 });
 
     const dialogText = await page.$eval('[role="dialog"]', el => el.textContent || '');
-    // Engage-only: the dialog asks for a trip and says so, and tells the
-    // operator this is not how an E-stop gets cleared.
-    expect(dialogText).toMatch(/Request E-Stop/i);
-    expect(dialogText).toMatch(/reset at the panel/i);
+    // Engage-only: the dialog asks for a shutdown and says so, and tells the
+    // operator this is not how a trip gets cleared.
+    expect(dialogText).toMatch(/Request Emergency Shutdown/i);
+    expect(dialogText).toMatch(/reset at\s+the panel/i);
   });
 
-  it('should dismiss the E-Stop dialog via Cancel without requesting an E-Stop', async () => {
+  it('should dismiss the Emergency Shutdown dialog via Cancel without requesting one', async () => {
     const cancelButton = await findButtonByText(page, ['Cancel']);
     expect(await cancelButton.evaluate((el: any) => !!el)).toBe(true);
     await cancelButton.click();
@@ -91,11 +107,11 @@ describe('SLD Page Tests', () => {
     // Neither a trip nor a request should have been recorded.
     const content = await page.content();
     expect(content).not.toContain('E-Stop is active.');
-    expect(content).not.toContain('E-Stop requested');
+    expect(content).not.toContain('Emergency shutdown requested');
 
     const state = await page.$eval(
-      '[data-testid="sld-estop-button"]',
-      el => el.getAttribute('data-estop-state')
+      '[data-testid="sld-emergency-shutdown-button"]',
+      el => el.getAttribute('data-shutdown-state')
     );
     expect(state).toBe('idle');
   });

@@ -11,7 +11,7 @@
 
 import type { SiteControlDto } from '@newtown-energy/types';
 
-import { ESTOP_ALARM_NUM } from '../../utils/estopApi';
+import { ESTOP_ALARM_NUM } from '../../config/estop';
 
 /**
  * Alarm points that are equipment positions the diagram owns.

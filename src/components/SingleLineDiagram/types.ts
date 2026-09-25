@@ -51,6 +51,12 @@ export type SwitchVisualState = 'closed' | 'open' | 'locked-out' | 'unknown';
 /** Site-level operational mode driven by E-stop */
 export type OperationalMode = 'normal' | 'e-stop-active';
 
+/**
+ * What the site last reported about its physical E-stop (alarm 104), as the
+ * diagram's E-stop indicator draws it. `unknown` means no reading yet.
+ */
+export type EStopDisplayState = 'normal' | 'tripped' | 'unknown';
+
 /** Direction of active power flow on a wire */
 export type PowerFlowDirection = 'forward' | 'reverse' | 'none';
 

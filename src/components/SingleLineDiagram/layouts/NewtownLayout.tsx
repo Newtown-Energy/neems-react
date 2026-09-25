@@ -1,7 +1,7 @@
 import React from 'react';
 import type { AlarmZoneDto } from '@newtown-energy/types';
 import type { ControlRequestView } from '../../../utils/useSiteControls';
-import type { SldDiagramState, SwitchPosition, SwitchVisualState } from '../types';
+import type { EStopDisplayState, SldDiagramState, SwitchPosition, SwitchVisualState } from '../types';
 import UtilityConnection from '../elements/UtilityConnection';
 import Meter from '../elements/Meter';
 import CircuitBreaker from '../elements/CircuitBreaker';
@@ -12,7 +12,8 @@ import FireAlarmPanel from '../elements/FireAlarmPanel';
 import Switch from '../elements/Switch';
 import Sel451Relay from '../elements/Sel451Relay';
 import LockoutRelay from '../elements/LockoutRelay';
-import EStopButton from '../elements/EStopButton';
+import EmergencyShutdownButton from '../elements/EmergencyShutdownButton';
+import EStopIndicator from '../elements/EStopIndicator';
 import Wire from '../elements/Wire';
 import SiteInfoPanel from '../elements/SiteInfoPanel';
 import { useSiteConfig } from '../../../config/siteConfig';
@@ -42,10 +43,12 @@ export const ZONE_TO_COMPONENT: Record<AlarmZoneDto, string> = {
 
 interface NewtownLayoutProps {
   state: SldDiagramState;
-  /** Called when the E-stop button is clicked. Owner displays the confirm dialog. */
-  onEStopClicked: () => void;
-  /** An E-stop request is recorded but its signal has not reached the site yet. */
-  eStopPending?: boolean;
+  /** Called when the Emergency Shutdown button is clicked. Owner displays the confirm dialog. */
+  onEmergencyShutdownClicked: () => void;
+  /** A shutdown request is recorded but its signal has not reached the site yet. */
+  emergencyShutdownPending?: boolean;
+  /** What the E-stop indicator draws; see [eStopDisplayState]. */
+  eStopState: EStopDisplayState;
   /**
    * Ask a control to do something. A click is a *request to send a signal*, so
    * this is all a click does — the drawn position is not the diagram's to
@@ -108,8 +111,13 @@ const SITE_INFO_Y = 30;
 const SITE_INFO_WIDTH = 530;
 const FACP_X = 1130;
 const FACP_Y = 440;
-const ESTOP_X = 1110;
-const ESTOP_Y = 100;
+// Emergency Shutdown button in the top-right corner, with the site's E-stop
+// state directly beneath it: in the clear band right of the site info block
+// and above the 26.4 kV bus, which ends at x=1060.
+const SHUTDOWN_X = 1110;
+const SHUTDOWN_Y = 90;
+const ESTOP_INDICATOR_X = 1110;
+const ESTOP_INDICATOR_Y = 190;
 
 // Feeder breaker X-positions within each 480V bus
 const BUS1_FEEDER_X = [250, 390, 530];
@@ -159,8 +167,9 @@ function computeSwitchVisualState(
 
 const NewtownLayout: React.FC<NewtownLayoutProps> = ({
   state,
-  onEStopClicked,
-  eStopPending = false,
+  onEmergencyShutdownClicked,
+  emergencyShutdownPending = false,
+  eStopState,
   onControlRequested,
   controlRequestFor,
   controlActionFor,
@@ -454,13 +463,20 @@ const NewtownLayout: React.FC<NewtownLayoutProps> = ({
       {/* Fire Alarm Panel */}
       <FireAlarmPanel x={FACP_X} y={FACP_Y} state={comp('fire-alarm-panel')} />
 
-      {/* E-stop button */}
-      <EStopButton
-        x={ESTOP_X}
-        y={ESTOP_Y}
-        active={state.operationalMode === 'e-stop-active'}
-        pending={eStopPending}
-        onClick={onEStopClicked}
+      {/* Emergency Shutdown request — asks the site to shut down */}
+      <EmergencyShutdownButton
+        x={SHUTDOWN_X}
+        y={SHUTDOWN_Y}
+        eStopActive={state.operationalMode === 'e-stop-active'}
+        pending={emergencyShutdownPending}
+        onClick={onEmergencyShutdownClicked}
+      />
+
+      {/* The site's physical E-stop, as reported by alarm 104 */}
+      <EStopIndicator
+        x={ESTOP_INDICATOR_X}
+        y={ESTOP_INDICATOR_Y}
+        state={eStopState}
       />
     </>
   );

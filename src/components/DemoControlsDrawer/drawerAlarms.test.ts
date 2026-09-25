@@ -7,7 +7,7 @@
 import { describe, expect, test } from 'bun:test';
 import type { SiteControlDto } from '@newtown-energy/types';
 
-import { ESTOP_ALARM_NUM } from '../../utils/estopApi';
+import { ESTOP_ALARM_NUM } from '../../config/estop';
 import {
   drawerAlarmNums,
   listedAlarmNums,
