@@ -7,7 +7,7 @@ import { fetchSiteControls, requestControlAction } from './controlApi';
 import { errorLog } from './debug';
 import { useSiteContext } from './SiteContext';
 
-/** Idle cadence, matching the E-stop's: a request made elsewhere shows up promptly. */
+/** Idle cadence, matching the emergency shutdown request's: a request made elsewhere shows up promptly. */
 const POLL_INTERVAL_MS = 10_000;
 
 /** Cadence while a request is still on its way to the RTAC. */

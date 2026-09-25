@@ -24,6 +24,7 @@ import {
   sldReducer,
   createInitialState,
   diagramFrame,
+  eStopDisplayState,
   defComponent,
   defWire,
 } from './sldState';
@@ -31,7 +32,7 @@ import type { SldAction } from './sldState';
 import type { SldDiagramState } from './types';
 import { useSldAlarms } from './useSldAlarms';
 import { useSldAnalogs } from './useSldAnalogs';
-import type { EstopState } from '../../utils/useEstop';
+import type { EmergencyShutdownRequestState } from '../../utils/useEmergencyShutdownRequest';
 import { SldAlarmRefetchContext } from './SldAlarmRefetchContext';
 import NewtownLayout from './layouts/NewtownLayout';
 import { useSiteContext } from '../../utils/SiteContext';
@@ -48,6 +49,9 @@ const DIAGRAM_HEIGHT = 800;
 // spreadsheet) a component represents, so alarms route to the precise element
 // rather than every component sharing a zone. Tokens with no element yet
 // (`Net`, `M1`/`M2`, `SST-UPS`, `CE_SCADA`, `Estop`) fall back to zone matching.
+// `Estop` stays that way on purpose: the E-stop indicator is drawn from
+// `operationalMode`, not as a component, so it cannot pick up other
+// BreakerRelay alarms through zone fallback.
 const INITIAL_COMPONENTS = [
   defComponent('site', 'Site'),
   defComponent('meter-main', 'Meter', undefined, ['Meter']),
@@ -115,10 +119,10 @@ interface SingleLineDiagramProps {
   /** Callback that receives the diagram state on each render so the parent can read it. */
   onStateChange?: (state: SldDiagramState) => void;
   /**
-   * E-stop request state. Owned by the page so the page can render request
-   * banners from the same polling instance the button reads.
+   * Emergency shutdown request state. Owned by the page so the page can render
+   * request banners from the same polling instance the button reads.
    */
-  estop: EstopState;
+  emergencyShutdown: EmergencyShutdownRequestState;
 }
 
 /**
@@ -128,13 +132,13 @@ interface SingleLineDiagramProps {
 const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({
   onDispatchReady,
   onStateChange,
-  estop,
+  emergencyShutdown,
 }) => {
   const [state, dispatch] = useReducer(sldReducer, INITIAL_STATE);
   const { overrides } = useDemoOverrides();
   const frame = diagramFrame(state, overrides.ignoreStaleData);
   const { selectedSite } = useSiteContext();
-  const [eStopDialogOpen, setEStopDialogOpen] = useState(false);
+  const [shutdownDialogOpen, setShutdownDialogOpen] = useState(false);
   const theme = useTheme();
 
   // Pan/zoom viewer state. TOOL_AUTO gives click-through for buttons/switches
@@ -212,12 +216,12 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({
     stableOnStateChange(state);
   }, [state, stableOnStateChange]);
 
-  // The button's active state comes from `state.operationalMode`, which the
+  // Whether the site is tripped comes from `state.operationalMode`, which the
   // alarm reducer derives from alarm 104 — what the RTAC reports, not anything
-  // the browser decided. Confirming only *requests* a trip.
-  const handleEStopConfirm = async () => {
-    setEStopDialogOpen(false);
-    await estop.trigger();
+  // the browser decided. Confirming only *requests* a shutdown.
+  const handleShutdownConfirm = async () => {
+    setShutdownDialogOpen(false);
+    await emergencyShutdown.trigger();
   };
 
   return (
@@ -287,8 +291,9 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({
             <SldAlarmRefetchContext.Provider value={refetchAlarms}>
               <NewtownLayout
                 state={state}
-                onEStopClicked={() => setEStopDialogOpen(true)}
-                eStopPending={estop.pending || estop.submitting}
+                onEmergencyShutdownClicked={() => setShutdownDialogOpen(true)}
+                emergencyShutdownPending={emergencyShutdown.pending || emergencyShutdown.submitting}
+                eStopState={eStopDisplayState(state, overrides.ignoreStaleData)}
                 onControlRequested={(controlId, action) => {
                   void controls.request(controlId, action);
                 }}
@@ -300,29 +305,29 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({
         </ReactSVGPanZoom>
       )}
 
-      <Dialog open={eStopDialogOpen} onClose={() => setEStopDialogOpen(false)}>
-        <DialogTitle>Request E-Stop?</DialogTitle>
+      <Dialog open={shutdownDialogOpen} onClose={() => setShutdownDialogOpen(false)}>
+        <DialogTitle>Request Emergency Shutdown?</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            This sends an emergency stop signal to the site. The diagram will
-            show the site as stopped only if the RTAC then reports a trip —
-            what the site does with the signal is decided on site, not here.
+            This sends an emergency shutdown request to the site. The diagram
+            will show the site as stopped only if the RTAC then reports a trip
+            — what the site does with the request is decided on site, not here.
             This action should be used only in a genuine emergency.
           </DialogContentText>
           <DialogContentText sx={{ mt: 2 }}>
-            An E-stop cannot be cleared from here — it must be reset at the
-            panel on site.
+            A tripped site cannot be cleared from here — it must be reset at
+            the panel on site.
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setEStopDialogOpen(false)}>Cancel</Button>
+          <Button onClick={() => setShutdownDialogOpen(false)}>Cancel</Button>
           <Button
-            onClick={() => { void handleEStopConfirm(); }}
+            onClick={() => { void handleShutdownConfirm(); }}
             color="error"
             variant="contained"
             autoFocus
           >
-            Request E-Stop
+            Request Emergency Shutdown
           </Button>
         </DialogActions>
       </Dialog>

@@ -51,7 +51,8 @@ import {
 } from '../../utils/alarmApi';
 import { injectDemoHistory } from '../../utils/demoApi';
 import { fetchSiteControls } from '../../utils/controlApi';
-import { ESTOP_ALARM_NUM, fetchEstopStatus } from '../../utils/estopApi';
+import { ESTOP_ALARM_NUM } from '../../config/estop';
+import { fetchEmergencyShutdownStatus } from '../../utils/emergencyShutdownApi';
 import { createPollSequence } from '../../utils/pollSequence';
 import {
   drawerAlarmNums,
@@ -144,7 +145,7 @@ const DemoControlsDrawer: React.FC<DemoControlsDrawerProps> = ({
     siteId: number;
     nums: ReadonlySet<number>;
   } | null>(null);
-  /** Whether the site is tripped, from `/EmergencyStop` — the same authority
+  /** Whether the site is tripped, from `/EmergencyShutdown` — the same authority
    *  the page uses — rather than the drawer's alarm list, which cannot see a
    *  trip that arrived in seeded history. Kept with its site, like the
    *  positions, so a reply for one site can never describe another. */
@@ -256,7 +257,7 @@ const DemoControlsDrawer: React.FC<DemoControlsDrawerProps> = ({
   const refreshEstop = useCallback(async (siteId: number) => {
     const isLatest = estopReads.current.begin();
     try {
-      const status = await fetchEstopStatus(siteId);
+      const status = await fetchEmergencyShutdownStatus(siteId);
       if (isLatest()) setLoadedEstop({ siteId, tripped: status.observed_active });
     } catch (err) {
       errorLog('failed to load E-stop status for the demo drawer', err);
@@ -365,7 +366,7 @@ const DemoControlsDrawer: React.FC<DemoControlsDrawerProps> = ({
     () =>
       [...alarmDefs]
         // Not positions, and not the E-stop: a demo trips through the diagram's
-        // E-STOP button, the same request path a real one takes.
+        // Emergency Shutdown button, the same request path a real one takes.
         .filter(
           d =>
             !forcedAlarmNums.includes(d.alarm_num) &&
@@ -471,7 +472,8 @@ const DemoControlsDrawer: React.FC<DemoControlsDrawerProps> = ({
               )}
               {estopTripped === false && (
                 <Typography variant="caption" color="text.secondary" component="p">
-                  Not tripped. Trip it with the E-STOP button on the diagram.
+                  Not tripped. On a demo, the diagram&apos;s Emergency Shutdown
+                  button trips it.
                 </Typography>
               )}
               {estopTripped === true && (

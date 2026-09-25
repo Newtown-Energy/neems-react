@@ -8,7 +8,13 @@
 import { describe, expect, test } from 'bun:test';
 import type { ActiveAlarmDto, ActiveAlarmsResponse } from '@newtown-energy/types';
 import { STALE_AFTER_SECONDS } from '../../utils/staleness';
-import { sldReducer, createInitialState, defComponent, diagramFrame } from './sldState';
+import {
+  sldReducer,
+  createInitialState,
+  defComponent,
+  diagramFrame,
+  eStopDisplayState,
+} from './sldState';
 
 function makeState() {
   return createInitialState(
@@ -261,6 +267,48 @@ describe('sldReducer E-stop mode', () => {
       }),
     ]);
     expect(state.operationalMode).toBe('e-stop-active');
+  });
+});
+
+describe('eStopDisplayState', () => {
+  const trip = alarm({ alarm_num: 104, zone: 'BreakerRelay', name: 'estop', severity: 'Critical' });
+
+  test('is tripped when the site reports alarm 104', () => {
+    expect(eStopDisplayState(apply([trip]))).toBe('tripped');
+  });
+
+  test('is normal when a reading carries no E-stop', () => {
+    expect(eStopDisplayState(apply([]))).toBe('normal');
+  });
+
+  // Before the first poll, and with no reading behind a poll, the site has
+  // said nothing about the E-stop. "Normal" there would be an all-clear on no
+  // evidence.
+  test('is unknown before any alarm poll has answered', () => {
+    expect(eStopDisplayState(makeState())).toBe('unknown');
+  });
+
+  test('is unknown when no reading carried alarm data', () => {
+    expect(eStopDisplayState(applyAged([], null))).toBe('unknown');
+  });
+
+  test('a reported trip is never hidden as unknown', () => {
+    expect(eStopDisplayState(applyAged([trip], null))).toBe('tripped');
+  });
+
+  // An old "clear" is not current evidence of one. The indicator falls back to
+  // unknown exactly where the diagram frame calls the data stale.
+  test('is unknown when the last poll failed', () => {
+    expect(eStopDisplayState({ ...apply([]), dataStale: true })).toBe('unknown');
+  });
+
+  test('is unknown when the reading has gone stale', () => {
+    expect(eStopDisplayState(applyAged([], 60 * 60))).toBe('unknown');
+  });
+
+  test('the demo bypass forgives an old reading, not a failed poll', () => {
+    expect(eStopDisplayState(applyAged([], 60 * 60), true)).toBe('normal');
+    expect(eStopDisplayState({ ...apply([]), dataStale: true }, true)).toBe('unknown');
   });
 });
 

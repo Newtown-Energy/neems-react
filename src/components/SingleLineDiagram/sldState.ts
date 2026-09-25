@@ -6,13 +6,14 @@ import type {
   ZoneAnalogs,
 } from '@newtown-energy/types';
 import { getSeverityOrder } from '../../utils/alarmHelpers';
-import { ESTOP_ALARM_NUM } from '../../utils/estopApi';
+import { ESTOP_ALARM_NUM } from '../../config/estop';
 import { resolveAlarmSeverity } from '../../config/siteConfig';
 import { staleReason } from '../../utils/staleness';
 import type { StaleReason } from '../../utils/staleness';
 import { READBACKS, derivePositions } from './readbackPositions';
 import type {
   ActiveAlarmSummary,
+  EStopDisplayState,
   OperationalMode,
   SldBorderState,
   SldComponentState,
@@ -208,10 +209,11 @@ function applyAlarms(
   //
   // On `data_active`, for the same reason positions are below, and with one
   // more: the backend already answers this question that way. `observed_active`
-  // on `/EmergencyStop` reads the data axis of alarm 104, so taking mere
-  // presence here would leave the page's own two E-stop indicators contradicting
-  // each other the moment a trip is cleared on site and not yet acknowledged —
-  // one saying the site is stopped, the other that the signal never took.
+  // on `/EmergencyShutdown` reads the data axis of alarm 104, so taking mere
+  // presence here would leave the diagram and the page's shutdown banners
+  // contradicting each other the moment a trip is cleared on site and not yet
+  // acknowledged — one saying the site is stopped, the other that the signal
+  // never took.
   const operationalMode: OperationalMode = alarms.alarms.some(
     (a) => a.alarm_num === ESTOP_ALARM_NUM && a.data_active,
   )
@@ -356,6 +358,28 @@ function staleAnnouncement(reason: StaleReason, hadReading: boolean): string {
     case 'old':
       return 'Site data is stale. The diagram shows the last state the site reported.';
   }
+}
+
+/**
+ * What the E-stop indicator should draw.
+ *
+ * A reported trip wins over everything: a trip the site told us about is never
+ * hidden. Otherwise the indicator says "normal" only on current evidence —
+ * before the first alarm poll, with no reading behind it, with the last poll
+ * failed, or with the reading gone stale, the site has not told us the E-stop
+ * is clear, and drawing "normal" would be claiming an all-clear it never gave.
+ *
+ * `ignoreStaleData` is the demo bypass, as for [diagramFrame]: it forgives an
+ * old reading, but not a failed poll or no reading at all.
+ */
+export function eStopDisplayState(
+  state: Pick<SldDiagramState, 'operationalMode' | 'alarmsLoaded' | 'dataAgeSeconds' | 'dataStale'>,
+  ignoreStaleData = false,
+): EStopDisplayState {
+  if (state.operationalMode === 'e-stop-active') return 'tripped';
+  if (!state.alarmsLoaded) return 'unknown';
+  if (staleReason(state.dataAgeSeconds, state.dataStale, ignoreStaleData)) return 'unknown';
+  return 'normal';
 }
 
 /**
