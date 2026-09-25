@@ -20,6 +20,7 @@ import LoginPage from './pages/LoginPage/LoginPage';
 import { debugLog } from './utils/debug';
 import { SiteProvider } from './utils/SiteContext';
 import { DemoOverridesProvider } from './utils/demoOverrides';
+import { SiteDesignProvider } from './designs/SiteDesignProvider';
 
 /** App-wide banner host. Mounted once at the top of every page so the
  *  same content appears in the same spot regardless of route. Lives
@@ -70,7 +71,10 @@ const AppContent: React.FC = () => {
 
   debugLog('Router: User authenticated, showing main app');
 
+  // Everything past login draws for one site design, chosen by the backend, so
+  // the design is settled before any of it renders. The login page needs none.
   return (
+    <SiteDesignProvider>
     <SiteProvider>
       <DemoOverridesProvider>
       <Box id="authed-ui-box" sx={{ display: 'flex', height: '100vh', width: '100vw', overflow: 'hidden' }}>
@@ -108,6 +112,7 @@ const AppContent: React.FC = () => {
       <DemoControlsDrawer />
       </DemoOverridesProvider>
     </SiteProvider>
+    </SiteDesignProvider>
   );
 };
 

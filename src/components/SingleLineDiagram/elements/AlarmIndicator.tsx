@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { Box, Button, Chip, Popover, Stack, Typography, useTheme } from '@mui/material';
-import { formatAlarmName, getSeverityColor, ZONE_DISPLAY_NAMES } from '../../../utils/alarmHelpers';
+import { formatAlarmName, getSeverityColor, zoneDisplayName } from '../../../utils/alarmHelpers';
 import type { AlarmSeverityDto } from '@newtown-energy/types';
 import { acknowledgeAlarm } from '../../../utils/alarmApi';
 import { errorLog } from '../../../utils/debug';
@@ -254,7 +254,7 @@ const AlarmIndicator: React.FC<AlarmIndicatorProps> = ({ state, offsetX, offsetY
             slotProps={{ paper: { sx: { p: 2, maxWidth: 360 } } }}
           >
             <Typography variant="subtitle2" gutterBottom>
-              {ZONE_DISPLAY_NAMES[state.zone]}
+              {zoneDisplayName(state.zone)}
             </Typography>
             <Typography variant="caption" color="text.secondary" gutterBottom component="div">
               {state.activeAlarmCount} alarm{state.activeAlarmCount !== 1 ? 's' : ''}

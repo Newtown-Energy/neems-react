@@ -25,8 +25,6 @@ import {
   createInitialState,
   diagramFrame,
   eStopDisplayState,
-  defComponent,
-  defWire,
 } from './sldState';
 import type { SldAction } from './sldState';
 import type { SldDiagramState } from './types';
@@ -34,84 +32,11 @@ import { useSldAlarms } from './useSldAlarms';
 import { useSldAnalogs } from './useSldAnalogs';
 import type { EmergencyShutdownRequestState } from '../../utils/useEmergencyShutdownRequest';
 import { SldAlarmRefetchContext } from './SldAlarmRefetchContext';
-import NewtownLayout from './layouts/NewtownLayout';
+import { useSiteDesign } from '../../designs/context';
 import { useSiteContext } from '../../utils/SiteContext';
 import { useDemoOverrides } from '../../utils/demoOverrides';
 import { useSiteControls } from '../../utils/useSiteControls';
 import CurtailmentBadge from './CurtailmentBadge';
-
-const DIAGRAM_WIDTH = 1200;
-const DIAGRAM_HEIGHT = 800;
-
-// --- Initial component definitions for Newtown site ---
-
-// The 4th argument is the set of "Related SLD Object" tokens (from the alarm
-// spreadsheet) a component represents, so alarms route to the precise element
-// rather than every component sharing a zone. Tokens with no element yet
-// (`Net`, `M1`/`M2`, `SST-UPS`, `CE_SCADA`, `Estop`) fall back to zone matching.
-// `Estop` stays that way on purpose: the E-stop indicator is drawn from
-// `operationalMode`, not as a component, so it cannot pick up other
-// BreakerRelay alarms through zone fallback.
-const INITIAL_COMPONENTS = [
-  defComponent('site', 'Site'),
-  defComponent('meter-main', 'Meter', undefined, ['Meter']),
-  // SEL-451 protective relay. Kept under the BreakerRelay zone (it's the
-  // relay that alarms publish against), but rendered as an off-line control
-  // box with dashed supervision lines to the two 89L switches.
-  defComponent('breaker-main', 'BreakerRelay', undefined, ['Relay']),
-  defComponent('switch-89l-1', 'BreakerRelay', 'closed', ['52-MAIN-1']),
-  defComponent('switch-89l-2', 'BreakerRelay', 'closed', ['52-MAIN-2']),
-  defComponent('transformer-1', 'Transformer1', undefined, ['T1']),
-  defComponent('transformer-2', 'Transformer2', undefined, ['T2']),
-  defComponent('rtac', 'Rtac'),
-  defComponent('fire-alarm-panel', 'Facp', undefined, ['FACP']),
-  defComponent('tesla-site-controller', 'TeslaSiteController'),
-  defComponent('megapack-1a', 'Mp1a', undefined, ['MP-1A']),
-  defComponent('megapack-1b', 'Mp1b', undefined, ['MP-1B']),
-  defComponent('megapack-1c', 'Mp1c', undefined, ['MP-1C']),
-  defComponent('megapack-2a', 'Mp2a', undefined, ['MP-2A']),
-  defComponent('megapack-2b', 'Mp2b', undefined, ['MP-2B']),
-  defComponent('megapack-2c', 'Mp2c', undefined, ['MP-2C']),
-  defComponent('feeder-1a', 'TeslaSiteController', 'closed'),
-  defComponent('feeder-1b', 'TeslaSiteController', 'closed'),
-  defComponent('feeder-1c', 'TeslaSiteController', 'closed'),
-  defComponent('feeder-2a', 'TeslaSiteController', 'closed'),
-  defComponent('feeder-2b', 'TeslaSiteController', 'closed'),
-  defComponent('feeder-2c', 'TeslaSiteController', 'closed'),
-  // Lockout relay — physical breaker-control handle driven by the SEL-451.
-  // Shares the BreakerRelay zone for alarm mapping. 'closed' = CLOSE (normal),
-  // 'open' = TRIP (breaker tripped / locked out).
-  defComponent('lockout-relay', 'BreakerRelay', 'closed', ['LOR']),
-];
-
-const INITIAL_WIRES = [
-  defWire('wire-util-bus', 'site', 'bus-26kv'),
-  defWire('wire-bus26-sw1', 'bus-26kv', 'switch-89l-1'),
-  defWire('wire-bus26-sw2', 'bus-26kv', 'switch-89l-2'),
-  defWire('wire-sw1-t1', 'switch-89l-1', 'transformer-1'),
-  defWire('wire-sw2-t2', 'switch-89l-2', 'transformer-2'),
-  defWire('wire-t1-bus480-1', 'transformer-1', 'bus-480-1'),
-  defWire('wire-t2-bus480-2', 'transformer-2', 'bus-480-2'),
-  defWire('wire-bus480-feeder-0', 'bus-480-1', 'feeder-1a'),
-  defWire('wire-bus480-feeder-1', 'bus-480-1', 'feeder-1b'),
-  defWire('wire-bus480-feeder-2', 'bus-480-1', 'feeder-1c'),
-  defWire('wire-bus480-feeder-3', 'bus-480-2', 'feeder-2a'),
-  defWire('wire-bus480-feeder-4', 'bus-480-2', 'feeder-2b'),
-  defWire('wire-bus480-feeder-5', 'bus-480-2', 'feeder-2c'),
-  defWire('wire-feeder-mega-0', 'feeder-1a', 'megapack-1a'),
-  defWire('wire-feeder-mega-1', 'feeder-1b', 'megapack-1b'),
-  defWire('wire-feeder-mega-2', 'feeder-1c', 'megapack-1c'),
-  defWire('wire-feeder-mega-3', 'feeder-2a', 'megapack-2a'),
-  defWire('wire-feeder-mega-4', 'feeder-2b', 'megapack-2b'),
-  defWire('wire-feeder-mega-5', 'feeder-2c', 'megapack-2c'),
-  // Control (dashed) wires — supervision/command paths, not power
-  defWire('wire-sel-sw1', 'breaker-main', 'switch-89l-1'),
-  defWire('wire-sel-sw2', 'breaker-main', 'switch-89l-2'),
-  defWire('wire-sel-lockout', 'breaker-main', 'lockout-relay'),
-  defWire('wire-facp', 'fire-alarm-panel', 'transformer-2'),
-];
-
-const INITIAL_STATE = createInitialState(INITIAL_COMPONENTS, INITIAL_WIRES);
 
 interface SingleLineDiagramProps {
   /** Callback that receives the dispatch function so the parent can send actions. */
@@ -127,14 +52,19 @@ interface SingleLineDiagramProps {
 
 /**
  * Top-level Single Line Diagram component.
- * Manages diagram state via useReducer and renders the site layout inside an SVG.
+ * Manages diagram state via useReducer and renders the session's site design's
+ * layout inside an SVG.
  */
 const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({
   onDispatchReady,
   onStateChange,
   emergencyShutdown,
 }) => {
-  const [state, dispatch] = useReducer(sldReducer, INITIAL_STATE);
+  const design = useSiteDesign();
+  const { width: diagramWidth, height: diagramHeight, Layout } = design.diagram;
+  const [state, dispatch] = useReducer(sldReducer, design, (d) =>
+    createInitialState(d.diagram.components, d.diagram.wires),
+  );
   const { overrides } = useDemoOverrides();
   const frame = diagramFrame(state, overrides.ignoreStaleData);
   const { selectedSite } = useSiteContext();
@@ -160,14 +90,14 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({
     const update = () => {
       const w = el.clientWidth;
       if (w > 0) {
-        setViewerSize({ width: w, height: w * (DIAGRAM_HEIGHT / DIAGRAM_WIDTH) });
+        setViewerSize({ width: w, height: w * (diagramHeight / diagramWidth) });
       }
     };
     update();
     const observer = new ResizeObserver(update);
     observer.observe(el);
     return () => observer.disconnect();
-  }, []);
+  }, [diagramWidth, diagramHeight]);
 
   // Whenever the viewer's pixel dimensions change, re-fit the diagram to it.
   useEffect(() => {
@@ -230,7 +160,7 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({
       sx={{
         width: '100%',
         maxWidth: '100%',
-        aspectRatio: `${DIAGRAM_WIDTH} / ${DIAGRAM_HEIGHT}`,
+        aspectRatio: `${diagramWidth} / ${diagramHeight}`,
         mx: 'auto',
         position: 'relative',
         overflow: 'hidden',
@@ -287,9 +217,9 @@ const SingleLineDiagram: React.FC<SingleLineDiagramProps> = ({
           scaleFactorMax={6}
           toolbarProps={{ position: POSITION_RIGHT }}
         >
-          <svg width={DIAGRAM_WIDTH} height={DIAGRAM_HEIGHT}>
+          <svg width={diagramWidth} height={diagramHeight}>
             <SldAlarmRefetchContext.Provider value={refetchAlarms}>
-              <NewtownLayout
+              <Layout
                 state={state}
                 onEmergencyShutdownClicked={() => setShutdownDialogOpen(true)}
                 emergencyShutdownPending={emergencyShutdown.pending || emergencyShutdown.submitting}

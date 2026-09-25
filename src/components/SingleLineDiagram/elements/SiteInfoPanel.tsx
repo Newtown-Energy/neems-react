@@ -1,35 +1,26 @@
 import React from 'react';
 import { useTheme } from '@mui/material';
 import { SLD_FONT } from '../sldTypography';
-
-// Site identity is intentionally abstracted with placeholder values so the SLD
-// can be shown/demoed without revealing the real site, address, or the
-// utility/developer involved. Replace with real values only in a private build.
-const PROJECT_INFO = {
-  name: 'Demo BESS 1A',
-  address: '123 Example St, Anytown, NY 10001',
-  codDate: 'June 2026',
-  bessRating: '5 MW / 23.5 MWh',
-  utilityProjectCode: '—',
-  developerProjectNumber: '—',
-};
+import type { ProjectInfo } from '../../../designs/types';
 
 /**
  * Fields by column, left to right. The address gets a column to itself
  * because it is the one value long enough to wrap; the shorter pairs stack
  * beside it, which keeps the block wide and short.
  */
-const COLUMNS: Array<Array<[string, string]>> = [
-  [['Address', PROJECT_INFO.address]],
-  [
-    ['COD Date', PROJECT_INFO.codDate],
-    ['BESS Rating', PROJECT_INFO.bessRating],
-  ],
-  [
-    ['Utility Project Code', PROJECT_INFO.utilityProjectCode],
-    ['Developer Project #', PROJECT_INFO.developerProjectNumber],
-  ],
-];
+function columnsFor(info: ProjectInfo): Array<Array<[string, string]>> {
+  return [
+    [['Address', info.address]],
+    [
+      ['COD Date', info.codDate],
+      ['BESS Rating', info.bessRating],
+    ],
+    [
+      ['Utility Project Code', info.utilityProjectCode],
+      ['Developer Project #', info.developerProjectNumber],
+    ],
+  ];
+}
 
 const PAD = 10;
 const TITLE_BASELINE = PAD + SLD_FONT.label;
@@ -67,6 +58,8 @@ interface SiteInfoPanelProps {
   x: number;
   y: number;
   width: number;
+  /** The site identity to show; each design supplies its own. */
+  info: ProjectInfo;
 }
 
 /**
@@ -74,9 +67,10 @@ interface SiteInfoPanelProps {
  * equipment it describes. Sits in the open band beside the utility feed, laid
  * out wide and short, each label above its value.
  */
-const SiteInfoPanel: React.FC<SiteInfoPanelProps> = ({ x, y, width }) => {
+const SiteInfoPanel: React.FC<SiteInfoPanelProps> = ({ x, y, width, info }) => {
   const theme = useTheme();
-  const colWidth = (width - PAD * 2) / COLUMNS.length;
+  const columnsSpec = columnsFor(info);
+  const colWidth = (width - PAD * 2) / columnsSpec.length;
   const maxChars = Math.floor(
     (colWidth - COL_GUTTER) / (SLD_FONT.subtitle * CHAR_WIDTH_RATIO),
   );
@@ -84,7 +78,7 @@ const SiteInfoPanel: React.FC<SiteInfoPanelProps> = ({ x, y, width }) => {
   // Lay each column out top-down first, so the panel sizes itself to the
   // tallest column rather than guessing a height the values may not fit in.
   let contentBottom = FIELDS_TOP;
-  const columns = COLUMNS.map((fields, col) => {
+  const columns = columnsSpec.map((fields, col) => {
     let cursor = FIELDS_TOP;
     const cells = fields.map(([label, value]) => {
       const labelBaseline = cursor + SLD_FONT.subtitle;
@@ -115,7 +109,7 @@ const SiteInfoPanel: React.FC<SiteInfoPanelProps> = ({ x, y, width }) => {
         fontWeight="bold"
         fill={theme.palette.text.primary}
       >
-        {PROJECT_INFO.name}
+        {info.name}
       </text>
       {columns.map(({ columnX, cells }) =>
         cells.map(({ label, labelBaseline, lines }) => (

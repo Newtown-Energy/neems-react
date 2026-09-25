@@ -1,16 +1,15 @@
 // Per-site configuration toggles.
 //
-// For the SLD feedback round (Phase 1) these live as hardcoded constants.
-// Phase 2 will wrap this in a `useSiteConfig()` hook with the same shape so
-// that a later effort can swap in a DB-backed source without touching
-// consumers. Keep the surface narrow and strongly typed.
+// Each site design supplies its own (see `src/designs/<id>/config.ts`); these
+// accessors read the session's design. Keep the surface narrow and strongly
+// typed.
 
 import type { AlarmSeverityDto } from '@newtown-energy/types';
+import { activeDesign } from '../designs/active';
+import { useSiteDesign } from '../designs/context';
 
 export interface SiteConfig {
   sld: {
-    /** Render the 52-M1 main breaker on the SLD. */
-    showMainBreaker52M1: boolean;
     /** Render the lockout relay on the SLD (off the SEL-451). */
     showLockoutRelay: boolean;
   };
@@ -25,35 +24,21 @@ export interface SiteConfig {
   alarmLevelOverrides: Record<number, AlarmSeverityDto>;
 }
 
-export const SITE_CONFIG: SiteConfig = {
-  sld: {
-    showMainBreaker52M1: true,
-    showLockoutRelay: true,
-  },
-  lockout: {
-    remoteTriggerEnabled: false,
-  },
-  alarmLevelOverrides: {},
-};
-
 /**
  * Apply any configured severity override for a given alarm. Returns the
  * original severity if no override is set.
+ *
+ * Reads the session's design directly rather than through a hook, because the
+ * diagram reducer and page-level sorting call it outside any component.
  */
 export function resolveAlarmSeverity(
   alarmNum: number,
   severity: AlarmSeverityDto,
 ): AlarmSeverityDto {
-  return SITE_CONFIG.alarmLevelOverrides[alarmNum] ?? severity;
+  return activeDesign().config.alarmLevelOverrides[alarmNum] ?? severity;
 }
 
-/**
- * Read the active per-site configuration. Returns the hardcoded SITE_CONFIG
- * constants today; a later effort will swap the body for an API call (e.g.
- * fetching per-site settings from the backend) without forcing any call site
- * to change — so consumers that render with configurable behavior should
- * always use this hook rather than importing SITE_CONFIG directly.
- */
+/** The session's per-site configuration. */
 export function useSiteConfig(): SiteConfig {
-  return SITE_CONFIG;
+  return useSiteDesign().config;
 }

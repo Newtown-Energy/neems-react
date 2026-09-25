@@ -50,7 +50,8 @@ import {
 } from '../utils/alarmApi';
 import {
   ALARM_CATEGORY_ORDER,
-  ZONE_DISPLAY_NAMES,
+  zoneDisplayName,
+  zoneDisplayNames,
   formatAlarmName,
   getSeverityColor,
   getSeverityOrder,
@@ -67,7 +68,6 @@ export const pageConfig = {
 };
 
 const SEVERITY_OPTIONS: AlarmSeverityDto[] = ['Emergency', 'Critical', 'Warning', 'Info'];
-const ZONE_OPTIONS: AlarmZoneDto[] = Object.keys(ZONE_DISPLAY_NAMES) as AlarmZoneDto[];
 
 const POLL_INTERVAL_MS = 10_000;
 
@@ -111,6 +111,9 @@ type SortKey = 'activations' | 'name' | 'severity' | 'zone';
 type SortDir = 'asc' | 'desc';
 
 const AlarmsPage: React.FC = () => {
+  // The session's design names the zones; read at render, not module load,
+  // because the design is chosen after the app starts.
+  const zoneOptions = Object.keys(zoneDisplayNames()) as AlarmZoneDto[];
   const [data, setData] = useState<ActiveAlarmsResponse | null>(null);
   const [definitions, setDefinitions] = useState<AlarmDefinitionsResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -274,7 +277,7 @@ const AlarmsPage: React.FC = () => {
         case 'severity':
           return (getSeverityOrder(a.severity) - getSeverityOrder(b.severity)) * dir;
         case 'zone':
-          return ZONE_DISPLAY_NAMES[a.zone].localeCompare(ZONE_DISPLAY_NAMES[b.zone]) * dir;
+          return zoneDisplayName(a.zone).localeCompare(zoneDisplayName(b.zone)) * dir;
         case 'name':
           return a.name.localeCompare(b.name) * dir;
       }
@@ -398,9 +401,9 @@ const AlarmsPage: React.FC = () => {
               onChange={(e) => setZoneFilter(e.target.value)}
             >
               <MenuItem value="">All Zones</MenuItem>
-              {ZONE_OPTIONS.map((zone) => (
+              {zoneOptions.map((zone) => (
                 <MenuItem key={zone} value={zone}>
-                  {ZONE_DISPLAY_NAMES[zone]}
+                  {zoneDisplayName(zone)}
                 </MenuItem>
               ))}
             </Select>
@@ -593,7 +596,7 @@ const AlarmsPage: React.FC = () => {
                         </Typography>
                       )}
                     </TableCell>
-                    <TableCell>{ZONE_DISPLAY_NAMES[alarm.zone]}</TableCell>
+                    <TableCell>{zoneDisplayName(alarm.zone)}</TableCell>
                     <TableCell>
                       <Chip
                         label={alarm.severity}

@@ -242,6 +242,34 @@ try {
 }
 ```
 
+## Site Designs
+
+Everything that differs from one site to the next lives in a **site design**
+under `src/designs/<id>/`, described by the `SiteDesign` interface
+(`src/designs/types.ts`): the single line diagram's layout, tracked components
+and wires, size, and readback points; which alarm is the E-stop and which a
+fire department sees; zone names and categories; and the per-site config
+toggles. Newtown is the only design today.
+
+- **The backend chooses.** neems-core runs one design per deployment
+  (`NEEMS_SITE_DESIGN`) and reports its id at `GET /api/1/SiteDesign`.
+  `SiteDesignProvider` (mounted in `App.tsx` past login) fetches it, looks it up
+  in the registry (`src/designs/index.ts`), and renders its children only once
+  it has a design. An id this build lacks, or an E-stop alarm number the
+  backend disagrees with, shows an error — never another site's diagram. A
+  failed fetch shows an error too, and retries on its own with backoff.
+- **Reading it.** Components use `useSiteDesign()` (from
+  `src/designs/context.ts`, kept apart from the provider so a design's own
+  layout can import it without a cycle). Code outside React (the SLD
+  reducer, `resolveAlarmSeverity`, `estopAlarmNum()`, `zoneDisplayName()`, the
+  demo drawer's helpers) uses `activeDesign()` from `src/designs/active.ts`,
+  which the provider sets before rendering. Read it at call time, never at
+  module load: the design is chosen after the app starts.
+- **Adding a design:** create `src/designs/<id>/` exporting a `SiteDesign`
+  whose `id` matches the backend's, register it in `src/designs/index.ts`, and
+  implement its layout against `SldLayoutProps`
+  (`src/components/SingleLineDiagram/layoutProps.ts`).
+
 ## Component Patterns
 
 ### Page Components
@@ -683,6 +711,7 @@ bun run lint:eslint  # Without Docker
 Unit-test conventions:
 - Co-locate the test next to the module it covers: `src/utils/foo.ts` ↔ `src/utils/foo.test.ts`.
 - Bun's test env has no DOM. If the module touches `sessionStorage`, `localStorage`, `window`, etc., install an in-memory shim at the top of the test file (see `alarmAcknowledge.test.ts` for the pattern).
+- Unit tests run against the Newtown site design: `bunfig.toml` preloads `src/designs/testSetup.ts`, which selects it the way `SiteDesignProvider` would, with no network call.
 
 ### Building for Production
 

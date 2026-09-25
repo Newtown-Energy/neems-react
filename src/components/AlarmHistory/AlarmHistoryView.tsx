@@ -31,7 +31,7 @@ import type {
 } from '@newtown-energy/types';
 import { fetchActiveAlarms, fetchAlarmDefinitions, fetchAlarmHistory } from '../../utils/alarmApi';
 import {
-  ZONE_DISPLAY_NAMES,
+  zoneDisplayName,
   formatAlarmName,
   getSeverityColor,
 } from '../../utils/alarmHelpers';
@@ -276,7 +276,7 @@ const AlarmHistoryView: React.FC<AlarmHistoryViewProps> = ({
       return [
         new Date(entry.timestamp).toISOString(),
         formatAlarmName(entry.name),
-        ZONE_DISPLAY_NAMES[entry.zone],
+        zoneDisplayName(entry.zone),
         severity,
         EVENT_LABEL[entry.event],
         entry.acknowledged_by_email ?? '',
@@ -354,7 +354,7 @@ const AlarmHistoryView: React.FC<AlarmHistoryViewProps> = ({
                       color="text.secondary"
                       sx={{ ml: 1 }}
                     >
-                      {ZONE_DISPLAY_NAMES[d.zone]}
+                      {zoneDisplayName(d.zone)}
                     </Typography>
                   </MenuItem>
                 ))}
@@ -433,7 +433,7 @@ const AlarmHistoryView: React.FC<AlarmHistoryViewProps> = ({
                         >
                           <TableCell>{new Date(entry.timestamp).toLocaleString()}</TableCell>
                           <TableCell>{formatAlarmName(entry.name)}</TableCell>
-                          <TableCell>{ZONE_DISPLAY_NAMES[entry.zone]}</TableCell>
+                          <TableCell>{zoneDisplayName(entry.zone)}</TableCell>
                           <TableCell>
                             <Chip
                               label={severity}

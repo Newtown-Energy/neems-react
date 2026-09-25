@@ -1,6 +1,6 @@
 import React from 'react';
 import AlarmHistoryView from '../components/AlarmHistory/AlarmHistoryView';
-import { FIRE_ALARM_NUMS } from '../config/fireAlarms';
+import { useSiteDesign } from '../designs/context';
 
 export const pageConfig = {
   id: 'fdny',
@@ -17,7 +17,9 @@ export const pageConfig = {
  * to a responding crew, and the filter dropdown narrows within the fire set
  * rather than back out of it.
  */
-const FDNYPage: React.FC = () => (
+const FDNYPage: React.FC = () => {
+  const { alarms } = useSiteDesign();
+  return (
   <AlarmHistoryView
     title="FDNY"
     description={
@@ -26,9 +28,10 @@ const FDNYPage: React.FC = () => (
       'The most recent transition for each alarm is highlighted "CURRENT" when ' +
       "it reflects today's active/cleared state."
     }
-    restrictToAlarmNums={FIRE_ALARM_NUMS}
+    restrictToAlarmNums={alarms.fireAlarmNums}
     csvFilePrefix="fdny-fire-alarms"
   />
-);
+  );
+};
 
 export default FDNYPage;

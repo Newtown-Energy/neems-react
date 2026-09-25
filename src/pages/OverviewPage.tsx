@@ -4,7 +4,7 @@ import { CheckCircle, Dashboard } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import type { ActiveAlarmsResponse } from '@newtown-energy/types';
 import { fetchActiveAlarms } from '../utils/alarmApi';
-import { formatAlarmName, getSeverityColor, getSeverityOrder, ZONE_DISPLAY_NAMES } from '../utils/alarmHelpers';
+import { formatAlarmName, getSeverityColor, getSeverityOrder, zoneDisplayName } from '../utils/alarmHelpers';
 import { useSiteContext } from '../utils/SiteContext';
 import { errorLog } from '../utils/debug';
 import SocMiniChart from '../components/SocMiniChart/SocMiniChart';
@@ -150,7 +150,7 @@ const OverviewPage: React.FC = () => {
                     {topAlarms.map((alarm) => (
                       <TableRow key={alarm.alarm_num}>
                         <TableCell>{formatAlarmName(alarm.name)}</TableCell>
-                        <TableCell>{ZONE_DISPLAY_NAMES[alarm.zone]}</TableCell>
+                        <TableCell>{zoneDisplayName(alarm.zone)}</TableCell>
                         <TableCell>
                           <Chip
                             label={alarm.severity}

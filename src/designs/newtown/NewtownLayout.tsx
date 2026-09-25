@@ -1,71 +1,22 @@
 import React from 'react';
-import type { AlarmZoneDto } from '@newtown-energy/types';
-import type { ControlRequestView } from '../../../utils/useSiteControls';
-import type { EStopDisplayState, SldDiagramState, SwitchPosition, SwitchVisualState } from '../types';
-import UtilityConnection from '../elements/UtilityConnection';
-import Meter from '../elements/Meter';
-import CircuitBreaker from '../elements/CircuitBreaker';
-import Transformer from '../elements/Transformer';
-import BusBar from '../elements/BusBar';
-import Megapack from '../elements/Megapack';
-import FireAlarmPanel from '../elements/FireAlarmPanel';
-import Switch from '../elements/Switch';
-import Sel451Relay from '../elements/Sel451Relay';
-import LockoutRelay from '../elements/LockoutRelay';
-import EmergencyShutdownButton from '../elements/EmergencyShutdownButton';
-import EStopIndicator from '../elements/EStopIndicator';
-import Wire from '../elements/Wire';
-import SiteInfoPanel from '../elements/SiteInfoPanel';
-import { useSiteConfig } from '../../../config/siteConfig';
-
-/**
- * Zone-to-component ID mapping for the Newtown site. Several SLD components
- * share a zone because the backend publishes alarms at a coarser granularity
- * than the diagram. E.g. both line switches compose their visual state from
- * the BreakerRelay and Facp zones rather than having dedicated zones.
- */
-export const ZONE_TO_COMPONENT: Record<AlarmZoneDto, string> = {
-  Site: 'site',
-  BreakerRelay: 'breaker-main',
-  Meter: 'meter-main',
-  Transformer1: 'transformer-1',
-  Transformer2: 'transformer-2',
-  Rtac: 'rtac',
-  Facp: 'fire-alarm-panel',
-  TeslaSiteController: 'tesla-site-controller',
-  Mp1a: 'megapack-1a',
-  Mp1b: 'megapack-1b',
-  Mp1c: 'megapack-1c',
-  Mp2a: 'megapack-2a',
-  Mp2b: 'megapack-2b',
-  Mp2c: 'megapack-2c',
-};
-
-interface NewtownLayoutProps {
-  state: SldDiagramState;
-  /** Called when the Emergency Shutdown button is clicked. Owner displays the confirm dialog. */
-  onEmergencyShutdownClicked: () => void;
-  /** A shutdown request is recorded but its signal has not reached the site yet. */
-  emergencyShutdownPending?: boolean;
-  /** What the E-stop indicator draws; see [eStopDisplayState]. */
-  eStopState: EStopDisplayState;
-  /**
-   * Ask a control to do something. A click is a *request to send a signal*, so
-   * this is all a click does — the drawn position is not the diagram's to
-   * change, and moves only when the site reports that it moved.
-   */
-  onControlRequested: (controlId: string, action: string) => void;
-  /** What became of the last request against a control, for its badge. */
-  controlRequestFor: (controlId: string) => ControlRequestView | null;
-  /**
-   * The action a click on this element should ask for, or `null` if the
-   * backend does not offer one — in which case the element takes no click at
-   * all rather than sending a request that will be refused. Also `null` before
-   * the first poll returns, so nothing is clickable until we know what the
-   * site accepts.
-   */
-  controlActionFor: (controlId: string, position: SwitchPosition | undefined) => string | null;
-}
+import type { SldLayoutProps } from '../../components/SingleLineDiagram/layoutProps';
+import type { SldDiagramState, SwitchVisualState } from '../../components/SingleLineDiagram/types';
+import UtilityConnection from '../../components/SingleLineDiagram/elements/UtilityConnection';
+import Meter from '../../components/SingleLineDiagram/elements/Meter';
+import CircuitBreaker from '../../components/SingleLineDiagram/elements/CircuitBreaker';
+import Transformer from '../../components/SingleLineDiagram/elements/Transformer';
+import BusBar from '../../components/SingleLineDiagram/elements/BusBar';
+import Megapack from '../../components/SingleLineDiagram/elements/Megapack';
+import FireAlarmPanel from '../../components/SingleLineDiagram/elements/FireAlarmPanel';
+import Switch from '../../components/SingleLineDiagram/elements/Switch';
+import Sel451Relay from '../../components/SingleLineDiagram/elements/Sel451Relay';
+import LockoutRelay from '../../components/SingleLineDiagram/elements/LockoutRelay';
+import EmergencyShutdownButton from '../../components/SingleLineDiagram/elements/EmergencyShutdownButton';
+import EStopIndicator from '../../components/SingleLineDiagram/elements/EStopIndicator';
+import Wire from '../../components/SingleLineDiagram/elements/Wire';
+import SiteInfoPanel from '../../components/SingleLineDiagram/elements/SiteInfoPanel';
+import { useSiteConfig } from '../../config/siteConfig';
+import { PROJECT_INFO } from './diagram';
 
 // --- Layout coordinates (viewBox 1200x800) ---
 // Top→bottom flow:
@@ -165,7 +116,7 @@ function computeSwitchVisualState(
   return pos === 'open' ? 'open' : 'closed';
 }
 
-const NewtownLayout: React.FC<NewtownLayoutProps> = ({
+const NewtownLayout: React.FC<SldLayoutProps> = ({
   state,
   onEmergencyShutdownClicked,
   emergencyShutdownPending = false,
@@ -380,7 +331,7 @@ const NewtownLayout: React.FC<NewtownLayoutProps> = ({
       <UtilityConnection x={UTIL_X} y={UTIL_Y} state={comp('site')} label="Utility" />
 
       {/* Site identity, in the open band right of the utility feed */}
-      <SiteInfoPanel x={SITE_INFO_X} y={SITE_INFO_Y} width={SITE_INFO_WIDTH} />
+      <SiteInfoPanel x={SITE_INFO_X} y={SITE_INFO_Y} width={SITE_INFO_WIDTH} info={PROJECT_INFO} />
 
       {/* Meter (SEL-735 with CT tap at main line) */}
       <Meter

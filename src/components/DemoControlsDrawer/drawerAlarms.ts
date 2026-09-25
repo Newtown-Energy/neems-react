@@ -11,7 +11,7 @@
 
 import type { SiteControlDto } from '@newtown-energy/types';
 
-import { ESTOP_ALARM_NUM } from '../../config/estop';
+import { estopAlarmNum } from '../../config/estop';
 
 /**
  * Alarm points that are equipment positions the diagram owns.
@@ -48,7 +48,8 @@ export function drawerAlarmNums(
  * would offer two different-looking ways to do one thing.
  */
 export function listedAlarmNums(drawerAlarms: readonly number[]): number[] {
-  return drawerAlarms.filter((num) => num !== ESTOP_ALARM_NUM);
+  const estop = estopAlarmNum();
+  return drawerAlarms.filter((num) => num !== estop);
 }
 
 /**
@@ -60,7 +61,8 @@ export function listedAlarmNums(drawerAlarms: readonly number[]): number[] {
  * from, so the list alone would leave the site tripped after a Reset.
  */
 export function resetAlarmNums(drawerAlarms: readonly number[], estopTripped: boolean): number[] {
-  return estopTripped && !drawerAlarms.includes(ESTOP_ALARM_NUM)
-    ? [...drawerAlarms, ESTOP_ALARM_NUM]
+  const estop = estopAlarmNum();
+  return estopTripped && !drawerAlarms.includes(estop)
+    ? [...drawerAlarms, estop]
     : [...drawerAlarms];
 }
